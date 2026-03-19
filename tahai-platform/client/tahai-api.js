@@ -188,27 +188,11 @@ async function doLogin() {
       return;
     }
 
-    // ─── Fallback: orijinal hash-based auth ──────────────────────────────────
-    const hash = await _sha256(pass);
-    if (typeof _U !== 'undefined' && _U[userInput] && _U[userInput] === hash) {
-      const token = _genToken(userInput);
-      sessionStorage.setItem('_st', token);
-      sessionStorage.setItem('_su', userInput);
-      document.getElementById('loginOverlay').style.display = 'none';
-      errEl.style.display = 'none';
-      const saved = _loadApiKey();
-      if (saved) {
-        if (typeof apiKey !== 'undefined') apiKey = saved;
-        const el = document.getElementById('apiKey');
-        if (el) el.value = '●'.repeat(16) + saved.slice(-4);
-      }
-      setTimeout(() => cloudLoad().catch(() => {}), 300);
-    } else {
-      await new Promise(r => setTimeout(r, 1000));
-      errEl.style.display = 'block';
-      document.getElementById('loginPass').value = '';
-      document.getElementById('loginPass').focus();
-    }
+    // Backend kapalı veya giriş başarısız
+    await new Promise(r => setTimeout(r, 1000));
+    errEl.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Giriş Yap'; }
   }
