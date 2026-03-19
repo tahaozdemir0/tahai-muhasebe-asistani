@@ -293,9 +293,13 @@
 </div>
 
 <script>
-  // Zaten giriş yapmışsa ana sayfaya yönlendir
+  // Token varsa geçerli mi kontrol et, geçerliyse ana sayfaya yönlendir
   const token = localStorage.getItem('tahai_token');
-  if (token) window.location.href = '/';
+  if (token) {
+    fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(r => { if (r.ok) window.location.href = '/'; })
+      .catch(() => {});
+  }
 
   function switchTab(tab) {
     document.querySelectorAll('.tab').forEach((t, i) => {
