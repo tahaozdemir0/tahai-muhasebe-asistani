@@ -6,12 +6,33 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+// Input temizleme — HTML tag strip
+function strip(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/<[^>]*>/g, '').trim().substring(0, 500);
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { email, password, ad, kullanici_adi } = req.body;
+  const email        = strip(req.body.email || '').toLowerCase();
+  const password     = req.body.password || '';
+  const kullanici_adi = strip(req.body.kullanici_adi || '').toLowerCase();
+  const ad           = strip(req.body.ad || '').substring(0, 100);
 
-  if (!email || !password || !kullanici_adi) {
-    return res.status(400).json({ error: 'Email, kullanıcı adı ve şifre zorunlu' });
+  // Email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Geçerli bir email adresi girin' });
+  }
+  // Şifre
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'Şifre en az 8 karakter olmalı' });
+  }
+  // Kullanıcı adı
+  if (!kullanici_adi) {
+    return res.status(400).json({ error: 'Kullanıcı adı zorunlu' });
+  }
+  if (!/^[a-z0-9_]{3,30}$/.test(kullanici_adi)) {
+    return res.status(400).json({ error: 'Kullanıcı adı 3-30 karakter, sadece harf/rakam/alt çizgi' });
   }
 
   // Email var mı kontrol et
@@ -51,7 +72,7 @@ router.post('/register', async (req, res) => {
   const token = jwt.sign(
     { id: user.id, email: user.email, rol: user.rol },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '24h' }
   );
 
   res.status(201).json({ token, user });
@@ -59,10 +80,14 @@ router.post('/register', async (req, res) => {
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const email    = strip(req.body.email || '').toLowerCase();
+  const password = req.body.password || '';
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email ve şifre zorunlu' });
+    return res.status(400).json({ error: 'Email/kullanıcı adı ve şifre zorunlu' });
+  }
+  if (password.length > 200) {
+    return res.status(400).json({ error: 'Geçersiz istek' });
   }
 
   // Email veya kullanıcı adıyla giriş
@@ -89,7 +114,7 @@ router.post('/login', async (req, res) => {
   const token = jwt.sign(
     { id: user.id, email: user.email, rol: user.rol },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '24h' }
   );
 
   const { password_hash, ...safeUser } = user;

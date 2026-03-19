@@ -1878,79 +1878,10 @@
 <div class="notif" id="notif"></div>
 
 <script>
-// ===================== SUPABASE =====================
-const SB_URL = 'https://plpegexejpmmxwvgwngq.supabase.co';
-const SB_KEY = 'sb_publishable_4cxg-exHPyGZgaY2Bxvghg_yJUBbeqm';
-
-async function sbGet(table, filter) {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, {
-    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-  });
-  if (!r.ok) throw new Error('SB GET ' + r.status);
-  return r.json();
-}
-
-async function sbUpsert(table, data) {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates'
-    },
-    body: JSON.stringify(data)
-  });
-  if (!r.ok) throw new Error('SB UPSERT ' + await r.text());
-}
-
-async function cloudSave() {
-  const kullanici = sessionStorage.getItem('_su') || 'taha';
-  try {
-    await sbUpsert('kullanici_verileri', {
-      kullanici,
-      fis_data: JSON.stringify(fisData),
-      z_data: JSON.stringify(zData),
-      fatura_data: JSON.stringify(faturaData),
-      mukellef: JSON.stringify(mukellefler),
-      fatura_arsiv: localStorage.getItem('luca_fatura_arsiv') || '{}',
-      guncelleme: new Date().toISOString()
-    });
-    const el = document.getElementById('cloudStatus');
-    if (el) el.textContent = '☁️ ' + new Date().toLocaleTimeString('tr-TR');
-    return true;
-  } catch(e) {
-    console.warn('[CloudSave]', e.message);
-    return false;
-  }
-}
-
-async function cloudLoad() {
-  const kullanici = sessionStorage.getItem('_su') || 'taha';
-  try {
-    const rows = await sbGet('kullanici_verileri', `kullanici=eq.${kullanici}&limit=1`);
-    if (!rows || rows.length === 0) return false;
-    const v = rows[0];
-    if (v.fis_data)    { fisData = JSON.parse(v.fis_data); renderFisTable(); }
-    if (v.z_data)      { zData = JSON.parse(v.z_data); renderZTable(); }
-    if (v.fatura_data) { faturaData = JSON.parse(v.fatura_data); }
-    if (v.mukellef)    { mukellefler = JSON.parse(v.mukellef); renderMukellefler(); }
-    if (v.fatura_arsiv) { localStorage.setItem('luca_fatura_arsiv', v.fatura_arsiv); }
-    if (v.api_key_enc) {
-      localStorage.setItem('_lk', v.api_key_enc);
-      apiKey = _loadApiKey();
-      if (apiKey) document.getElementById('apiKey').value = '●'.repeat(16) + apiKey.slice(-4);
-    }
-    document.getElementById('statFis').textContent = fisData.length;
-    document.getElementById('statZ').textContent = zData.length;
-    showNotif('☁️ Veriler buluttan yüklendi!', 'success');
-    return true;
-  } catch(e) {
-    console.warn('[CloudLoad]', e.message);
-    return false;
-  }
-}
-// ===================== SUPABASE SON =====================
+// ===================== CLOUD SYNC (tahai-api.js tarafından override edilir) =====================
+async function cloudSave() { return false; }
+async function cloudLoad() { return false; }
+// ===================== CLOUD SYNC SON =====================
 
 // ===================== STATE =====================
 let apiKey = '';
@@ -4717,88 +4648,15 @@ function fmt(n) {
   return (Math.round((n||0)*100)/100).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
-// ===================== LOGIN =====================
-// Kullanıcı adı ve şifreler - istediğin gibi değiştirebilirsin
-// Kullanıcı şifreleri SHA-256 ile saklanmıştır
-// Düz metin şifreler kaynak kodda yoktur
-const _U = {
-  'taha': '1965646abf19f445cb1fa12abbc875a6bc6fc0c56df5261013b673ad66b5b8fd',
-  'patron': '0490537906e872405d9ddfd76f58676fe267bb8655f6b097011e9931963346d9',
-  'admin': '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'
-};
-
-// SHA-256 implementasyonu (Web Crypto API)
-async function _sha256(msg) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-// Session token oluştur
-function _genToken(user) {
-  const ts = Date.now();
-  const raw = user + ts + navigator.userAgent.slice(0,20);
-  // Basit token — XOR karıştırma
-  let tok = '';
-  for(let i=0; i<raw.length; i++) tok += (raw.charCodeAt(i) ^ 0x5A).toString(16).padStart(2,'0');
-  return tok.slice(0,32) + ts.toString(36);
-}
-
-
-// API key XOR çözme helper
-function _loadApiKey() {
-  const _xk = [0x4C,0x55,0x43,0x41,0x5F,0x53,0x45,0x43];
-  const enc = localStorage.getItem('_lk') || '';
-  if (enc) {
-    try {
-      const key = enc.match(/.{2}/g).map((h,i) => String.fromCharCode(parseInt(h,16) ^ _xk[i%_xk.length])).join('');
-      if (key.startsWith('sk-ant-')) return key;
-    } catch(e) {}
-  }
-  return '';
-}
+// ===================== LOGIN (tahai-api.js tarafından override edilir) =====================
+function _loadApiKey() { return ''; }
 function _checkSession() {
-  const tok = sessionStorage.getItem('_st');
-  const usr = sessionStorage.getItem('_su');
-  if (!tok || !usr) return false;
-  // Token geçerli mi? Son 8 saatte oluşturulmuş mu?
-  try {
-    const ts = parseInt(tok.slice(32), 36);
-    return (Date.now() - ts) < 8 * 60 * 60 * 1000;
-  } catch(e) { return false; }
+  return !!(sessionStorage.getItem('_jwt') || sessionStorage.getItem('_st'));
 }
-
 async function doLogin() {
-  const user = document.getElementById('loginUser').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPass').value;
+  // tahai-api.js bu fonksiyonu override eder
   const errEl = document.getElementById('loginError');
-  const btn = document.querySelector('#loginOverlay button');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
-
-  try {
-    const hash = await _sha256(pass);
-    if (_U[user] && _U[user] === hash) {
-      // Session token oluştur
-      const token = _genToken(user);
-      sessionStorage.setItem('_st', token);
-      sessionStorage.setItem('_su', user);
-      document.getElementById('loginOverlay').style.display = 'none';
-      errEl.style.display = 'none';
-      const saved = _loadApiKey();
-      if (saved) {
-        apiKey = saved;
-        document.getElementById('apiKey').value = saved ? '●'.repeat(16) + saved.slice(-4) : '';
-      }
-      setTimeout(() => cloudLoad().catch(() => {}), 300);
-    } else {
-      // Hatalı giriş — 1 saniye beklet (brute force önlemi)
-      await new Promise(r => setTimeout(r, 1000));
-      errEl.style.display = 'block';
-      document.getElementById('loginPass').value = '';
-      document.getElementById('loginPass').focus();
-    }
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Giriş Yap'; }
-  }
+  if (errEl) errEl.style.display = 'block';
 }
 
 function logout() {
@@ -4816,7 +4674,8 @@ function toggleAdminPanel() {
 
 init();
 </script>
-<!-- TahAI Backend Bridge: backend açıksa JWT auth + API proxy, kapalıysa eski yöntem -->
+<!-- TahAI Backend Bridge -->
+<script>window.TAHAI_API_BASE = '';</script>
 <script src="/tahai-api.js"></script>
 </body>
 </html>
