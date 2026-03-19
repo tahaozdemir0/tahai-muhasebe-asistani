@@ -21,21 +21,10 @@ const PORT = process.env.PORT || 3001;
 // X-Powered-By kaldır
 app.disable('x-powered-by');
 
-// Helmet — güvenlik başlıkları
+// Helmet — güvenlik başlıkları (CSP devre dışı — legacy HTML inline handler'ları için)
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'", "'unsafe-inline'"],  // HTML inline script için gerekli
-      styleSrc:    ["'self'", "'unsafe-inline'"],
-      imgSrc:      ["'self'", "data:", "blob:"],
-      connectSrc:  ["'self'", "https://api.anthropic.com"],
-      fontSrc:     ["'self'", "data:"],
-      objectSrc:   ["'none'"],
-      frameSrc:    ["'none'"],
-    }
-  },
-  crossOriginEmbedderPolicy: false  // Base64 görseller için
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
 
 // CORS
