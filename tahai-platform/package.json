@@ -1,0 +1,14 @@
+{
+  "name": "tahai-platform",
+  "version": "1.1.0",
+  "description": "TahAI Muhasebe Asistani Platform",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "install": "cd server && npm install"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
