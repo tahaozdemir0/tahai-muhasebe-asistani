@@ -65,11 +65,13 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Email ve şifre zorunlu' });
   }
 
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, email, ad, rol, password_hash, aktif')
-    .eq('email', email)
-    .single();
+  // Email veya kullanıcı adıyla giriş
+  const isEmail = email.includes('@');
+  const query = supabase.from('users').select('id, email, ad, kullanici_adi, rol, password_hash, aktif');
+  const { data: user, error } = await (isEmail
+    ? query.eq('email', email)
+    : query.eq('kullanici_adi', email)
+  ).single();
 
   if (error || !user) {
     return res.status(401).json({ error: 'Email veya şifre hatalı' });
