@@ -19,6 +19,16 @@ const _API_BASE = (typeof window !== 'undefined' && window.TAHAI_API_BASE)
   ? window.TAHAI_API_BASE
   : 'http://localhost:3001';
 
+// /giris sayfasından gelen JWT token'ı sessionStorage'a aktar
+(function() {
+  const lsToken = localStorage.getItem('tahai_token');
+  if (lsToken && !sessionStorage.getItem('_jwt')) {
+    sessionStorage.setItem('_jwt', lsToken);
+    const user = JSON.parse(localStorage.getItem('tahai_user') || '{}');
+    sessionStorage.setItem('_su', user.ad || user.kullanici_adi || user.email || '');
+  }
+})();
+
 // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
 
 function _tJwt() {
@@ -148,20 +158,25 @@ async function doLogin() {
     // Backend auth
     let backendOk = false;
     if (await _backendOnline()) {
-      try {
-        const data = await _tFetch('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email: userInput + '@tahai.local', password: pass })
-        });
-        sessionStorage.setItem('_jwt', data.token);
-        sessionStorage.setItem('_su',  data.user.ad || userInput);
-        backendOk = true;
-      } catch (e) {
-        // 401 = yanlış şifre, diğerleri = kullanıcı henüz backend'de yok
-        if (e.message.includes('401') || e.message.includes('hatalı')) {
-          // Kesinlikle yanlış şifre, yerel auth'u da dene
-        } else {
-          console.info('[TahAPI] Backend auth:', e.message);
+      // Önce direkt email olarak dene, sonra @tahai.local ekleyerek dene
+      const emailCandidates = userInput.includes('@')
+        ? [userInput]
+        : [userInput, userInput + '@tahai.local'];
+
+      for (const emailTry of emailCandidates) {
+        try {
+          const data = await _tFetch('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email: emailTry, password: pass })
+          });
+          sessionStorage.setItem('_jwt', data.token);
+          sessionStorage.setItem('_su',  data.user.ad || data.user.kullanici_adi || userInput);
+          localStorage.setItem('tahai_token', data.token);
+          localStorage.setItem('tahai_user', JSON.stringify(data.user));
+          backendOk = true;
+          break;
+        } catch (e) {
+          console.info('[TahAPI] Backend auth deneme:', emailTry, e.message);
         }
       }
     }
