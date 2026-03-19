@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TahAI — Giriş / Kayıt</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -1px;
+    }
+
+    .logo h1 span { color: #6c63ff; }
+
+    .logo p {
+      color: #888;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3e;
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .tabs {
+      display: flex;
+      background: #0f1117;
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      transition: all 0.2s;
+      border: none;
+      background: none;
+    }
+
+    .tab.active {
+      background: #6c63ff;
+      color: #fff;
+    }
+
+    .form { display: none; }
+    .form.active { display: block; }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2a2d3e;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input:focus { border-color: #6c63ff; }
+
+    input::placeholder { color: #444; }
+
+    .btn {
+      width: 100%;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:hover { background: #5b53ee; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { background: #333; cursor: not-allowed; }
+
+    .error-msg {
+      background: #2d1b1b;
+      border: 1px solid #5c2626;
+      color: #ff6b6b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .success-msg {
+      background: #1b2d1b;
+      border: 1px solid #265c26;
+      color: #6bff6b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: #444;
+      font-size: 12px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #2a2d3e;
+    }
+
+    .hint {
+      text-align: center;
+      font-size: 12px;
+      color: #555;
+      margin-top: 20px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .password-wrapper {
+      position: relative;
+    }
+
+    .toggle-pw {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #555;
+      font-size: 18px;
+      background: none;
+      border: none;
+      padding: 4px;
+    }
+
+    .toggle-pw:hover { color: #888; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo">
+    <h1>Tah<span>AI</span></h1>
+    <p>Yapay Zeka Destekli Muhasebe Asistanı</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('giris')">Giriş Yap</button>
+      <button class="tab" onclick="switchTab('kayit')">Kayıt Ol</button>
+    </div>
+
+    <!-- GİRİŞ FORMU -->
+    <div class="form active" id="form-giris">
+      <div class="error-msg" id="giris-error"></div>
+      <div class="success-msg" id="giris-success"></div>
+
+      <div class="form-group">
+        <label>Email Adresi</label>
+        <input type="email" id="giris-email" placeholder="ornek@mail.com" autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label>Şifre</label>
+        <div class="password-wrapper">
+          <input type="password" id="giris-sifre" placeholder="Şifrenizi girin" autocomplete="current-password">
+          <button class="toggle-pw" onclick="togglePw('giris-sifre', this)">👁</button>
+        </div>
+      </div>
+
+      <button class="btn" id="giris-btn" onclick="girisYap()">Giriş Yap</button>
+
+      <div class="hint">
+        Hesabın yok mu?
+        <a href="#" onclick="switchTab('kayit')" style="color:#6c63ff;">Kayıt ol</a>
+      </div>
+    </div>
+
+    <!-- KAYIT FORMU -->
+    <div class="form" id="form-kayit">
+      <div class="error-msg" id="kayit-error"></div>
+      <div class="success-msg" id="kayit-success"></div>
+
+      <div class="form-group">
+        <label>Ad Soyad</label>
+        <input type="text" id="kayit-ad" placeholder="Adınız Soyadınız" autocomplete="name">
+      </div>
+
+      <div class="form-group">
+        <label>Kullanıcı Adı</label>
+        <input type="text" id="kayit-kullanici" placeholder="kullanici_adi" autocomplete="username"
+          oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '')">
+        <div style="font-size:11px;color:#555;margin-top:4px;">Sadece harf, rakam ve alt çizgi (_)</div>
+      </div>
+
+      <div class="form-group">
+        <label>Email Adresi</label>
+        <input type="email" id="kayit-email" placeholder="ornek@mail.com" autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label>Şifre</label>
+        <div class="password-wrapper">
+          <input type="password" id="kayit-sifre" placeholder="En az 6 karakter" autocomplete="new-password">
+          <button class="toggle-pw" onclick="togglePw('kayit-sifre', this)">👁</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Şifre Tekrar</label>
+        <div class="password-wrapper">
+          <input type="password" id="kayit-sifre2" placeholder="Şifrenizi tekrar girin" autocomplete="new-password">
+          <button class="toggle-pw" onclick="togglePw('kayit-sifre2', this)">👁</button>
+        </div>
+      </div>
+
+      <button class="btn" id="kayit-btn" onclick="kayitOl()">Hesap Oluştur</button>
+
+      <div class="hint">
+        Zaten hesabın var mı?
+        <a href="#" onclick="switchTab('giris')" style="color:#6c63ff;">Giriş yap</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Zaten giriş yapmışsa ana sayfaya yönlendir
+  const token = localStorage.getItem('tahai_token');
+  if (token) window.location.href = '/';
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'giris') || (i === 1 && tab === 'kayit'));
+    });
+    document.getElementById('form-giris').classList.toggle('active', tab === 'giris');
+    document.getElementById('form-kayit').classList.toggle('active', tab === 'kayit');
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+  }
+
+  function showSuccess(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+    }
+  }
+
+  async function girisYap() {
+    const email = document.getElementById('giris-email').value.trim();
+    const password = document.getElementById('giris-sifre').value;
+    const btn = document.getElementById('giris-btn');
+
+    if (!email || !password) return showError('giris-error', 'Email ve şifre zorunlu');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Giriş yapılıyor...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError('giris-error', data.error || 'Giriş başarısız');
+        return;
+      }
+
+      localStorage.setItem('tahai_token', data.token);
+      localStorage.setItem('tahai_user', JSON.stringify(data.user));
+      showSuccess('giris-success', 'Giriş başarılı! Yönlendiriliyorsunuz...');
+      setTimeout(() => window.location.href = '/', 800);
+
+    } catch (e) {
+      showError('giris-error', 'Sunucuya bağlanılamadı');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Giriş Yap';
+    }
+  }
+
+  async function kayitOl() {
+    const ad = document.getElementById('kayit-ad').value.trim();
+    const kullanici_adi = document.getElementById('kayit-kullanici').value.trim();
+    const email = document.getElementById('kayit-email').value.trim();
+    const password = document.getElementById('kayit-sifre').value;
+    const password2 = document.getElementById('kayit-sifre2').value;
+    const btn = document.getElementById('kayit-btn');
+
+    if (!kullanici_adi) return showError('kayit-error', 'Kullanıcı adı zorunlu');
+    if (!email) return showError('kayit-error', 'Email zorunlu');
+    if (!password) return showError('kayit-error', 'Şifre zorunlu');
+    if (password.length < 6) return showError('kayit-error', 'Şifre en az 6 karakter olmalı');
+    if (password !== password2) return showError('kayit-error', 'Şifreler eşleşmiyor');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Hesap oluşturuluyor...';
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, ad, kullanici_adi })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError('kayit-error', data.error || 'Kayıt başarısız');
+        return;
+      }
+
+      localStorage.setItem('tahai_token', data.token);
+      localStorage.setItem('tahai_user', JSON.stringify(data.user));
+      showSuccess('kayit-success', 'Hesabınız oluşturuldu! Yönlendiriliyorsunuz...');
+      setTimeout(() => window.location.href = '/', 800);
+
+    } catch (e) {
+      showError('kayit-error', 'Sunucuya bağlanılamadı');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Hesap Oluştur';
+    }
+  }
+
+  // Enter tuşu desteği
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    if (document.getElementById('form-giris').classList.contains('active')) girisYap();
+    else kayitOl();
+  });
+</script>
+
+</body>
+</html>

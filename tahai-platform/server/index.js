@@ -44,6 +44,11 @@ app.use('/api/fatura',   faturaRoutes);
 app.use('/api/claude',   claudeRoutes);
 app.use('/api/sync',     syncRoutes);
 
+// Giriş/Kayıt sayfası
+app.get('/giris', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/auth.html'));
+});
+
 // SPA fallback — /api olmayan tüm istekler index.html'e
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/index.html'));

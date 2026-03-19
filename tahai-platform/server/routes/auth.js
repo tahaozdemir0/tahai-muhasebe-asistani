@@ -8,29 +8,40 @@ const router = express.Router();
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { email, password, ad } = req.body;
+  const { email, password, ad, kullanici_adi } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email ve şifre zorunlu' });
+  if (!email || !password || !kullanici_adi) {
+    return res.status(400).json({ error: 'Email, kullanıcı adı ve şifre zorunlu' });
   }
 
   // Email var mı kontrol et
-  const { data: existing } = await supabase
+  const { data: existingEmail } = await supabase
     .from('users')
     .select('id')
     .eq('email', email)
     .single();
 
-  if (existing) {
+  if (existingEmail) {
     return res.status(409).json({ error: 'Bu email zaten kayıtlı' });
+  }
+
+  // Kullanıcı adı var mı kontrol et
+  const { data: existingUsername } = await supabase
+    .from('users')
+    .select('id')
+    .eq('kullanici_adi', kullanici_adi)
+    .single();
+
+  if (existingUsername) {
+    return res.status(409).json({ error: 'Bu kullanıcı adı zaten alınmış' });
   }
 
   const password_hash = await bcrypt.hash(password, 10);
 
   const { data: user, error } = await supabase
     .from('users')
-    .insert({ email, password_hash, ad: ad || '' })
-    .select('id, email, ad, rol')
+    .insert({ email, password_hash, ad: ad || kullanici_adi, kullanici_adi })
+    .select('id, email, ad, kullanici_adi, rol')
     .single();
 
   if (error) {
