@@ -182,7 +182,8 @@ async function doLogin() {
     }
 
     if (backendOk) {
-      document.getElementById('loginOverlay').style.display = 'none';
+      if (typeof _showApp === 'function') _showApp();
+      else document.getElementById('loginOverlay').style.display = 'none';
       errEl.style.display = 'none';
       setTimeout(() => cloudLoad().catch(() => {}), 300);
       return;

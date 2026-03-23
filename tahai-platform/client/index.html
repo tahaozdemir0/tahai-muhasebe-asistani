@@ -805,7 +805,7 @@
   </div>
 </div>
 
-<header>
+<header id="appHeader" style="display:none">
   <div class="logo">
     <div class="logo-icon">LM</div>
     <div>
@@ -829,7 +829,7 @@
   <button class="api-btn" onclick="saveApiKey()">Kaydet</button>
 </div>
 
-<main>
+<main id="appMain" style="display:none">
   <div class="sidebar">
     <div class="sidebar-label">Modüller</div>
     <div class="sidebar-item active" onclick="showPage('z-raporu')">
@@ -1074,7 +1074,7 @@
         <div class="tabs">
           <button class="tab active" onclick="switchFaturaTab('excel')">Excel / CSV Yükle</button>
           <button class="tab" onclick="switchFaturaTab('gorsel')">Görsel / PDF</button>
-          <button class="tab" onclick="switchFaturaTab('karsilastir')" style="color:var(--accent2);">🔄 Luca ↔ Uyumsoft Karşılaştır</button>
+          <button class="tab" onclick="switchFaturaTab('karsilastir')" style="color:var(--accent2);">🔄 Luca ↔ Fatura Entegratörü Karşılaştır</button>
           <button class="tab" onclick="switchFaturaTab('isle')" style="color:var(--accent3);">📋 Fatura İşle</button>
         </div>
 
@@ -1194,11 +1194,11 @@
               <div id="lucaFileInfo" style="font-size:12px; color:var(--accent2); margin-top:6px;"></div>
             </div>
             <div>
-              <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px; text-transform:uppercase;">📥 Uyumsoft Dosyası</div>
+              <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px; text-transform:uppercase;">📥 Fatura Entegratörü Dosyası</div>
               <div class="upload-zone" style="padding:20px;" id="uyumsoftUploadZone">
                 <input type="file" id="uyumsoftFile" accept=".xlsx,.xls,.csv" onchange="handleKarsFile('uyumsoft', this.files)" />
                 <div class="upload-icon" style="font-size:28px;">📋</div>
-                <div class="upload-text" style="font-size:13px;">Uyumsoft'tan indirdiğin dosya — <span>tıkla</span></div>
+                <div class="upload-text" style="font-size:13px;">Fatura Entegratörü'nden indirdiğin dosya — <span>tıkla</span></div>
               </div>
               <div id="uyumsoftFileInfo" style="font-size:12px; color:var(--accent2); margin-top:6px;"></div>
             </div>
@@ -2011,7 +2011,7 @@ function formatSayi(n) {
 async function init() {
   // Session token kontrolü — geçerli session varsa login gösterme
   if (_checkSession()) {
-    document.getElementById('loginOverlay').style.display = 'none';
+    _showApp();
     const saved = _loadApiKey();
     if (saved) { apiKey = saved; document.getElementById('apiKey').value = saved ? '●'.repeat(16) + saved.slice(-4) : ''; }
   }
@@ -2704,6 +2704,93 @@ function fisKaydet(idx) {
 }
 
 // ===================== FATURALAR =====================
+async function processFisler() {
+  if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
+  if (fisFiles.length === 0) return;
+
+  const mukellef = document.getElementById('fisMukellef')?.value || 'Bilinmiyor';
+  const donem = document.getElementById('fisDonem').value;
+  const total = fisFiles.length;
+
+  document.getElementById('fisBtn').disabled = true;
+  document.getElementById('fisSpinner').style.display = 'inline-block';
+  document.getElementById('fisLog').innerHTML = '';
+
+  const newRows = [];
+  try {
+    for (let i = 0; i < total; i++) {
+      const f = fisFiles[i];
+
+      try { checkFileSize(f); } catch(sizeErr) {
+        log('fisLog', sizeErr.message, 'err');
+        showNotif(sizeErr.message, 'error');
+        continue;
+      }
+
+      setProgressWithText('fisProgressWrap', 'fisProgress', 'fisProgressFill', 'fisProgressText', i + 1, total);
+      log('fisLog', `${f.name} işleniyor... (${i+1}/${total})`, 'info');
+
+      try {
+        const prompt = `Bu görselde harcama fişleri (market, akaryakıt, restoran, ofis malzemesi vb.) var.
+Görseldeki HER fişi ayrı ayrı oku ve SADECE JSON array olarak döndür, başka hiçbir metin yazma:
+[
+  {
+    "tarih": "GG.AA.YYYY formatında",
+    "fis_turu": "Market / Akaryakıt / Restoran / Kırtasiye / Diğer",
+    "satici": "satıcı firma adı",
+    "kdv_orani": 20,
+    "matrah": 0,
+    "kdv_tutari": 0,
+    "toplam": 0
+  }
+]
+KURALLAR:
+- Her fişi ayrı obje olarak yaz
+- kdv_orani: 1, 10 veya 20 — eğer belli değilse 20 yaz
+- matrah = toplam - kdv_tutari (eğer matrah ayrıca yazılmamışsa)
+- Tüm sayıları noktalı ondalık sayı olarak ver (örn: 125.50)
+- Tarih yoksa bugünün tarihini yaz`;
+
+        const raw = await callClaude(prompt, f);
+        const parsed = safeParseJSON(raw);
+        const rows = Array.isArray(parsed) ? parsed : [parsed];
+
+        rows.forEach(r => {
+          r.tarih = normalizeTarih(r.tarih);
+          r.mukellef = mukellef;
+          r.donem = donem;
+          r.dosya = f.name;
+          r.fis_turu = normalizeFisTuru(r.fis_turu || '');
+          r.muhasebe_kodu = (muhasebeCodes[r.fis_turu] || muhasebeCodes['Diğer']).kod;
+          newRows.push(r);
+        });
+
+        log('fisLog', `✓ ${f.name}: ${rows.length} fiş okundu`, 'ok');
+      } catch(e) {
+        const sadeMesaj = logHata('Fiş', e, f.name);
+        log('fisLog', `✗ ${f.name} işlenemedi: ${sadeMesaj}`, 'err');
+      }
+    }
+
+    fisData = [...fisData, ...newRows];
+    renderFisTable();
+    updateFisTotals();
+    document.getElementById('statFis').textContent = fisData.length;
+    autoSave();
+    if (newRows.length > 0) {
+      showNotif(`✅ ${newRows.length} fiş işlendi!`, 'success');
+      document.getElementById('fisResult').classList.add('visible');
+    } else {
+      showNotif('⚠️ Hiç fiş okunamadı.', 'error');
+    }
+  } catch(globalErr) {
+    showNotif('❌ İşlem hatası: ' + globalErr.message, 'error');
+  } finally {
+    document.getElementById('fisBtn').disabled = false;
+    document.getElementById('fisSpinner').style.display = 'none';
+  }
+}
+
 async function processFaturalar() {
   if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
   if (faturaFiles.length === 0) return;
@@ -4651,7 +4738,13 @@ function fmt(n) {
 // ===================== LOGIN (tahai-api.js tarafından override edilir) =====================
 function _loadApiKey() { return ''; }
 function _checkSession() {
-  return !!(sessionStorage.getItem('_jwt') || sessionStorage.getItem('_st'));
+  return !!(sessionStorage.getItem('_jwt') || sessionStorage.getItem('_st') || localStorage.getItem('tahai_token'));
+}
+
+function _showApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appHeader').style.display = '';
+  document.getElementById('appMain').style.display = '';
 }
 async function doLogin() {
   // tahai-api.js bu fonksiyonu override eder
@@ -4660,9 +4753,14 @@ async function doLogin() {
 }
 
 function logout() {
+  sessionStorage.removeItem('_jwt');
+  sessionStorage.removeItem('_st');
+  localStorage.removeItem('tahai_token');
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('appHeader').style.display = 'none';
+  document.getElementById('appMain').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'none';
 }
 
