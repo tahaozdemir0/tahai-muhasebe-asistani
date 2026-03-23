@@ -1144,7 +1144,7 @@
             <div class="result-header">
               <div class="result-title">📄 Okunan Faturalar <span class="badge" id="faturaIsleCount">0 kayıt</span></div>
               <div style="display:flex; gap:8px;">
-                <button class="btn btn-success" onclick="faturaIsleExcel()">⬇️ Luca CSV İndir</button>
+                <button class="btn btn-success" onclick="faturaIsleExcel()">⬇️ Luca Excel İndir</button>
                 <button class="btn btn-primary" onclick="faturaIsleMukellefKaydet()" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">💾 Mükellefe Kaydet</button>
                 <button class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);" onclick="faturaIsleSifirla()">🗑️ Temizle</button>
               </div>
@@ -3631,18 +3631,20 @@ function faturaIsleMukellefDoldur() {
 function faturaIsleEkle(files) {
   faturaIsleFiles = [...faturaIsleFiles, ...Array.from(files)];
   renderFileList(faturaIsleFiles, 'faturaIsleFileList', 'faturaIsleRemove');
-  document.getElementById('faturaIsleBtn').disabled = faturaIsleFiles.length === 0 || !_loadApiKey();
+  const aktif = faturaIsleFiles.length > 0 && (_loadApiKey() || sessionStorage.getItem('_jwt') || localStorage.getItem('tahai_token'));
+  document.getElementById('faturaIsleBtn').disabled = !aktif;
 }
 
 function faturaIsleRemove(idx) {
   faturaIsleFiles.splice(idx, 1);
   renderFileList(faturaIsleFiles, 'faturaIsleFileList', 'faturaIsleRemove');
-  document.getElementById('faturaIsleBtn').disabled = faturaIsleFiles.length === 0 || !_loadApiKey();
+  const aktif = faturaIsleFiles.length > 0 && (_loadApiKey() || sessionStorage.getItem('_jwt') || localStorage.getItem('tahai_token'));
+  document.getElementById('faturaIsleBtn').disabled = !aktif;
 }
 
 async function faturaIsleIsle() {
-  const apiKey = _loadApiKey();
-  if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
+  const hasAuth = _loadApiKey() || sessionStorage.getItem('_jwt') || localStorage.getItem('tahai_token');
+  if (!hasAuth) { showNotif('❌ Önce giriş yap veya API anahtarını gir!', 'error'); return; }
   if (faturaIsleFiles.length === 0) return;
 
   const mukellef = document.getElementById('faturaIsleMukellef').value || '';
@@ -3660,37 +3662,47 @@ async function faturaIsleIsle() {
     log('faturaIsleLog', `${f.name} işleniyor... (${i+1}/${faturaIsleFiles.length})`, 'info');
 
     try {
-      const prompt = `Bu bir ${turAd} faturasıdır. Faturadan şu bilgileri çıkar ve SADECE JSON array olarak döndür, başka hiçbir şey yazma:
+      const prompt = `Bu bir ${turAd} faturasıdır. Faturadan aşağıdaki bilgileri çıkar ve SADECE JSON array olarak döndür, başka hiçbir metin yazma:
 [
   {
-    "fatura_no": "fatura numarası",
-    "tarih": "GG.AA.YYYY formatında",
-    "firma": "firma/şirket adı",
-    "vkn_tckn": "VKN veya TCKN numarası, sadece rakamlar",
+    "fatura_no": "fatura numarası (e-fatura, e-arşiv veya kağıt fatura numarası)",
+    "tarih": "GG.AA.YYYY formatında fatura tarihi",
+    "firma": "satıcı firma veya şirket adı (tam unvan)",
+    "vkn_tckn": "VKN veya TCKN, sadece rakamlar",
     "kdv_orani": 20,
     "matrah": 0,
     "kdv_tutari": 0,
     "toplam": 0,
-    "aciklama": "fatura konusu veya mal/hizmet açıklaması"
+    "aciklama": "fatura konusu — mal/hizmet kısa açıklaması"
   }
 ]
-Eğer birden fazla KDV oranı varsa her satır için ayrı obje oluştur.
-Sayıları nokta değil virgülle yazıyorsa düzelt, sayısal değer olarak ver.`;
+ÖNEMLİ KURALLAR:
+- kdv_orani MUTLAKA tespit et: %1, %10 veya %20 olabilir — faturada "KDV %10" veya "Kdv Tutarı (%10)" gibi yazar
+- Eğer faturada birden fazla KDV oranı varsa (örn hem %10 hem %20 kalem var) her KDV oranı için AYRI bir obje oluştur
+- matrah = KDV HARİÇ tutar (KDV matrahı)
+- kdv_tutari = sadece KDV miktarı
+- toplam = matrah + kdv_tutari (KDV DAHİL genel toplam)
+- Tüm sayıları noktalı ondalık format ile ver: 1250.50 gibi (virgül değil nokta)
+- tarih formatı mutlaka GG.AA.YYYY olsun (örn: 15.03.2026)`;
 
       const raw = await callClaude(prompt, f);
-      const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
+      const parsed = safeParseJSON(raw);
       const rows = Array.isArray(parsed) ? parsed : [parsed];
 
       rows.forEach(r => {
         r.mukellef = mukellef;
         r.tur = turAd;
-        r.hesap_kodu = tur === 'alis' ? '153.01' : '600.01'; // default
+        r.hesap_kodu = tur === 'alis' ? '153.01' : '600.01';
+        r.tarih = normalizeTarih(r.tarih || '');
+        r.kdv_orani = Number(r.kdv_orani) || 20;
+        r.matrah = Number(r.matrah) || 0;
+        r.kdv_tutari = Number(r.kdv_tutari) || 0;
+        r.toplam = Number(r.toplam) || (r.matrah + r.kdv_tutari);
         r._kdvOk = Math.abs((r.matrah * r.kdv_orani / 100) - r.kdv_tutari) < 1;
       });
 
       newRows.push(...rows);
-      log('faturaIsleLog', `✓ ${f.name}: ${rows.length} fatura okundu`, 'ok');
+      log('faturaIsleLog', `✓ ${f.name}: ${rows.length} fatura satırı okundu`, 'ok');
     } catch(e) {
       log('faturaIsleLog', `✗ ${f.name} okunamadı: ${e.message}`, 'err');
     }
@@ -3701,7 +3713,8 @@ Sayıları nokta değil virgülle yazıyorsa düzelt, sayısal değer olarak ver
 
   document.getElementById('faturaIsleBtn').disabled = false;
   document.getElementById('faturaIsleSpinner').style.display = 'none';
-  showNotif(`✅ ${newRows.length} fatura okundu!`, 'success');
+  if (newRows.length > 0) showNotif(`✅ ${newRows.length} fatura satırı okundu!`, 'success');
+  else showNotif('⚠️ Hiç fatura okunamadı.', 'error');
 }
 
 function faturaIsleRenderTable() {
@@ -3709,8 +3722,10 @@ function faturaIsleRenderTable() {
   const tur = document.getElementById('faturaIsleTur').value;
   const kodlar = tur === 'alis' ? HESAP_KODLARI_ALIS : HESAP_KODLARI_SATIS;
 
+  const editStyle = 'background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 5px;font-size:11px;width:100%;min-width:60px;';
+
   tbody.innerHTML = faturaIsleData.map((r, idx) => {
-    const kdvRenk = r._kdvOk ? '' : 'background:rgba(251,191,36,0.08);';
+    const kdvRenk = r._kdvOk ? '' : 'background:rgba(251,191,36,0.06);';
     const kdvUyari = r._kdvOk ? '' : ' ⚠️';
     const kodOptions = kodlar.map(k =>
       `<option value="${k.kod}" ${r.hesap_kodu === k.kod ? 'selected' : ''}>${k.kod} — ${k.ad}</option>`
@@ -3718,19 +3733,25 @@ function faturaIsleRenderTable() {
 
     return `<tr style="${kdvRenk}">
       <td><span class="kdv-badge" style="background:${r.tur==='Alış'?'rgba(79,142,247,0.15)':'rgba(52,211,153,0.15)'}; color:${r.tur==='Alış'?'var(--accent)':'var(--accent2)'};">${r.tur}</span></td>
-      <td style="font-family:'IBM Plex Mono',monospace; font-size:11px;">${r.fatura_no||'-'}</td>
-      <td>${r.tarih||'-'}</td>
-      <td style="font-weight:600;">${r.firma||'-'}</td>
-      <td style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text3);">${r.vkn_tckn||'-'}</td>
+      <td><input style="${editStyle}" value="${(r.fatura_no||'').replace(/"/g,"'")}" onchange="faturaIsleData[${idx}].fatura_no=this.value" /></td>
+      <td><input style="${editStyle}width:90px;" value="${r.tarih||''}" onchange="faturaIsleData[${idx}].tarih=this.value" /></td>
+      <td><input style="${editStyle}min-width:120px;" value="${(r.firma||'').replace(/"/g,"'")}" onchange="faturaIsleData[${idx}].firma=this.value" /></td>
+      <td><input style="${editStyle}width:95px;" value="${r.vkn_tckn||''}" onchange="faturaIsleData[${idx}].vkn_tckn=this.value" /></td>
       <td>
-        <select style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 4px;font-size:11px;" onchange="faturaIsleData[${idx}].hesap_kodu=this.value">
+        <select style="${editStyle}" onchange="faturaIsleData[${idx}].hesap_kodu=this.value">
           ${kodOptions}
         </select>
       </td>
-      <td><span class="kdv-badge kdv-${r.kdv_orani}">%${r.kdv_orani||'?'}</span></td>
-      <td>${(r.matrah||0).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</td>
-      <td style="color:var(--accent);">${(r.kdv_tutari||0).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺${kdvUyari}</td>
-      <td style="font-weight:600; color:var(--accent2);">${(r.toplam||0).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</td>
+      <td>
+        <select style="${editStyle}width:65px;" onchange="faturaIsleData[${idx}].kdv_orani=Number(this.value);faturaIsleData[${idx}]._kdvOk=Math.abs((faturaIsleData[${idx}].matrah*Number(this.value)/100)-faturaIsleData[${idx}].kdv_tutari)<1;faturaIsleRenderTable()">
+          <option value="1" ${r.kdv_orani==1?'selected':''}>%1</option>
+          <option value="10" ${r.kdv_orani==10?'selected':''}>%10</option>
+          <option value="20" ${r.kdv_orani==20?'selected':''}>%20</option>
+        </select>
+      </td>
+      <td><input style="${editStyle}width:85px;" value="${formatSayi(r.matrah||0)}" onchange="faturaIsleData[${idx}].matrah=parseFloat(this.value.replace(',','.'))||0;faturaIsleData[${idx}]._kdvOk=Math.abs((faturaIsleData[${idx}].matrah*faturaIsleData[${idx}].kdv_orani/100)-faturaIsleData[${idx}].kdv_tutari)<1" /></td>
+      <td style="color:var(--accent);"><input style="${editStyle}width:85px;" value="${formatSayi(r.kdv_tutari||0)}" onchange="faturaIsleData[${idx}].kdv_tutari=parseFloat(this.value.replace(',','.'))||0" />${kdvUyari}</td>
+      <td style="font-weight:600;color:var(--accent2);"><input style="${editStyle}width:85px;" value="${formatSayi(r.toplam||0)}" onchange="faturaIsleData[${idx}].toplam=parseFloat(this.value.replace(',','.'))||0" /></td>
       <td><button class="btn btn-outline" style="padding:3px 8px;font-size:11px;color:var(--danger);border-color:var(--danger);" onclick="faturaIsleSil(${idx})">🗑️</button></td>
     </tr>`;
   }).join('');
@@ -3738,10 +3759,9 @@ function faturaIsleRenderTable() {
   document.getElementById('faturaIsleCount').textContent = faturaIsleData.length + ' kayıt';
   document.getElementById('faturaIsleResult').classList.add('visible');
 
-  // Toplamlar
-  const matrah  = faturaIsleData.reduce((s,r) => s+(r.matrah||0), 0);
-  const kdv     = faturaIsleData.reduce((s,r) => s+(r.kdv_tutari||0), 0);
-  const toplam  = faturaIsleData.reduce((s,r) => s+(r.toplam||0), 0);
+  const matrah = faturaIsleData.reduce((s,r) => s+(r.matrah||0), 0);
+  const kdv    = faturaIsleData.reduce((s,r) => s+(r.kdv_tutari||0), 0);
+  const toplam = faturaIsleData.reduce((s,r) => s+(r.toplam||0), 0);
   document.getElementById('faturaIsleSayisi').textContent = faturaIsleData.length;
   document.getElementById('faturaIsleMatrah').textContent = matrah.toLocaleString('tr-TR',{minimumFractionDigits:2}) + ' ₺';
   document.getElementById('faturaIsleKdv').textContent    = kdv.toLocaleString('tr-TR',{minimumFractionDigits:2}) + ' ₺';
@@ -3764,21 +3784,69 @@ function faturaIsleSifirla() {
 }
 
 function faturaIsleExcel() {
-  if (faturaIsleData.length === 0) { showNotif('⚠️ Kaydedilecek fatura yok!', 'error'); return; }
-  const headers = ['Tür','Fatura No','Tarih','Firma','VKN/TCKN','Hesap Kodu','KDV Oranı (%)','Matrah (₺)','KDV Tutarı (₺)','Toplam (₺)','Açıklama'];
-  const rows = faturaIsleData.map(r => [
-    r.tur||'', r.fatura_no||'', r.tarih||'', r.firma||'', r.vkn_tckn||'',
-    r.hesap_kodu||'', r.kdv_orani||'',
-    formatSayi(r.matrah), formatSayi(r.kdv_tutari), formatSayi(r.toplam),
-    r.aciklama||''
-  ]);
-  rows.push(['','','','','','','TOPLAM',
-    formatSayi(faturaIsleData.reduce((s,r)=>s+(r.matrah||0),0)),
-    formatSayi(faturaIsleData.reduce((s,r)=>s+(r.kdv_tutari||0),0)),
-    formatSayi(faturaIsleData.reduce((s,r)=>s+(r.toplam||0),0)),''
-  ]);
+  if (faturaIsleData.length === 0) { showNotif('⚠️ İndirilecek fatura yok!', 'error'); return; }
+  const tur = document.getElementById('faturaIsleTur').value;
   const mukellef = document.getElementById('faturaIsleMukellef').value || 'fatura';
-  downloadCSV(headers, rows, mukellef + '_faturalar.csv');
+
+  // Luca formatı: Hesap Kodu, Hesap Adı, Evrak No, Evrak Tarihi, BT, Açıklama, Borç (TL), Alacak (TL)
+  const headers = ['Hesap Kodu','Hesap Adı','Evrak No','Evrak Tarihi','BT','Açıklama','Borç (TL)','Alacak (TL)'];
+  const rows = [];
+
+  faturaIsleData.forEach(r => {
+    const evrakNo  = r.fatura_no || '';
+    const tarih    = r.tarih || '';
+    const aciklama = (r.firma || '') + (r.aciklama ? ' - ' + r.aciklama : '');
+    const matrah   = r.matrah || 0;
+    const kdvTutar = r.kdv_tutari || 0;
+    const toplam   = r.toplam || 0;
+    const kdvOran  = r.kdv_orani || 20;
+
+    if (tur === 'alis') {
+      // Alış faturası Luca kayıt satırları
+      // 153.01 Ticari Mallar → Borç = Matrah
+      rows.push(['153.01', 'Ticari Mallar', evrakNo, tarih, 'AF', aciklama, formatSayi(matrah), '0.00']);
+      // 191.01.010 veya 191.01.020 → İndirilecek KDV
+      if (kdvOran === 1) {
+        rows.push(['191.01.001', 'İndirilecek KDV %1', evrakNo, tarih, 'AF', aciklama, formatSayi(kdvTutar), '0.00']);
+      } else if (kdvOran === 10) {
+        rows.push(['191.01.010', 'İndirilecek KDV %10', evrakNo, tarih, 'AF', aciklama, formatSayi(kdvTutar), '0.00']);
+      } else {
+        rows.push(['191.01.020', 'İndirilecek KDV %20', evrakNo, tarih, 'AF', aciklama, formatSayi(kdvTutar), '0.00']);
+      }
+      // 320.01 Satıcılar → Alacak = Genel Toplam
+      rows.push(['320.01', 'Satıcılar', evrakNo, tarih, 'AF', aciklama, '0.00', formatSayi(toplam)]);
+    } else {
+      // Satış faturası Luca kayıt satırları
+      // 120.01 Alıcılar → Borç = Genel Toplam
+      rows.push(['120.01', 'Alıcılar', evrakNo, tarih, 'SF', aciklama, formatSayi(toplam), '0.00']);
+      // 391.01.0xx → Hesaplanan KDV
+      if (kdvOran === 1) {
+        rows.push(['391.01.001', 'Hesaplanan KDV %1', evrakNo, tarih, 'SF', aciklama, '0.00', formatSayi(kdvTutar)]);
+      } else if (kdvOran === 10) {
+        rows.push(['391.01.010', 'Hesaplanan KDV %10', evrakNo, tarih, 'SF', aciklama, '0.00', formatSayi(kdvTutar)]);
+      } else {
+        rows.push(['391.01.020', 'Hesaplanan KDV %20', evrakNo, tarih, 'SF', aciklama, '0.00', formatSayi(kdvTutar)]);
+      }
+      // 600.01 Yurtiçi Satışlar → Alacak = Matrah
+      rows.push(['600.01', 'Yurtiçi Satışlar', evrakNo, tarih, 'SF', aciklama, '0.00', formatSayi(matrah)]);
+    }
+  });
+
+  // XLSX olarak indir (SheetJS)
+  if (typeof XLSX !== 'undefined') {
+    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    // Sütun genişlikleri
+    ws['!cols'] = [14,22,18,14,6,40,14,14].map(w => ({wch:w}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Luca');
+    XLSX.writeFile(wb, mukellef + '_luca_fatura.xlsx');
+    showNotif('✅ Luca Excel dosyası indirildi!', 'success');
+  } else {
+    // Fallback: CSV
+    downloadCSV(headers, rows, mukellef + '_luca_fatura.csv');
+    showNotif('✅ Luca CSV dosyası indirildi!', 'success');
+  }
 }
 
 function faturaIsleMukellefKaydet() {
