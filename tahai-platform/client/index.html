@@ -1049,7 +1049,7 @@
     <div class="page" id="page-faturalar">
       <div class="card">
         <div class="card-title">📄 Fatura Listesi Kontrolü</div>
-        <div class="card-desc">Mükellef seç, Alış veya Satış faturalarını yükle. Luca ↔ Uyumsoft karşılaştırması sonuçları mükellef kartına kaydedilir.</div>
+        <div class="card-desc">Mükellef seç, Alış veya Satış faturalarını yükle. Luca ↔ Fatura Entegratörü karşılaştırması sonuçları mükellef kartına kaydedilir.</div>
 
         <!-- Mükellef seçici -->
         <div class="form-row" style="margin-bottom:12px;">
@@ -1082,7 +1082,7 @@
           <div class="upload-zone">
             <input type="file" id="faturaFiles" accept=".xlsx,.xls,.csv" multiple onchange="handleFaturaFiles(this.files)" />
             <div class="upload-icon">📊</div>
-            <div class="upload-text">Uyumsoft Excel/CSV dosyasını yükle — <span>tıkla</span></div>
+            <div class="upload-text">Fatura Entegratörü Excel/CSV dosyasını yükle — <span>tıkla</span></div>
             <div class="upload-sub">.xlsx, .xls, .csv formatları desteklenir</div>
           </div>
         </div>
@@ -1248,7 +1248,7 @@
                     <th>Firma</th>
                     <th style="color:var(--accent2);">Hesap Kodu</th>
                     <th>Luca</th>
-                    <th>Uyumsoft</th>
+                    <th>Fatura Entegratörü</th>
                     <th>Fark</th>
                     <th>Açıklama</th>
                   </tr>
@@ -1616,7 +1616,7 @@
       <!-- Mükellef Fatura Arşivi -->
       <div class="card" style="margin-top:16px;">
         <div class="card-title">📂 Fatura Karşılaştırma Arşivi</div>
-        <div class="card-desc">Kaydedilen Luca ↔ Uyumsoft karşılaştırma sonuçları</div>
+        <div class="card-desc">Kaydedilen Luca ↔ Fatura Entegratörü karşılaştırma sonuçları</div>
         <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
           <select class="form-input" id="arsivMukellefSec" onchange="arsivGoster()" style="max-width:280px;">
             <option value="">— Mükellef seçin —</option>
@@ -3270,7 +3270,7 @@ function karsExcelIndir() {
   if (!window._karsSonuclar || window._karsSonuclar.length === 0) {
     showNotif('Once karsilastirma yap!', 'error'); return;
   }
-  const headers = ['Durum', 'Fatura No', 'Firma', 'Luca Tutar', 'Uyumsoft Tutar', 'Fark', 'Aciklama'];
+  const headers = ['Durum', 'Fatura No', 'Firma', 'Luca Tutar', 'Fatura Entegratörü Tutar', 'Fark', 'Aciklama'];
   const rows = window._karsSonuclar.map(r => [r.durum, r.fatura_no, r.firma, r.luca_tutar, r.uyum_tutar, r.fark, r.aciklama]);
   downloadCSV(headers, rows, 'luca_uyumsoft_karsilastirma.csv');
 }
@@ -3364,7 +3364,7 @@ function arsivGoster() {
   const arsiv = JSON.parse(localStorage.getItem('luca_fatura_arsiv') || '{}');
   const kayitlar = arsiv[muk] || {};
   if (Object.keys(kayitlar).length === 0) {
-    el.innerHTML = '<div style="color:var(--text3); font-size:13px; padding:20px; text-align:center;">' + muk + ' için henüz kayıtlı karşılaştırma yok.<br><br>📄 Faturalar → 🔄 Luca↔Uyumsoft Karşılaştır → 💾 Mükelleffe Kaydet</div>';
+    el.innerHTML = '<div style="color:var(--text3); font-size:13px; padding:20px; text-align:center;">' + muk + ' için henüz kayıtlı karşılaştırma yok.<br><br>📄 Faturalar → 🔄 Luca↔Fatura Entegratörü Karşılaştır → 💾 Mükelleffe Kaydet</div>';
     return;
   }
   const duzeltmeler = JSON.parse(localStorage.getItem('luca_duzeltme_' + muk.replace(/[^a-z0-9]/gi,'_')) || '{}');
@@ -3399,7 +3399,7 @@ function arsivGoster() {
               '</div>' +
               '<div style="font-size:12px; color:var(--text2); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + r.firma + '</div>' +
               '<div style="font-size:11px; color:var(--text3); margin-top:2px;">' +
-                'Luca: ' + lTutar + ' &nbsp;|&nbsp; Uyumsoft: ' + uTutar +
+                'Luca: ' + lTutar + ' &nbsp;|&nbsp; Fatura Entegratörü: ' + uTutar +
                 ' &nbsp;|&nbsp; <span style="color:var(--danger);">' + r.aciklama + '</span>' +
               '</div>' +
             '</div>' +
