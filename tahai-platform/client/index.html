@@ -841,6 +841,9 @@
     <div class="sidebar-item" onclick="showPage('faturalar')">
       <span class="sidebar-icon">📄</span> Faturalar
     </div>
+    <div class="sidebar-item" onclick="showPage('mizan')">
+      <span class="sidebar-icon">📊</span> Mizan
+    </div>
     <div class="sidebar-label">Araçlar</div>
     <div class="sidebar-item" onclick="showPage('hatirlatici')">
       <span class="sidebar-icon">🔔</span> Hatırlatıcı
@@ -1303,6 +1306,122 @@
             <tbody id="faturaTableBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- MİZAN PAGE -->
+    <div class="page" id="page-mizan">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">📊 Mizan Analizi</div>
+        <div class="card-desc">Luca'dan indirdiğin mizan Excel'ini yükle — AI hesap kodlarını öğrensin, fişlerin otomatik kodlansın.</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div>
+            <label class="form-label">Mükellef</label>
+            <select class="form-input" id="mizanMukellef" onchange="mizanMukellefDegisti()">
+              <option value="">-- Seç --</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Dönem</label>
+            <input type="month" class="form-input" id="mizanDonem" />
+          </div>
+        </div>
+
+        <div class="upload-zone" onclick="document.getElementById('mizanFile').click()" id="mizanUploadZone" style="margin-bottom:12px;">
+          <input type="file" id="mizanFile" accept=".xlsx,.xls" style="display:none" onchange="handleMizanFile(this.files[0])" />
+          <div class="upload-icon">📊</div>
+          <div class="upload-text">Mizan Excel dosyasını yükle — <span>tıkla</span></div>
+          <div class="upload-sub">.xlsx veya .xls — Luca mizan formatı</div>
+        </div>
+
+        <div id="mizanDosyaBilgi" style="display:none;padding:10px 14px;background:rgba(79,142,247,0.08);border:1px solid rgba(79,142,247,0.2);border-radius:8px;margin-bottom:12px;font-size:13px;">
+          <span id="mizanDosyaAd" style="color:var(--accent);font-weight:600;"></span>
+          <span id="mizanFirmaAd" style="color:var(--text2);margin-left:12px;"></span>
+          <span id="mizanDonemBilgi" style="color:var(--accent2);margin-left:12px;"></span>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="mizanAnalizBtn" onclick="mizanAIAnalizBaslat()" disabled>
+            🤖 AI Analiz Et &amp; Kodları Öğren
+            <span id="mizanAnalizSpinner" class="spinner" style="display:none;"></span>
+          </button>
+          <button class="btn btn-outline" id="mizanKaydetBtn" onclick="mizanKaydet()" disabled style="color:var(--accent2);border-color:var(--accent2);">
+            💾 Mükellefe Kaydet
+          </button>
+          <button class="btn btn-outline" onclick="mizanSifirla()">🗑️ Temizle</button>
+        </div>
+        <div id="mizanLog" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- KDV Mutabakat Paneli -->
+      <div id="mizanKdvPanel" style="display:none;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">⚖️ KDV Mutabakat</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div class="stat-card" style="border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.06);">
+            <div class="stat-label">HESAPLANAN KDV (391)</div>
+            <div class="stat-value" id="mizanKdv391" style="font-size:16px;color:var(--danger);">0 ₺</div>
+          </div>
+          <div class="stat-card" style="border-color:rgba(79,142,247,0.3);background:rgba(79,142,247,0.06);">
+            <div class="stat-label">İNDİRİLECEK KDV (191)</div>
+            <div class="stat-value" id="mizanKdv191" style="font-size:16px;color:var(--accent);">0 ₺</div>
+          </div>
+          <div class="stat-card" style="border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.06);">
+            <div class="stat-label">ÖDENECEK / DEVİR KDV</div>
+            <div class="stat-value" id="mizanKdvFark" style="font-size:16px;">0 ₺</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">TOPLAM HESAP KODU</div>
+            <div class="stat-value" id="mizanHesapSayisi" style="font-size:16px;">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Anomali Uyarıları -->
+      <div id="mizanAnomaliPanel" style="display:none;margin-bottom:12px;"></div>
+
+      <!-- Öğrenilen Kodlar -->
+      <div id="mizanOgrenilenPanel" style="display:none;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🧠 Öğrenilen Hesap Kodları</div>
+        <div style="font-size:12px;color:var(--accent2);margin-bottom:8px;" id="mizanOgrenilenBilgi"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hesap Kodu</th><th>Hesap Adı</th><th>Fiş Türü Eşlemesi</th></tr></thead>
+            <tbody id="mizanOgrenilenBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mizan Tablosu -->
+      <div class="result-area" id="mizanResult">
+        <div class="result-header">
+          <div class="result-title">📋 Mizan Satırları <span class="badge" id="mizanSatirSayisi">0 kayıt</span></div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" placeholder="Hesap kodu ara..." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 10px;font-size:12px;width:160px;" oninput="mizanFiltrele(this.value)" />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="mizanTable">
+            <thead>
+              <tr>
+                <th>Hesap Kodu</th>
+                <th>Hesap Adı</th>
+                <th style="text-align:right;">Borç Toplamı</th>
+                <th style="text-align:right;">Alacak Toplamı</th>
+                <th style="text-align:right;">Borç Bakiye</th>
+                <th style="text-align:right;">Alacak Bakiye</th>
+                <th>Durum</th>
+              </tr>
+            </thead>
+            <tbody id="mizanBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Arşiv -->
+      <div style="margin-top:16px;" id="mizanArsivPanel">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">🗂️ Kaydedilen Mizanlar</div>
+        <div id="mizanArsivListesi"><div style="color:var(--text3);font-size:13px;">Henüz kaydedilmiş mizan yok.</div></div>
       </div>
     </div>
 
@@ -2079,6 +2198,7 @@ function showPage(id) {
   document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
   if (id === 'faturalar') faturaMukellefListesiDoldur();
   if (id === 'mukellef-kart') arsivMukellefListesiDoldur();
+  if (id === 'mizan') { mizanMukellefDoldur(); mizanArsivGoster(document.getElementById('mizanMukellef').value); }
   document.getElementById('page-' + id).classList.add('active');
   event.currentTarget.classList.add('active');
   if (id === 'hatirlatici') hatirRender();
@@ -2761,7 +2881,14 @@ KURALLAR:
           r.donem = donem;
           r.dosya = f.name;
           r.fis_turu = normalizeFisTuru(r.fis_turu || '');
-          r.muhasebe_kodu = (muhasebeCodes[r.fis_turu] || muhasebeCodes['Diğer']).kod;
+          // Mükellefe özel öğrenilen kodları kullan (varsa)
+          const _ogKodlar = getMukellefHesapKodlari ? getMukellefHesapKodlari(mukellef) : null;
+          const _ogEsleme = _ogKodlar && _ogKodlar.ai_esleme ? _ogKodlar.ai_esleme : null;
+          if (_ogEsleme && _ogEsleme[r.fis_turu]) {
+            r.muhasebe_kodu = _ogEsleme[r.fis_turu];
+          } else {
+            r.muhasebe_kodu = (muhasebeCodes[r.fis_turu] || muhasebeCodes['Diğer']).kod;
+          }
           newRows.push(r);
         });
 
@@ -3905,6 +4032,7 @@ function renderMukellefler() {
   const el = document.getElementById('mukellefChips');
   const dl = document.getElementById('mukellefList');
   faturaMukellefListesiDoldur(); // Faturalar sayfasındaki dropdown'ı da güncelle
+  mizanMukellefDoldur();        // Mizan sayfasındaki dropdown'ı da güncelle
   if (mukellefler.length === 0) {
     el.innerHTML = '<div style="color: var(--text3); font-size: 12px;">Henüz mükellef eklenmedi.</div>';
     dl.innerHTML = '';
@@ -4801,6 +4929,467 @@ function stopajExcelIndir() {
 // ---- YARDIMCI ----
 function fmt(n) {
   return (Math.round((n||0)*100)/100).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// ===================== MİZAN MODÜLü =====================
+
+let mizanSatirlar   = [];  // Parse edilen mizan satırları
+let mizanDosyaAdi   = '';  // Yüklenen dosya adı
+let mizanFiltreMetn = '';  // Arama filtresi
+
+// Mükellef değişince arşivi yenile
+function mizanMukellefDegisti() {
+  const muk = document.getElementById('mizanMukellef').value;
+  mizanArsivGoster(muk);
+}
+
+// Mükellef seçiciyi doldur (init sırasında çağrılır)
+function mizanMukellefDoldur() {
+  const sel = document.getElementById('mizanMukellef');
+  if (!sel) return;
+  const mevcut = sel.value;
+  sel.innerHTML = '<option value="">-- Seç --</option>';
+  mukellefler.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.ad || m;
+    opt.textContent = m.ad || m;
+    sel.appendChild(opt);
+  });
+  if (mevcut) sel.value = mevcut;
+}
+
+// Dosya yükleme — SheetJS ile parse et
+function handleMizanFile(file) {
+  if (!file) return;
+  mizanDosyaAdi = file.name;
+
+  // SheetJS yüklü değilse dinamik yükle
+  function doparse() {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        parseMizanSatirlar(raw, file.name);
+      } catch(err) {
+        showNotif('❌ Excel okunamadı: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  if (typeof XLSX !== 'undefined') { doparse(); }
+  else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doparse;
+    document.head.appendChild(s);
+  }
+}
+
+// Ham satırları Luca mizan formatında parse et
+function parseMizanSatirlar(raw, dosyaAdi) {
+  // İlk satırlardan firma adı ve dönem bul
+  let firmaAdi = '';
+  let donemBilgi = '';
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    const satirStr = raw[i].join(' ').trim();
+    if (!firmaAdi && satirStr.length > 3 && !satirStr.match(/hesap|kodu|borç|alacak/i)) {
+      firmaAdi = raw[i].filter(c => c).join(' ').trim();
+    }
+    const donemMatch = satirStr.match(/(\d{2}[./]\d{4}|\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4})/);
+    if (!donemBilgi && donemMatch) donemBilgi = donemMatch[0];
+  }
+
+  // Başlık satırını bul (Hesap Kodu içeren satır)
+  let baslikIdx = -1;
+  for (let i = 0; i < raw.length; i++) {
+    const satirStr = raw[i].join(' ').toLowerCase();
+    if (satirStr.includes('hesap') && (satirStr.includes('borç') || satirStr.includes('bor'))) {
+      baslikIdx = i;
+      break;
+    }
+  }
+  if (baslikIdx === -1) { showNotif('⚠️ Mizan formatı tanınamadı. Luca mizan Excel yüklediğinizden emin olun.', 'error'); return; }
+
+  // Sütun indekslerini tespit et
+  const baslik = raw[baslikIdx].map(c => (c+'').toLowerCase());
+  const idxKod  = baslik.findIndex(c => c.includes('hesap') && c.includes('kod'));
+  const idxAd   = baslik.findIndex(c => c.includes('hesap') && (c.includes('ad') || c.includes('ün')));
+  const idxBorcT = baslik.findIndex(c => c.includes('borç') && c.includes('top'));
+  const idxAlcT  = baslik.findIndex(c => c.includes('alacak') && c.includes('top'));
+  const idxBorcB = baslik.findIndex(c => c.includes('borç') && c.includes('bak'));
+  const idxAlcB  = baslik.findIndex(c => c.includes('alacak') && c.includes('bak'));
+
+  // Fallback: sıralı sütun tahmini
+  const idxKodF  = idxKod  >= 0 ? idxKod  : 0;
+  const idxAdF   = idxAd   >= 0 ? idxAd   : 1;
+  const idxBorcTF = idxBorcT >= 0 ? idxBorcT : 2;
+  const idxAlcTF  = idxAlcT  >= 0 ? idxAlcT  : 3;
+  const idxBorcBF = idxBorcB >= 0 ? idxBorcB : 4;
+  const idxAlcBF  = idxAlcB  >= 0 ? idxAlcB  : 5;
+
+  const satirlar = [];
+  for (let i = baslikIdx + 1; i < raw.length; i++) {
+    const row = raw[i];
+    const kod = (row[idxKodF] + '').trim();
+    if (!kod || kod.toLowerCase().includes('toplam') || kod.toLowerCase().includes('genel')) continue;
+    if (!kod.match(/^\d/)) continue; // Hesap kodu rakamla başlamalı
+
+    const sayi = v => {
+      if (v === '' || v === null || v === undefined) return 0;
+      return parseFloat((v + '').replace(/\./g,'').replace(',','.')) || 0;
+    };
+
+    satirlar.push({
+      hesap_kodu : kod,
+      hesap_adi  : (row[idxAdF]  + '').trim(),
+      borc_top   : sayi(row[idxBorcTF]),
+      alacak_top : sayi(row[idxAlcTF]),
+      borc_bak   : sayi(row[idxBorcBF]),
+      alacak_bak : sayi(row[idxAlcBF]),
+    });
+  }
+
+  if (satirlar.length === 0) { showNotif('⚠️ Mizan satırı bulunamadı.', 'error'); return; }
+
+  mizanSatirlar = satirlar;
+
+  // Dönem alanını otomatik doldur
+  if (donemBilgi) {
+    const donemEl = document.getElementById('mizanDonem');
+    const parts = donemBilgi.match(/(\d{2})[./](\d{4})/);
+    if (parts) donemEl.value = parts[2] + '-' + parts[1];
+  }
+
+  // Dosya bilgisi göster
+  document.getElementById('mizanDosyaBilgi').style.display = 'block';
+  document.getElementById('mizanDosyaAd').textContent = '📄 ' + dosyaAdi;
+  document.getElementById('mizanFirmaAd').textContent = firmaAdi ? '| ' + firmaAdi : '';
+  document.getElementById('mizanDonemBilgi').textContent = donemBilgi ? '| ' + donemBilgi : '';
+
+  // KDV mutabakat hesapla
+  mizanKdvMutabakat();
+  // Tabloyu göster
+  renderMizanTable(satirlar);
+  // Butonları aktifleştir
+  document.getElementById('mizanAnalizBtn').disabled = false;
+  document.getElementById('mizanKaydetBtn').disabled = false;
+
+  showNotif(`✅ ${satirlar.length} hesap satırı okundu.`, 'success');
+}
+
+// KDV Mutabakat hesaplama
+function mizanKdvMutabakat() {
+  const kdv391 = mizanSatirlar
+    .filter(r => r.hesap_kodu.startsWith('391'))
+    .reduce((s, r) => s + (r.alacak_bak || r.alacak_top || 0), 0);
+
+  const kdv191 = mizanSatirlar
+    .filter(r => r.hesap_kodu.startsWith('191') || r.hesap_kodu.startsWith('190'))
+    .reduce((s, r) => s + (r.borc_bak || r.borc_top || 0), 0);
+
+  const fark = kdv391 - kdv191;
+  const farkEl = document.getElementById('mizanKdvFark');
+  farkEl.textContent = Math.abs(fark).toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺';
+  if (fark > 0) {
+    farkEl.style.color = 'var(--danger)';
+    farkEl.title = 'Ödenecek KDV';
+  } else if (fark < 0) {
+    farkEl.style.color = 'var(--accent2)';
+    farkEl.title = 'Devreden KDV';
+  } else {
+    farkEl.style.color = 'var(--text2)';
+  }
+
+  document.getElementById('mizanKdv391').textContent = kdv391.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺';
+  document.getElementById('mizanKdv191').textContent = kdv191.toLocaleString('tr-TR', {minimumFractionDigits:2}) + ' ₺';
+  document.getElementById('mizanHesapSayisi').textContent = mizanSatirlar.length;
+  document.getElementById('mizanKdvPanel').style.display = 'block';
+}
+
+// Mizan tablosunu render et
+function renderMizanTable(satirlar) {
+  const filtre = mizanFiltreMetn.toLowerCase();
+  const goster = filtre ? satirlar.filter(r =>
+    r.hesap_kodu.toLowerCase().includes(filtre) ||
+    r.hesap_adi.toLowerCase().includes(filtre)
+  ) : satirlar;
+
+  const fmt = n => n ? n.toLocaleString('tr-TR', {minimumFractionDigits:2}) : '—';
+
+  document.getElementById('mizanBody').innerHTML = goster.map(r => {
+    // Ters bakiye kontrolü
+    const tersBakiye = (r.hesap_kodu.startsWith('1') && r.alacak_bak > 0 && r.borc_bak === 0) ||
+                       (r.hesap_kodu.startsWith('3') && r.borc_bak > 0 && r.alacak_bak === 0);
+    const sifirBakiye = r.borc_bak === 0 && r.alacak_bak === 0;
+    const uyari = tersBakiye ? '<span style="color:var(--danger);font-size:11px;">⚠️ Ters</span>'
+                : sifirBakiye ? '<span style="color:var(--text3);font-size:11px;">— Sıfır</span>'
+                : '<span style="color:var(--accent2);font-size:11px;">✓</span>';
+
+    return `<tr style="${tersBakiye ? 'background:rgba(248,113,113,0.06);' : ''}">
+      <td style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;color:var(--accent);">${r.hesap_kodu}</td>
+      <td>${r.hesap_adi}</td>
+      <td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;">${fmt(r.borc_top)}</td>
+      <td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;">${fmt(r.alacak_top)}</td>
+      <td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:var(--accent);">${fmt(r.borc_bak)}</td>
+      <td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:var(--accent2);">${fmt(r.alacak_bak)}</td>
+      <td style="text-align:center;">${uyari}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('mizanSatirSayisi').textContent = goster.length + (filtre ? '/' + satirlar.length : '') + ' kayıt';
+  document.getElementById('mizanResult').classList.add('visible');
+}
+
+function mizanFiltrele(val) {
+  mizanFiltreMetn = val;
+  renderMizanTable(mizanSatirlar);
+}
+
+// AI Analiz — hesap kodlarını öğren + anomali tespit
+async function mizanAIAnalizBaslat() {
+  if (mizanSatirlar.length === 0) { showNotif('⚠️ Önce mizan yükle!', 'error'); return; }
+  const mukellef = document.getElementById('mizanMukellef').value;
+  if (!mukellef) { showNotif('⚠️ Mükellef seç!', 'error'); return; }
+
+  const btn = document.getElementById('mizanAnalizBtn');
+  btn.disabled = true;
+  document.getElementById('mizanAnalizSpinner').style.display = 'inline-block';
+  log('mizanLog', 'AI analiz başlıyor...', 'info');
+
+  // Mizan özetini AI'ya gönder (ilk 80 satır — token limiti)
+  const ozet = mizanSatirlar.slice(0, 80).map(r =>
+    `${r.hesap_kodu}|${r.hesap_adi}|${r.borc_bak}|${r.alacak_bak}`
+  ).join('\n');
+
+  const prompt = `Aşağıda bir Türk işletmesinin Luca muhasebe programından alınan mizan listesi var.
+Format: HesapKodu|HesapAdı|BorçBakiye|AlacakBakiye
+
+${ozet}
+
+GÖREV 1 — Hesap Kodu Öğrenimi:
+Bu mükellef için fiş türlerine göre doğru hesap kodlarını belirle.
+Şu fiş türleri için hesap kodunu söyle: Yemek/Market, Akaryakıt, Kırtasiye, Temizlik, Kargo/Nakliye, Otopark, Diğer
+
+GÖREV 2 — Anomali Tespiti:
+Aşağıdaki sorunları tespit et:
+- Bakiyesi ters olan hesaplar (örn: kasa alacak bakiye vermiş)
+- Sıfır bakiyeli ama önemli görünen ana hesaplar
+- Olağandışı büyük tutarlar
+- Dikkat çeken diğer sorunlar
+
+CEVABI SADECE JSON olarak döndür, başka hiçbir şey yazma:
+{
+  "hesap_esleme": {
+    "Yemek / Market": "xxx.xx",
+    "Akaryakıt": "xxx.xx",
+    "Kırtasiye": "xxx.xx",
+    "Temizlik": "xxx.xx",
+    "Kargo / Nakliye": "xxx.xx",
+    "Otopark": "xxx.xx",
+    "Diğer": "xxx.xx"
+  },
+  "anomaliler": [
+    {"seviye": "kırmızı|sarı", "hesap_kodu": "xxx", "hesap_adi": "xxx", "sorun": "açıklama"}
+  ],
+  "genel_yorum": "kısa genel değerlendirme"
+}`;
+
+  try {
+    const raw = await callClaude(prompt);
+    const sonuc = safeParseJSON(raw);
+
+    // Hesap kodlarını localStorage'a kaydet (mükellef bazlı)
+    if (sonuc.hesap_esleme) {
+      const key = 'tahai_hesap_kodlari_' + mukellef;
+      const mevcutKodlar = JSON.parse(localStorage.getItem(key) || '{}');
+      // AI önerisi + mevcut mizan kodlarını birleştir
+      const tumKodlar = {
+        ...mevcutKodlar,
+        ai_esleme: sonuc.hesap_esleme,
+        mizan_kodlari: mizanSatirlar.map(r => ({ kod: r.hesap_kodu, ad: r.hesap_adi })),
+        guncelleme: new Date().toLocaleDateString('tr-TR')
+      };
+      localStorage.setItem(key, JSON.stringify(tumKodlar));
+
+      // muhasebeCodes'u güncelle — bu mükellef için
+      Object.entries(sonuc.hesap_esleme).forEach(([tur, kod]) => {
+        if (muhasebeCodes[tur]) muhasebeCodes[tur].kod = kod;
+      });
+
+      log('mizanLog', `✅ ${Object.keys(sonuc.hesap_esleme).length} hesap kodu öğrenildi ve kaydedildi.`, 'ok');
+      mizanOgrenilenGoster(mukellef, sonuc.hesap_esleme);
+    }
+
+    // Anomali uyarılarını göster
+    if (sonuc.anomaliler && sonuc.anomaliler.length > 0) {
+      mizanAnomaliGoster(sonuc.anomaliler, sonuc.genel_yorum);
+    } else {
+      log('mizanLog', '✅ Anomali tespit edilmedi.', 'ok');
+    }
+
+    showNotif('✅ AI analiz tamamlandı! Hesap kodları öğrenildi.', 'success');
+  } catch(e) {
+    log('mizanLog', '❌ AI analiz hatası: ' + e.message, 'err');
+    showNotif('❌ AI analiz başarısız: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    document.getElementById('mizanAnalizSpinner').style.display = 'none';
+  }
+}
+
+// Öğrenilen kodları tablo olarak göster
+function mizanOgrenilenGoster(mukellef, esleme) {
+  const panel = document.getElementById('mizanOgrenilenPanel');
+  const tbody = document.getElementById('mizanOgrenilenBody');
+  document.getElementById('mizanOgrenilenBilgi').textContent =
+    `${mukellef} mükellefine ait hesap kodları öğrenildi — fişlerde otomatik kullanılacak`;
+
+  tbody.innerHTML = Object.entries(esleme).map(([tur, kod]) => {
+    const satirBul = mizanSatirlar.find(r => r.hesap_kodu === kod);
+    return `<tr>
+      <td style="font-family:\'IBM Plex Mono\',monospace;font-weight:600;color:var(--accent);">${kod}</td>
+      <td>${satirBul ? satirBul.hesap_adi : '—'}</td>
+      <td style="color:var(--accent2);">${tur}</td>
+    </tr>`;
+  }).join('');
+  panel.style.display = 'block';
+}
+
+// Anomali uyarılarını göster
+function mizanAnomaliGoster(anomaliler, genelYorum) {
+  const panel = document.getElementById('mizanAnomaliPanel');
+  let html = `<div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;">⚠️ Anomali Tespiti</div>`;
+
+  if (genelYorum) {
+    html += `<div style="padding:10px 14px;background:rgba(79,142,247,0.08);border-left:3px solid var(--accent);border-radius:6px;font-size:13px;color:var(--text2);margin-bottom:10px;">${genelYorum}</div>`;
+  }
+
+  anomaliler.forEach(a => {
+    const renk = a.seviye === 'kırmızı' ? 'var(--danger)' : 'var(--accent3)';
+    const bg   = a.seviye === 'kırmızı' ? 'rgba(248,113,113,0.08)' : 'rgba(251,191,36,0.08)';
+    const icon = a.seviye === 'kırmızı' ? '🔴' : '🟡';
+    html += `<div style="padding:8px 14px;background:${bg};border-left:3px solid ${renk};border-radius:6px;font-size:12px;margin-bottom:6px;">
+      ${icon} <strong style="color:${renk};">${a.hesap_kodu} — ${a.hesap_adi}</strong>
+      <span style="color:var(--text2);margin-left:8px;">${a.sorun}</span>
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+}
+
+// Mizanı localStorage'a kaydet
+function mizanKaydet() {
+  if (mizanSatirlar.length === 0) { showNotif('⚠️ Kaydedilecek mizan yok!', 'error'); return; }
+  const mukellef = document.getElementById('mizanMukellef').value;
+  if (!mukellef) { showNotif('⚠️ Mükellef seç!', 'error'); return; }
+  const donem = document.getElementById('mizanDonem').value;
+
+  const key    = 'tahai_mizan_' + mukellef;
+  const arsiv  = JSON.parse(localStorage.getItem(key) || '[]');
+  const firmaAd = document.getElementById('mizanFirmaAd').textContent.replace('| ','');
+
+  arsiv.unshift({
+    dosya: mizanDosyaAdi,
+    donem: donem || '',
+    firma: firmaAd,
+    satir_sayisi: mizanSatirlar.length,
+    tarih: new Date().toLocaleDateString('tr-TR'),
+    satirlar: mizanSatirlar
+  });
+
+  localStorage.setItem(key, JSON.stringify(arsiv));
+  autoSave();
+  showNotif(`✅ Mizan "${mukellef}" kartına kaydedildi!`, 'success');
+  mizanArsivGoster(mukellef);
+}
+
+// Mükellef arşivini göster
+function mizanArsivGoster(mukellef) {
+  const el = document.getElementById('mizanArsivListesi');
+  if (!mukellef) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Mükellef seçin.</div>'; return; }
+
+  const key   = 'tahai_mizan_' + mukellef;
+  const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
+
+  if (arsiv.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Henüz kaydedilmiş mizan yok.</div>';
+    return;
+  }
+
+  el.innerHTML = arsiv.map((m, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+      <div>
+        <span style="font-weight:600;color:var(--accent);">📊 ${m.donem || '—'}</span>
+        <span style="color:var(--text2);font-size:12px;margin-left:10px;">${m.firma || ''}</span>
+        <span style="color:var(--text3);font-size:11px;margin-left:10px;">${m.satir_sayisi} satır · ${m.tarih}</span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-outline" style="padding:3px 10px;font-size:11px;" onclick="mizanArsivYukle('${mukellef}',${i})">📂 Yükle</button>
+        <button class="btn btn-outline" style="padding:3px 10px;font-size:11px;color:var(--danger);border-color:var(--danger);" onclick="mizanArsivSil('${mukellef}',${i})">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+// Arşivden mizan yükle
+function mizanArsivYukle(mukellef, idx) {
+  const key   = 'tahai_mizan_' + mukellef;
+  const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
+  if (!arsiv[idx]) return;
+
+  mizanSatirlar = arsiv[idx].satirlar || [];
+  mizanDosyaAdi = arsiv[idx].dosya || '';
+
+  document.getElementById('mizanMukellef').value = mukellef;
+  if (arsiv[idx].donem) document.getElementById('mizanDonem').value = arsiv[idx].donem;
+  document.getElementById('mizanDosyaBilgi').style.display = 'block';
+  document.getElementById('mizanDosyaAd').textContent = '📄 ' + mizanDosyaAdi;
+  document.getElementById('mizanFirmaAd').textContent = arsiv[idx].firma ? '| ' + arsiv[idx].firma : '';
+
+  mizanKdvMutabakat();
+  renderMizanTable(mizanSatirlar);
+  document.getElementById('mizanAnalizBtn').disabled = false;
+  document.getElementById('mizanKaydetBtn').disabled = false;
+  showNotif('✅ Mizan yüklendi.', 'success');
+}
+
+// Arşivden mizan sil
+function mizanArsivSil(mukellef, idx) {
+  if (!confirm('Bu mizan kaydını silmek istiyor musunuz?')) return;
+  const key   = 'tahai_mizan_' + mukellef;
+  const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
+  arsiv.splice(idx, 1);
+  localStorage.setItem(key, JSON.stringify(arsiv));
+  mizanArsivGoster(mukellef);
+  showNotif('🗑️ Mizan silindi.', 'success');
+}
+
+// Sıfırla
+function mizanSifirla() {
+  mizanSatirlar = [];
+  mizanDosyaAdi = '';
+  mizanFiltreMetn = '';
+  document.getElementById('mizanFile').value = '';
+  document.getElementById('mizanDosyaBilgi').style.display = 'none';
+  document.getElementById('mizanKdvPanel').style.display = 'none';
+  document.getElementById('mizanAnomaliPanel').style.display = 'none';
+  document.getElementById('mizanOgrenilenPanel').style.display = 'none';
+  document.getElementById('mizanResult').classList.remove('visible');
+  document.getElementById('mizanBody').innerHTML = '';
+  document.getElementById('mizanLog').innerHTML = '';
+  document.getElementById('mizanAnalizBtn').disabled = true;
+  document.getElementById('mizanKaydetBtn').disabled = true;
+}
+
+// Mükellefe özel öğrenilen hesap kodlarını getir
+function getMukellefHesapKodlari(mukellef) {
+  if (!mukellef) return null;
+  const key = 'tahai_hesap_kodlari_' + mukellef;
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : null;
 }
 
 // ===================== LOGIN (tahai-api.js tarafından override edilir) =====================
