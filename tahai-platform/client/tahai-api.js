@@ -50,6 +50,14 @@ async function _tFetch(path, opts) {
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: resp.statusText }));
+    // Token süresi dolmuşsa çıkış yap
+    if (resp.status === 401) {
+      sessionStorage.removeItem('_jwt');
+      sessionStorage.removeItem('_st');
+      localStorage.removeItem('tahai_token');
+      if (typeof logout === 'function') logout();
+      else window.location.reload();
+    }
     throw new Error(err.error || 'API hatası (' + resp.status + ')');
   }
   return resp.json();
