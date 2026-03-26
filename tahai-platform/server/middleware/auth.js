@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const supabase = require('../config/supabase');
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -10,6 +11,15 @@ const authMiddleware = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+
+    // last_seen güncelle (fire & forget — yanıtı bekleme)
+    supabase
+      .from('users')
+      .update({ last_seen: new Date().toISOString() })
+      .eq('id', decoded.id)
+      .then(() => {})
+      .catch(() => {});
+
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Geçersiz veya süresi dolmuş token' });

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TahAI — Admin Paneli</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg: #0d0f14; --surface: #161a22; --surface2: #1e2330;
+    --border: rgba(255,255,255,.08); --text: #e8eaf0; --text2: #9ca3b0; --text3: #5a6070;
+    --accent: #4f8ef7; --accent2: #22d3a5; --danger: #f87171; --warn: #fbbf24;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
+  header {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:16px 28px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .logo { font-size:20px; font-weight:700; color:var(--accent2); }
+  .logo span { color:var(--accent); }
+  .header-right { display:flex; align-items:center; gap:14px; font-size:13px; color:var(--text2); }
+  .btn { padding:8px 16px; border-radius:7px; border:none; cursor:pointer; font-size:13px; font-weight:600; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text2); }
+  .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-danger { background:rgba(248,113,113,.15); border:1px solid var(--danger); color:var(--danger); }
+
+  main { max-width:1100px; margin:0 auto; padding:32px 24px; }
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:20px; text-align:center;
+  }
+  .stat-num { font-size:36px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  .stat-label { font-size:12px; color:var(--text3); margin-top:4px; text-transform:uppercase; letter-spacing:.8px; }
+  .stat-online { color:var(--accent2); }
+  .stat-total  { color:var(--accent); }
+  .stat-today  { color:var(--warn); }
+  .stat-pasif  { color:var(--text3); }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .card-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .card-title { font-weight:600; font-size:15px; }
+  .refresh-btn { font-size:12px; }
+
+  table { width:100%; border-collapse:collapse; }
+  th { padding:10px 14px; text-align:left; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border); background:var(--surface2); }
+  td { padding:11px 14px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.04); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(79,142,247,.04); }
+
+  .badge {
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-size:11px; font-weight:600; font-family:'IBM Plex Mono',monospace;
+  }
+  .badge-online  { background:rgba(34,211,165,.15); color:var(--accent2); }
+  .badge-offline { background:rgba(90,96,112,.15);  color:var(--text3); }
+  .badge-admin   { background:rgba(79,142,247,.2);   color:var(--accent); }
+  .badge-user    { background:rgba(255,255,255,.06); color:var(--text2); }
+  .badge-aktif   { background:rgba(34,211,165,.1);   color:var(--accent2); }
+  .badge-pasif   { background:rgba(248,113,113,.1);   color:var(--danger); }
+
+  .action-btn {
+    padding:3px 10px; border-radius:5px; border:1px solid var(--border);
+    background:transparent; color:var(--text2); cursor:pointer; font-size:11px;
+    margin-left:4px;
+  }
+  .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  .login-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.85);
+    display:flex; align-items:center; justify-content:center; z-index:999;
+  }
+  .login-box {
+    background:var(--surface); border:1px solid var(--border); border-radius:16px;
+    padding:36px; width:380px;
+  }
+  .login-box h2 { margin-bottom:6px; font-size:20px; }
+  .login-box p  { font-size:13px; color:var(--text2); margin-bottom:24px; }
+  .form-input {
+    width:100%; background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px; color:var(--text); font-size:14px;
+    outline:none; margin-bottom:12px;
+  }
+  .form-input:focus { border-color:var(--accent); }
+  .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:none; width:100%; padding:11px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .err { color:var(--danger); font-size:13px; margin-top:8px; display:none; }
+
+  #loadingEl { text-align:center; padding:40px; color:var(--text3); }
+</style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>🔐 Admin Girişi</h2>
+    <p>Admin yetkisine sahip hesapla giriş yapın.</p>
+    <input type="text" class="form-input" id="loginInput" placeholder="Email veya kullanıcı adı" />
+    <input type="password" class="form-input" id="loginPass" placeholder="Şifre" onkeydown="if(event.key==='Enter')adminGiris()" />
+    <button class="btn btn-primary" onclick="adminGiris()">Giriş Yap</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">Tah<span>AI</span> <span style="font-size:12px;color:var(--text3);font-weight:400;margin-left:4px;">Admin Paneli</span></div>
+  <div class="header-right">
+    <span id="adminAdStr">—</span>
+    <button class="btn btn-outline" onclick="cikisYap()">Çıkış</button>
+  </div>
+</header>
+
+<main>
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-num stat-total" id="statToplam">—</div>
+      <div class="stat-label">Toplam Üye</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num stat-online" id="statOnline">—</div>
+      <div class="stat-label">Şu An Aktif</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num stat-today" id="statBugün">—</div>
+      <div class="stat-label">Bugün Giriş</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num stat-pasif" id="statPasif">—</div>
+      <div class="stat-label">Pasif Hesap</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👥 Tüm Kullanıcılar</div>
+      <button class="btn btn-outline refresh-btn" onclick="veriYukle()">🔄 Yenile</button>
+    </div>
+    <div id="loadingEl">Yükleniyor...</div>
+    <table id="tabloEl" style="display:none">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ad / Kullanıcı Adı</th>
+          <th>Email</th>
+          <th>Durum</th>
+          <th>Son Görülme</th>
+          <th>Kayıt Tarihi</th>
+          <th>Rol</th>
+          <th>İşlem</th>
+        </tr>
+      </thead>
+      <tbody id="tabloBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+const API = window.location.origin;
+let _tok = sessionStorage.getItem('admin_tok') || localStorage.getItem('tahai_token') || '';
+
+async function adminGiris() {
+  const input = document.getElementById('loginInput').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+
+  if (!input || !pass) { errEl.textContent = 'Tüm alanları doldurun.'; errEl.style.display='block'; return; }
+
+  try {
+    const isEmail = input.includes('@');
+    const body = isEmail ? { email: input, password: pass } : { email: input, password: pass };
+    const r = await fetch(API + '/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.error || 'Giriş başarısız'; errEl.style.display='block'; return; }
+    if (d.user?.rol !== 'admin') {
+      errEl.textContent = '❌ Bu hesabın admin yetkisi yok.'; errEl.style.display='block'; return;
+    }
+    _tok = d.token;
+    sessionStorage.setItem('admin_tok', _tok);
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('adminAdStr').textContent = d.user.ad || d.user.kullanici_adi;
+    veriYukle();
+  } catch(e) {
+    errEl.textContent = 'Sunucu hatası. Tekrar deneyin.'; errEl.style.display='block';
+  }
+}
+
+async function veriYukle() {
+  document.getElementById('loadingEl').style.display = 'block';
+  document.getElementById('tabloEl').style.display   = 'none';
+  try {
+    const r = await fetch(API + '/api/admin/users', {
+      headers: { 'Authorization': 'Bearer ' + _tok }
+    });
+    if (r.status === 401 || r.status === 403) {
+      sessionStorage.removeItem('admin_tok');
+      document.getElementById('loginOverlay').style.display = 'flex';
+      return;
+    }
+    const d = await r.json();
+    renderTablo(d.users, d.toplam, d.online);
+  } catch(e) {
+    document.getElementById('loadingEl').textContent = '❌ Veri alınamadı.';
+  }
+}
+
+function renderTablo(users, toplam, online) {
+  const bugun = new Date().toDateString();
+  const bugunGiris = users.filter(u => u.last_seen && new Date(u.last_seen).toDateString() === bugun).length;
+  const pasif = users.filter(u => !u.aktif).length;
+
+  document.getElementById('statToplam').textContent = toplam;
+  document.getElementById('statOnline').textContent = online;
+  document.getElementById('statBugün').textContent  = bugunGiris;
+  document.getElementById('statPasif').textContent  = pasif;
+
+  const tbody = document.getElementById('tabloBody');
+  tbody.innerHTML = users.map((u, i) => {
+    const durumBadge = u.online
+      ? '<span class="badge badge-online">● Aktif</span>'
+      : '<span class="badge badge-offline">Çevrimdışı</span>';
+    const sonGorulme = u.last_seen
+      ? zaman(u.last_seen)
+      : '<span style="color:var(--text3)">Hiç giriş yapmadı</span>';
+    const kayitTarih = new Date(u.created_at).toLocaleDateString('tr-TR');
+    const rolBadge = u.rol === 'admin'
+      ? '<span class="badge badge-admin">Admin</span>'
+      : '<span class="badge badge-user">Üye</span>';
+    const aktifBadge = u.aktif
+      ? '<span class="badge badge-aktif">Aktif</span>'
+      : '<span class="badge badge-pasif">Pasif</span>';
+
+    return `<tr>
+      <td style="color:var(--text3);font-family:'IBM Plex Mono',monospace;">${i+1}</td>
+      <td>
+        <div style="font-weight:600">${u.ad || '—'}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">@${u.kullanici_adi||'?'}</div>
+      </td>
+      <td style="font-size:12px;color:var(--text2)">${u.email}</td>
+      <td>${durumBadge} ${aktifBadge}</td>
+      <td style="font-size:12px">${sonGorulme}</td>
+      <td style="font-size:12px;color:var(--text2)">${kayitTarih}</td>
+      <td>${rolBadge}</td>
+      <td>
+        <button class="action-btn" onclick="toggleAktif('${u.id}', ${u.aktif})">${u.aktif ? '🚫 Pasif Et' : '✅ Aktif Et'}</button>
+        ${u.rol !== 'admin' ? `<button class="action-btn" onclick="adminYap('${u.id}')">👑 Admin Yap</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('loadingEl').style.display = 'none';
+  document.getElementById('tabloEl').style.display = 'table';
+}
+
+function zaman(isoStr) {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const dk = Math.floor(diff / 60000);
+  if (dk < 1)  return '<span style="color:var(--accent2)">Az önce</span>';
+  if (dk < 60) return `${dk} dakika önce`;
+  const sa = Math.floor(dk / 60);
+  if (sa < 24) return `${sa} saat önce`;
+  const gun = Math.floor(sa / 24);
+  return `${gun} gün önce`;
+}
+
+async function toggleAktif(id, mevcutAktif) {
+  if (!confirm(mevcutAktif ? 'Bu kullanıcıyı pasif yapmak istiyor musunuz?' : 'Bu kullanıcıyı aktif etmek istiyor musunuz?')) return;
+  await fetch(API + '/api/admin/users/' + id, {
+    method:'PATCH', headers:{'Authorization':'Bearer '+_tok,'Content-Type':'application/json'},
+    body: JSON.stringify({ aktif: !mevcutAktif })
+  });
+  veriYukle();
+}
+
+async function adminYap(id) {
+  if (!confirm('Bu kullanıcıya admin yetkisi vermek istiyor musunuz?')) return;
+  await fetch(API + '/api/admin/users/' + id, {
+    method:'PATCH', headers:{'Authorization':'Bearer '+_tok,'Content-Type':'application/json'},
+    body: JSON.stringify({ rol: 'admin' })
+  });
+  veriYukle();
+}
+
+function cikisYap() {
+  sessionStorage.removeItem('admin_tok');
+  document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+// Sayfa yüklenince token varsa direkt veriyi çek
+window.onload = () => {
+  if (_tok) {
+    // Token var — doğrula
+    fetch(API + '/api/auth/me', { headers:{'Authorization':'Bearer '+_tok} })
+      .then(r => r.json())
+      .then(d => {
+        if (d.user?.rol === 'admin') {
+          document.getElementById('loginOverlay').style.display = 'none';
+          document.getElementById('adminAdStr').textContent = d.user.ad || d.user.kullanici_adi;
+          veriYukle();
+        }
+      })
+      .catch(() => {});
+  }
+  // 30 saniyede bir otomatik yenile
+  setInterval(veriYukle, 30000);
+};
+</script>
+</body>
+</html>
