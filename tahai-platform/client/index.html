@@ -4970,7 +4970,8 @@ function handleMizanFile(file) {
       try {
         const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
         const ws  = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // raw:true → sayısal hücreler number tipinde gelir, Türkçe format sorunu olmaz
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
         parseMizanSatirlar(raw, file.name);
       } catch(err) {
         showNotif('❌ Excel okunamadı: ' + err.message, 'error');
@@ -5039,7 +5040,17 @@ function parseMizanSatirlar(raw, dosyaAdi) {
 
     const sayi = v => {
       if (v === '' || v === null || v === undefined) return 0;
-      return parseFloat((v + '').replace(/\./g,'').replace(',','.')) || 0;
+      // SheetJS number tipinde zaten doğru sayı gelir — doğrudan kullan
+      if (typeof v === 'number') return v;
+      // String ise Türkçe format: 1.009.030,00 → binlik nokta kaldır, virgülü noktaya çevir
+      const s = (v + '').trim();
+      if (s === '') return 0;
+      // Türkçe format tespiti: virgül var ve virgülden sonra en fazla 2 rakam varsa ondalık
+      if (s.includes(',')) {
+        return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+      }
+      // Noktalı ama virgülsüz (İngilizce format veya tam sayı)
+      return parseFloat(s.replace(/,/g, '')) || 0;
     };
 
     satirlar.push({
