@@ -310,6 +310,53 @@
   .gm-item .gm-vkn { font-size: 10px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
   .gm-item-none { padding: 9px 14px; font-size: 12px; color: var(--text3); font-style: italic; }
 
+  /* WORKSPACE BANNER */
+  #wsBanner {
+    display: none; align-items: center; gap: 0; flex-wrap: wrap;
+    background: linear-gradient(to right, rgba(34,211,165,.07), rgba(79,142,247,.07));
+    border-bottom: 2px solid rgba(34,211,165,.28);
+    padding: 8px 20px; min-height: 46px;
+  }
+  .ws-geri-btn {
+    background: transparent; border: 1px solid rgba(34,211,165,.4); color: var(--accent2);
+    border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+    margin-right: 14px; white-space: nowrap; flex-shrink: 0;
+  }
+  .ws-geri-btn:hover { background: rgba(34,211,165,.1); }
+  .ws-banner-mukellef { display: flex; align-items: center; gap: 8px; margin-right: 18px; flex-shrink: 0; }
+  .ws-banner-ad { font-weight: 700; color: var(--accent2); font-size: 14px; }
+  .ws-banner-vkn { font-size: 10px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
+  .ws-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ws-tab {
+    background: transparent; border: 1px solid var(--border); color: var(--text2);
+    border-radius: 6px; padding: 4px 11px; font-size: 12px; cursor: pointer; white-space: nowrap;
+    transition: all .15s;
+  }
+  .ws-tab:hover { border-color: var(--accent2); color: var(--accent2); }
+  .ws-tab.aktif { background: rgba(34,211,165,.12); border-color: var(--accent2); color: var(--accent2); font-weight: 600; }
+
+  /* WORKSPACE OVERVIEW PAGE */
+  .ws-page-header {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px 28px; margin-bottom: 20px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+  }
+  .ws-page-ad { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+  .ws-page-meta { font-size: 12px; color: var(--text2); display: flex; flex-wrap: wrap; gap: 10px; }
+  .ws-stat-row { display: grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .ws-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .ws-stat-num { font-size: 26px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: var(--accent2); }
+  .ws-stat-lbl { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .ws-modul-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: 14px; }
+  .ws-modul-kart {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 16px; text-align: center; cursor: pointer; transition: all .18s;
+  }
+  .ws-modul-kart:hover { border-color: var(--accent2); background: rgba(34,211,165,.05); transform: translateY(-2px); }
+  .ws-modul-icon { font-size: 28px; margin-bottom: 10px; }
+  .ws-modul-ad { font-size: 13px; font-weight: 600; }
+  .ws-modul-desc { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
   /* MAIN LAYOUT */
   main {
     display: flex;
@@ -886,6 +933,27 @@
   <label>⚙️ SİSTEM AYARI:</label>
   <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-api03-..." />
   <button class="api-btn" onclick="saveApiKey()">Kaydet</button>
+</div>
+
+<!-- WORKSPACE BANNER — mükellef workspace aktifken görünür -->
+<div id="wsBanner">
+  <button class="ws-geri-btn" onclick="wsCik()">← Mükelleflere Dön</button>
+  <div class="ws-banner-mukellef">
+    <span style="font-size:18px;">👤</span>
+    <div>
+      <span class="ws-banner-ad" id="wsBannerAd"></span>
+      <span class="ws-banner-vkn" id="wsBannerVkn"></span>
+    </div>
+  </div>
+  <div class="ws-tabs">
+    <button class="ws-tab" id="wsTab-z-raporu"   onclick="wsGit('z-raporu',this)">🧾 Z Raporu</button>
+    <button class="ws-tab" id="wsTab-fisler"      onclick="wsGit('fisler',this)">🗂️ Fişler</button>
+    <button class="ws-tab" id="wsTab-faturalar"   onclick="wsGit('faturalar',this)">📄 Faturalar</button>
+    <button class="ws-tab" id="wsTab-mizan"       onclick="wsGit('mizan',this)">📊 Mizan</button>
+    <button class="ws-tab" id="wsTab-hatirlatici" onclick="wsGit('hatirlatici',this)">🔔 Hatırlatıcı</button>
+    <button class="ws-tab" id="wsTab-kamera"      onclick="wsGit('kamera',this)">📷 Kamera</button>
+    <button class="ws-tab" id="wsTab-hesaplamalar" onclick="wsGit('hesaplamalar',this)">🧮 Hesap</button>
+  </div>
 </div>
 
 <main id="appMain" style="display:none">
@@ -2097,6 +2165,83 @@
 
     </div>
 
+    <!-- MÜKELLEF WORKSPACE SAYFASI -->
+    <div class="page" id="page-mukellef-ws">
+      <div class="ws-page-header">
+        <div style="flex:1;">
+          <div class="ws-page-ad" id="wsKartAd">—</div>
+          <div class="ws-page-meta" id="wsKartMeta"></div>
+        </div>
+        <button class="btn btn-outline" onclick="wsKartDuzenle()" style="flex-shrink:0;">✎ Kartı Düzenle</button>
+      </div>
+
+      <!-- Özet İstatistikler -->
+      <div class="ws-stat-row" id="wsStatRow">
+        <div class="ws-stat">
+          <div class="ws-stat-num" id="wsKdvNum">—</div>
+          <div class="ws-stat-lbl">Bu Ay KDV</div>
+        </div>
+        <div class="ws-stat">
+          <div class="ws-stat-num" id="wsIslemNum" style="color:var(--accent);">—</div>
+          <div class="ws-stat-lbl">İşlem Sayısı</div>
+        </div>
+        <div class="ws-stat">
+          <div class="ws-stat-num" id="wsFisNum" style="color:var(--warn);">—</div>
+          <div class="ws-stat-lbl">Fiş Sayısı</div>
+        </div>
+        <div class="ws-stat">
+          <div class="ws-stat-num" id="wsZNum" style="color:var(--text2);">—</div>
+          <div class="ws-stat-lbl">Z Raporu</div>
+        </div>
+      </div>
+
+      <!-- Modül Kartları -->
+      <div style="font-size:12px;color:var(--text3);font-family:'IBM Plex Mono',monospace;letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px;">Modüller</div>
+      <div class="ws-modul-grid">
+        <div class="ws-modul-kart" onclick="wsGit('z-raporu')">
+          <div class="ws-modul-icon">🧾</div>
+          <div class="ws-modul-ad">Z Raporu</div>
+          <div class="ws-modul-desc">Günlük ciro & KDV</div>
+        </div>
+        <div class="ws-modul-kart" onclick="wsGit('fisler')">
+          <div class="ws-modul-icon">🗂️</div>
+          <div class="ws-modul-ad">Fiş İşle</div>
+          <div class="ws-modul-desc">Gider fişleri</div>
+        </div>
+        <div class="ws-modul-kart" onclick="wsGit('faturalar')">
+          <div class="ws-modul-icon">📄</div>
+          <div class="ws-modul-ad">Faturalar</div>
+          <div class="ws-modul-desc">KDV mutabakat</div>
+        </div>
+        <div class="ws-modul-kart" onclick="wsGit('mizan')">
+          <div class="ws-modul-icon">📊</div>
+          <div class="ws-modul-ad">Mizan</div>
+          <div class="ws-modul-desc">Hesap analizi</div>
+        </div>
+        <div class="ws-modul-kart" onclick="wsGit('hatirlatici')">
+          <div class="ws-modul-icon">🔔</div>
+          <div class="ws-modul-ad">Hatırlatıcı</div>
+          <div class="ws-modul-desc">Beyanname takibi</div>
+        </div>
+        <div class="ws-modul-kart" onclick="wsGit('kamera')">
+          <div class="ws-modul-icon">📷</div>
+          <div class="ws-modul-ad">Kamera</div>
+          <div class="ws-modul-desc">Fiş fotoğrafı</div>
+        </div>
+        <div class="ws-modul-kart" onclick="wsGit('hesaplamalar')">
+          <div class="ws-modul-icon">🧮</div>
+          <div class="ws-modul-ad">Hesaplamalar</div>
+          <div class="ws-modul-desc">Vergi & stopaj</div>
+        </div>
+      </div>
+
+      <!-- Son Fişler -->
+      <div style="margin-top:28px;">
+        <div style="font-size:12px;color:var(--text3);font-family:'IBM Plex Mono',monospace;letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px;">Son Fiş Arşivi</div>
+        <div id="wsFisArsiv" style="font-size:13px;color:var(--text3);">Yükleniyor...</div>
+      </div>
+    </div><!-- /page-mukellef-ws -->
+
   </div>
 </main>
 
@@ -2317,6 +2462,18 @@ function setApiStatus(ok) {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+
+  // Sidebar'dan Mükellef Kartı'na gidince workspace'den çık
+  if (id === 'mukellef-kart' && _wsAktif) {
+    _wsAktif = null; _wsAktifIdx = -1;
+    document.getElementById('wsBanner').style.display = 'none';
+    document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('aktif'));
+  }
+  // Workspace aktifse, modüllere gidince mükellef'i doldur
+  if (_wsAktif && id !== 'mukellef-kart') {
+    setTimeout(() => globalMukellefAlanlariDoldur(_wsAktif.ad), 50);
+  }
+
   if (id === 'faturalar') faturaMukellefListesiDoldur();
   if (id === 'mukellef-kart') arsivMukellefListesiDoldur();
   if (id === 'mizan') { mizanMukellefDoldur(); mizanArsivGoster(document.getElementById('mizanMukellef').value); }
@@ -4454,7 +4611,7 @@ function mukellefKartListesiRender() {
     const ozet = getMukellefOzet(k.ad);
     const renkKdv = ozet.toplamKdv > 0 ? 'var(--accent2)' : 'var(--text3)';
     return `
-    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px 20px; display:flex; align-items:center; gap:16px; cursor:pointer;" onclick="kartAc(${i})">
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px 20px; display:flex; align-items:center; gap:16px; cursor:pointer; transition:border-color .15s;" onmouseenter="this.style.borderColor='var(--accent2)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="wsAc(${i})">
       <div style="width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div>
       <div style="flex:1;">
         <div style="font-weight:600; font-size:14px;">${k.ad}</div>
@@ -4465,7 +4622,8 @@ function mukellefKartListesiRender() {
         <div style="font-size:16px; font-weight:700; color:${renkKdv}; font-family:'IBM Plex Mono',monospace;">${ozet.toplamKdv.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</div>
         <div style="font-size:10px; color:var(--text3);">${ozet.islemSayisi} işlem</div>
       </div>
-      <div style="color:var(--text3); font-size:18px;">›</div>
+      <button onclick="event.stopPropagation();kartAc(${i})" style="background:transparent;border:1px solid var(--border);color:var(--text3);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;" title="Kartı Düzenle">✎</button>
+      <div style="color:var(--accent2); font-size:20px;">›</div>
     </div>`;
   }).join('');
 }
@@ -5552,6 +5710,136 @@ function logout() {
   document.getElementById('appHeader').style.display = 'none';
   document.getElementById('appMain').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('wsBanner').style.display = 'none';
+  _wsAktif = null; _wsAktifIdx = -1;
+}
+
+// ===================== MÜKELLEF WORKSPACE =====================
+let _wsAktif    = null; // aktif workspace mükellef objesi
+let _wsAktifIdx = -1;   // kartlar dizisindeki indeksi
+
+function wsAc(i) {
+  const k = mukellefKartlari[i];
+  if (!k) return;
+  _wsAktif    = k;
+  _wsAktifIdx = i;
+
+  // Banner'ı güncelle ve göster
+  document.getElementById('wsBannerAd').textContent  = k.ad;
+  document.getElementById('wsBannerVkn').textContent = k.vkn ? 'VKN: ' + k.vkn : (k.vd || '');
+  document.getElementById('wsBanner').style.display  = 'flex';
+
+  // Tüm tab aktif işaretini sıfırla
+  document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('aktif'));
+
+  // Global mükellef seçiciyi güncelle (gmSec() yerine — döngüyü önlemek için)
+  _gmSecili = k.ad;
+  const btnAd = document.getElementById('gmBtnAd');
+  if (btnAd) btnAd.textContent = k.ad;
+  localStorage.setItem(_sk('gm_secili'), k.ad);
+
+  // Workspace genel bakış sayfasını göster
+  _wsGoster('mukellef-ws', null);
+  wsOzetDoldur();
+}
+
+function wsCik() {
+  _wsAktif    = null;
+  _wsAktifIdx = -1;
+  document.getElementById('wsBanner').style.display = 'none';
+  document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('aktif'));
+
+  // Mükellef kart listesine dön
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-mukellef-kart').classList.add('active');
+  document.querySelectorAll('.sidebar-item').forEach(s => {
+    s.classList.toggle('active', s.textContent.includes('Mükellef Kartı'));
+  });
+  arsivMukellefListesiDoldur?.();
+  mukellefKartListesiRender();
+}
+
+function wsGit(modul, btnEl) {
+  if (!_wsAktif) return;
+  // Aktif tab işaretle
+  document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('aktif'));
+  if (btnEl) btnEl.classList.add('aktif');
+  else {
+    const btn = document.getElementById('wsTab-' + modul);
+    if (btn) btn.classList.add('aktif');
+  }
+  // Mükellef alanlarını doldur
+  globalMukellefAlanlariDoldur(_wsAktif.ad);
+  // Sayfayı göster
+  _wsGoster(modul, null);
+  // Modül özel tetikleyiciler
+  if (modul === 'faturalar')        faturaMukellefListesiDoldur?.();
+  if (modul === 'mizan')            { mizanMukellefDoldur?.(); mizanArsivGoster?.(_wsAktif.ad); }
+  if (modul === 'hatirlatici')      hatirRender?.();
+  if (modul === 'beyanname-takvim') takvimiGoster?.();
+}
+
+// Sayfa göster (sadece DOM, sidebar highlight yok)
+function _wsGoster(modul, sidebarText) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const sayfa = document.getElementById('page-' + modul);
+  if (sayfa) sayfa.classList.add('active');
+  document.querySelectorAll('.sidebar-item').forEach(s => {
+    s.classList.toggle('active', sidebarText && s.textContent.includes(sidebarText));
+  });
+}
+
+function wsOzetDoldur() {
+  if (!_wsAktif) return;
+  const k   = _wsAktif;
+  const ozet = getMukellefOzet(k.ad);
+
+  // Header
+  document.getElementById('wsKartAd').textContent = k.ad;
+  const meta = [
+    k.vkn  && `VKN: <b>${k.vkn}</b>`,
+    k.vd   && k.vd,
+    k.tur  && k.tur,
+    k.tel  && `📞 ${k.tel}`,
+    k.email && `✉️ ${k.email}`,
+    k.not  && `📝 ${k.not}`,
+  ].filter(Boolean).join('<span style="margin:0 6px;color:var(--border)">·</span>');
+  document.getElementById('wsKartMeta').innerHTML = meta || '<span style="color:var(--text3)">Kart bilgisi yok.</span>';
+
+  // İstatistikler
+  document.getElementById('wsKdvNum').textContent   = ozet.toplamKdv.toLocaleString('tr-TR',{minimumFractionDigits:2}) + ' ₺';
+  document.getElementById('wsIslemNum').textContent = ozet.islemSayisi;
+
+  // Fiş sayısı (bu ayki)
+  const buAy = new Date().toISOString().slice(0,7);
+  const fisSayisi = fisData.filter(r => (r.mukellef||'').toLowerCase()===k.ad.toLowerCase() && (r.donem||'').slice(0,7)===buAy).length;
+  const zSayisi   = zData.filter(r => (r.mukellef||'').toLowerCase()===k.ad.toLowerCase() && (r.donem||'').slice(0,7)===buAy).length;
+  document.getElementById('wsFisNum').textContent = fisSayisi;
+  document.getElementById('wsZNum').textContent   = zSayisi;
+
+  // Son fiş arşivi
+  const arsivEl = document.getElementById('wsFisArsiv');
+  if (arsivEl) {
+    const arsivKey = _sk('tahai_fis_arsiv_' + k.ad.toLowerCase().replace(/[^a-z0-9]/g,'_'));
+    const arsivData = JSON.parse(localStorage.getItem(arsivKey) || '[]');
+    if (arsivData.length === 0) {
+      arsivEl.innerHTML = '<span style="color:var(--text3)">Henüz kaydedilmiş fiş yok.</span>';
+    } else {
+      const son5 = arsivData.slice(-5).reverse();
+      arsivEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;">${
+        son5.map(r => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:center;">
+          <span style="font-size:18px;">${r.tur==='Akaryakıt'?'⛽':r.tur==='Market'?'🛒':r.tur==='Restoran'?'🍽️':'🗂️'}</span>
+          <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${r.aciklama||r.tur||'Fiş'}</div>
+          <div style="font-size:11px;color:var(--text3);">${r.tarih||''} ${r.donem||''}</div></div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent2);">${(r.toplam||0).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</div>
+        </div>`).join('')
+      }</div>`;
+    }
+  }
+}
+
+function wsKartDuzenle() {
+  if (_wsAktifIdx >= 0) kartAc(_wsAktifIdx);
 }
 
 // Gizli admin paneli: sağ üst köşeye çift tıkla
