@@ -50,13 +50,15 @@ async function _tFetch(path, opts) {
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: resp.statusText }));
-    // Token süresi dolmuşsa çıkış yap
+    // Token süresi dolmuşsa çıkış yap ve login'e yönlendir
     if (resp.status === 401) {
       sessionStorage.removeItem('_jwt');
       sessionStorage.removeItem('_st');
       localStorage.removeItem('tahai_token');
-      if (typeof logout === 'function') logout();
-      else window.location.reload();
+      localStorage.removeItem('tahai_user');
+      const authErr = new Error('AUTH_EXPIRED');
+      authErr.isAuthError = true;
+      throw authErr;
     }
     throw new Error(err.error || 'API hatası (' + resp.status + ')');
   }
@@ -101,6 +103,14 @@ async function callClaude(prompt, imageFile, retry) {
       return data.text;
 
     } catch (e) {
+      // Token süresi dolmuş — direkt API'ye düşme, login'e yönlendir
+      if (e.isAuthError) {
+        if (typeof _showApp === 'function') {
+          if (typeof logout === 'function') logout();
+        }
+        window.location.href = '/giris';
+        throw new Error('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+      }
       if (retry) {
         await new Promise(r => setTimeout(r, 1500));
         return callClaude(prompt, imageFile, false);

@@ -272,6 +272,44 @@
     cursor: default;
   }
 
+  /* GLOBAL MÜKELLEF SEÇİCİ */
+  .gm-wrap { position: relative; }
+  .gm-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer;
+    color: var(--text); font-size: 13px; min-width: 200px; max-width: 300px;
+    transition: border-color .2s;
+  }
+  .gm-btn:hover { border-color: var(--accent); }
+  .gm-btn .gm-label { font-size: 10px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; }
+  .gm-btn .gm-name { font-weight: 600; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+  .gm-btn .gm-arrow { margin-left: auto; color: var(--text3); font-size: 10px; }
+  .gm-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; min-width: 300px; max-width: 340px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4); z-index: 9999; overflow: hidden;
+  }
+  .gm-dropdown.open, .gm-dropdown.gm-open { display: block; }
+  .gm-search { padding: 10px; border-bottom: 1px solid var(--border); }
+  .gm-search input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 13px;
+    outline: none;
+  }
+  .gm-search input:focus { border-color: var(--accent); }
+  .gm-list { max-height: 260px; overflow-y: auto; }
+  .gm-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px; cursor: pointer; font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,.04); transition: background .15s;
+  }
+  .gm-item:hover { background: rgba(79,142,247,.08); }
+  .gm-item.active, .gm-item.gm-item-aktif { background: rgba(79,142,247,.12); color: var(--accent); }
+  .gm-item .gm-vkn { font-size: 10px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
+  .gm-item-none { padding: 9px 14px; font-size: 12px; color: var(--text3); font-style: italic; }
+
   /* MAIN LAYOUT */
   main {
     display: flex;
@@ -813,6 +851,27 @@
       <div class="logo-sub">Yapay Zeka Destekli Sistem</div>
     </div>
   </div>
+
+  <!-- GLOBAL MÜKELLEF SEÇİCİ -->
+  <div class="gm-wrap" id="gmWrap">
+    <div class="gm-btn" onclick="gmToggle()" id="gmBtn">
+      <span>👤</span>
+      <div style="display:flex;flex-direction:column;gap:1px;overflow:hidden;">
+        <span class="gm-label">Mükellef</span>
+        <span class="gm-name" id="gmBtnAd">— Seçilmedi —</span>
+      </div>
+      <span class="gm-arrow">▼</span>
+    </div>
+    <div class="gm-dropdown scrollbar" id="gmDropdown">
+      <div class="gm-search">
+        <input type="text" id="gmArama" placeholder="🔍 Mükellef ara..." oninput="gmFiltrele(this.value)" />
+      </div>
+      <div class="gm-list" id="gmListe">
+        <div class="gm-item-none">Henüz mükellef eklenmedi.</div>
+      </div>
+    </div>
+  </div>
+
   <div style="display:flex; align-items:center; gap:16px;">
     <div class="api-status">
       <div class="status-dot" id="statusDot" style="background: var(--accent2)"></div>
@@ -1638,6 +1697,53 @@
         <div class="card-desc">Her mükellefin detaylı bilgilerini kaydet. Seçtiğinde bu ayki KDV ve işlem özetini görebilirsin.</div>
         <div style="display:flex; gap:10px; margin-bottom:16px;">
           <button class="btn btn-primary" onclick="mukellefKartEkle()">+ Yeni Mükellef Kartı</button>
+          <button class="btn btn-outline" onclick="lucaExcelModalAc()" style="color:var(--accent2);border-color:var(--accent2);">📥 Luca'dan Toplu Aktar</button>
+        </div>
+
+        <!-- Luca Toplu Aktarım Modali -->
+        <div id="lucaImportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600;align-items:center;justify-content:center;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:720px;max-height:90vh;overflow-y:auto;" class="scrollbar">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+              <div class="card-title">📥 Luca'dan Toplu Mükellef Aktarma</div>
+              <button class="btn btn-outline" onclick="lucaExcelModalKapat()">✕ Kapat</button>
+            </div>
+            <!-- Upload alanı -->
+            <div id="lucaImportUpload">
+              <div class="upload-zone" onclick="document.getElementById('lucaImportFile').click()" id="lucaImportZone">
+                <input type="file" id="lucaImportFile" accept=".xlsx,.xls" style="display:none" onchange="lucaExcelParse(this.files[0])" />
+                <div class="upload-icon">📊</div>
+                <div class="upload-text">Luca'dan indirdiğiniz Müşteri Listesi Excel dosyasını yükleyin — <span>tıkla</span></div>
+                <div class="upload-sub">.xlsx, .xls formatları desteklenir</div>
+              </div>
+            </div>
+            <!-- Önizleme -->
+            <div id="lucaImportOnizleme" style="display:none;">
+              <div id="lucaImportOzet" style="margin-bottom:12px;padding:10px 14px;background:rgba(79,142,247,0.08);border-radius:8px;font-size:13px;"></div>
+              <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                  <input type="checkbox" id="lucaImportTumunu" onchange="lucaImportTumunuSec(this.checked)" checked /> Tümünü Seç
+                </label>
+              </div>
+              <div class="table-wrap" style="max-height:320px;overflow-y:auto;">
+                <table id="lucaImportTable" style="width:100%">
+                  <thead><tr>
+                    <th style="width:30px;"></th>
+                    <th>Kısa Ad</th><th>Uzun Ad</th><th>VKN/TCKN</th>
+                    <th>Vergi Dairesi</th><th>Tür</th>
+                    <th style="width:80px;">Durum</th>
+                  </tr></thead>
+                  <tbody id="lucaImportBody"></tbody>
+                </table>
+              </div>
+              <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+                <button class="btn btn-primary" onclick="lucaExcelKaydet()" id="lucaImportKaydetBtn">💾 Seçilenleri Kaydet</button>
+                <div id="lucaImportProgress" style="display:none;flex:1;">
+                  <div class="progress-bar"><div class="progress-fill" id="lucaImportFill" style="width:0%"></div></div>
+                  <div id="lucaImportProgressText" style="font-size:11px;color:var(--text2);margin-top:4px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="mukellefKartListesi" style="display:flex; flex-direction:column; gap:10px;"></div>
       </div>
@@ -2156,6 +2262,7 @@ async function init() {
   mukellefKartlariYukle();
   mukellefKartListesiRender();
   takvimiGoster();
+  gmYukle(); // Son seçili mükellef'i geri yükle
 
   // 4) Auto-load: önceki verileri yükle
   await autoLoad();
@@ -4033,6 +4140,7 @@ function renderMukellefler() {
   const dl = document.getElementById('mukellefList');
   faturaMukellefListesiDoldur(); // Faturalar sayfasındaki dropdown'ı da güncelle
   mizanMukellefDoldur();        // Mizan sayfasındaki dropdown'ı da güncelle
+  gmGuncelle();                 // Global mükellef seçici'yi güncelle
   if (mukellefler.length === 0) {
     el.innerHTML = '<div style="color: var(--text3); font-size: 12px;">Henüz mükellef eklenmedi.</div>';
     dl.innerHTML = '';
@@ -5436,6 +5544,318 @@ function logout() {
 function toggleAdminPanel() {
   const p = document.getElementById('adminPanel');
   p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+
+// ===================== GLOBAL MÜKELLEF SEÇİCİ =====================
+let _gmSecili = null; // seçili mükellef adı
+
+function gmGuncelle() {
+  const liste = document.getElementById('gmListe');
+  if (!liste) return;
+  // Tüm mükellef adlarını topla (kartlar + mukellefler listesi birleştir)
+  const kartAdlar = mukellefKartlari.map(k => k.ad);
+  const digerAdlar = mukellefler.filter(m => !kartAdlar.some(a => a.toLowerCase() === m.toLowerCase()));
+  const tumAdlar = [...kartAdlar, ...digerAdlar];
+
+  if (tumAdlar.length === 0) {
+    liste.innerHTML = '<div class="gm-item-none">Henüz mükellef eklenmedi.</div>';
+    return;
+  }
+  liste.innerHTML = tumAdlar.map(ad => {
+    const aktif = ad === _gmSecili ? ' gm-item-aktif' : '';
+    return `<div class="gm-item${aktif}" onclick="gmSec('${ad.replace(/'/g,"\\'")}'">${ad}</div>`;
+  }).join('');
+}
+
+function gmToggle() {
+  const dd = document.getElementById('gmDropdown');
+  if (!dd) return;
+  const acik = dd.classList.contains('gm-open');
+  if (acik) {
+    dd.classList.remove('gm-open');
+  } else {
+    gmGuncelle();
+    dd.classList.add('gm-open');
+    setTimeout(() => document.getElementById('gmArama')?.focus(), 80);
+  }
+}
+
+function gmFiltrele(val) {
+  const liste = document.getElementById('gmListe');
+  if (!liste) return;
+  const q = val.toLowerCase().trim();
+  liste.querySelectorAll('.gm-item').forEach(el => {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function gmSec(ad) {
+  _gmSecili = ad;
+  // Butonu güncelle
+  const btnAd = document.getElementById('gmBtnAd');
+  if (btnAd) btnAd.textContent = ad;
+  // Dropdown kapat
+  document.getElementById('gmDropdown')?.classList.remove('gm-open');
+  document.getElementById('gmArama') && (document.getElementById('gmArama').value = '');
+  // localStorage'a kaydet
+  localStorage.setItem('gm_secili', ad);
+  // Tüm modül alanlarını doldur
+  globalMukellefAlanlariDoldur(ad);
+  showNotif('✅ Mükellef seçildi: ' + ad, 'success');
+}
+
+function globalMukellefAlanlariDoldur(ad) {
+  // Z Raporu
+  const zM = document.getElementById('zMukellef');
+  if (zM) zM.value = ad;
+  // Fiş İşle
+  const fisM = document.getElementById('fisMukellef');
+  if (fisM) fisM.value = ad;
+  // KAM
+  const kamM = document.getElementById('kamMukellef');
+  if (kamM) kamM.value = ad;
+  // Faturalar dropdown
+  const fatM = document.getElementById('faturaMukellef');
+  if (fatM) {
+    // Önce option var mı bak, yoksa oluştur
+    let found = false;
+    for (const opt of fatM.options) { if (opt.value === ad) { found = true; break; } }
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = ad; opt.textContent = ad;
+      fatM.appendChild(opt);
+    }
+    fatM.value = ad;
+    faturaMukellefDegisti?.();
+  }
+  // Fatura İşle dropdown
+  const fatIsleM = document.getElementById('faturaIsleMukellef');
+  if (fatIsleM) {
+    let found2 = false;
+    for (const opt of fatIsleM.options) { if (opt.value === ad) { found2 = true; break; } }
+    if (!found2) {
+      const opt = document.createElement('option');
+      opt.value = ad; opt.textContent = ad;
+      fatIsleM.appendChild(opt);
+    }
+    fatIsleM.value = ad;
+  }
+  // Mizan
+  const mizM = document.getElementById('mizanMukellef');
+  if (mizM) {
+    let found3 = false;
+    for (const opt of mizM.options) { if (opt.value === ad) { found3 = true; break; } }
+    if (!found3) {
+      const opt = document.createElement('option');
+      opt.value = ad; opt.textContent = ad;
+      mizM.appendChild(opt);
+    }
+    mizM.value = ad;
+  }
+}
+
+// Sayfa yüklenince son seçili mükellef'i geri yükle
+function gmYukle() {
+  const kayitli = localStorage.getItem('gm_secili');
+  if (kayitli) {
+    _gmSecili = kayitli;
+    const btnAd = document.getElementById('gmBtnAd');
+    if (btnAd) btnAd.textContent = kayitli;
+    // Kısa gecikme: tüm listeler render olduktan sonra doldur
+    setTimeout(() => globalMukellefAlanlariDoldur(kayitli), 400);
+  }
+}
+
+// Dropdown dışına tıklanınca kapat
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('gmWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('gmDropdown')?.classList.remove('gm-open');
+  }
+});
+
+// ===================== LUCA EXCEL TOPLU AKTARIM =====================
+let _lucaImportData = []; // parse edilmiş satırlar
+
+function lucaExcelModalAc() {
+  const modal = document.getElementById('lucaImportModal');
+  if (!modal) return;
+  // Sıfırla
+  _lucaImportData = [];
+  document.getElementById('lucaImportOnizleme').style.display = 'none';
+  document.getElementById('lucaImportUpload').style.display = '';
+  document.getElementById('lucaImportBody').innerHTML = '';
+  document.getElementById('lucaImportFile').value = '';
+  modal.style.display = 'flex';
+}
+
+function lucaExcelModalKapat() {
+  const modal = document.getElementById('lucaImportModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function lucaExcelParse(file) {
+  if (!file) return;
+  const doparse = () => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false, header: 1 });
+
+        // Başlık satırını bul (VKN veya TCKN içeren satır)
+        let baslikIdx = -1;
+        for (let i = 0; i < Math.min(15, raw.length); i++) {
+          const str = raw[i].join('|').toLowerCase();
+          if (str.includes('vkn') || str.includes('tckn') || str.includes('vergi')) {
+            baslikIdx = i;
+            break;
+          }
+        }
+        if (baslikIdx === -1) {
+          showNotif('❌ Luca müşteri listesi formatı tanınamadı. Lütfen doğru dosyayı seçin.', 'error');
+          return;
+        }
+        const basliklar = raw[baslikIdx].map(b => (b+'').toLowerCase().trim());
+
+        // Sütun indekslerini bul
+        const colIdx = (keywords) => {
+          for (const kw of keywords) {
+            const idx = basliklar.findIndex(b => b.includes(kw));
+            if (idx !== -1) return idx;
+          }
+          return -1;
+        };
+        const iKisaAd   = colIdx(['kısa ad','kisa ad','kod','müşteri kodu']);
+        const iUzunAd   = colIdx(['uzun ad','unvan','firma adı','ad soyad','ad/unvan']);
+        const iVkn      = colIdx(['vkn','tckn','vergi no','kimlik no']);
+        const iVd       = colIdx(['vergi dairesi','vd']);
+        const iTur      = colIdx(['tür','tur','tip','nevi','müşteri tipi']);
+
+        // Veri satırlarını çıkar
+        _lucaImportData = [];
+        for (let i = baslikIdx + 1; i < raw.length; i++) {
+          const row = raw[i];
+          const uzunAd = iUzunAd >= 0 ? (row[iUzunAd]+'').trim() : '';
+          const kisaAd = iKisaAd >= 0 ? (row[iKisaAd]+'').trim() : uzunAd;
+          const vkn    = iVkn >= 0 ? (row[iVkn]+'').trim() : '';
+          const vd     = iVd >= 0 ? (row[iVd]+'').trim() : '';
+          const tur    = iTur >= 0 ? (row[iTur]+'').trim() : '';
+          const ad     = uzunAd || kisaAd;
+          if (!ad) continue; // boş satır atla
+          _lucaImportData.push({ kisaAd, uzunAd: ad, vkn, vd, tur, secili: true });
+        }
+
+        if (_lucaImportData.length === 0) {
+          showNotif('❌ Excel dosyasında mükellef verisi bulunamadı.', 'error');
+          return;
+        }
+
+        // Önizleme tablosunu render et
+        lucaImportTabloRender();
+        document.getElementById('lucaImportUpload').style.display = 'none';
+        document.getElementById('lucaImportOnizleme').style.display = '';
+        const yeniSayisi = _lucaImportData.filter(r => !mukellefler.some(m => m.toLowerCase() === r.uzunAd.toLowerCase())).length;
+        document.getElementById('lucaImportOzet').innerHTML =
+          `<strong>${_lucaImportData.length}</strong> mükellef bulundu. ` +
+          `<span style="color:var(--accent2)">${yeniSayisi} yeni</span>, ` +
+          `<span style="color:var(--text3)">${_lucaImportData.length - yeniSayisi} zaten kayıtlı</span>.`;
+      } catch(e) {
+        showNotif('❌ Excel okuma hatası: ' + e.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  if (typeof XLSX !== 'undefined') { doparse(); }
+  else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doparse;
+    document.head.appendChild(s);
+  }
+}
+
+function lucaImportTabloRender() {
+  const tbody = document.getElementById('lucaImportBody');
+  if (!tbody) return;
+  tbody.innerHTML = _lucaImportData.map((r, i) => {
+    const mevcutMu = mukellefler.some(m => m.toLowerCase() === r.uzunAd.toLowerCase());
+    const kartMevcutMu = mukellefKartlari.some(k => k.ad.toLowerCase() === r.uzunAd.toLowerCase());
+    const durum = (mevcutMu || kartMevcutMu)
+      ? '<span style="color:var(--text3);font-size:11px;">✓ Kayıtlı</span>'
+      : '<span style="color:var(--accent2);font-size:11px;">Yeni</span>';
+    return `<tr>
+      <td style="text-align:center;"><input type="checkbox" ${r.secili?'checked':''} onchange="_lucaImportData[${i}].secili=this.checked" /></td>
+      <td style="font-size:12px;font-family:'IBM Plex Mono',monospace;">${r.kisaAd||'-'}</td>
+      <td style="font-size:13px;">${r.uzunAd}</td>
+      <td style="font-size:12px;font-family:'IBM Plex Mono',monospace;">${r.vkn||'-'}</td>
+      <td style="font-size:12px;">${r.vd||'-'}</td>
+      <td style="font-size:12px;">${r.tur||'-'}</td>
+      <td>${durum}</td>
+    </tr>`;
+  }).join('');
+}
+
+function lucaImportTumunuSec(checked) {
+  _lucaImportData.forEach(r => r.secili = checked);
+  lucaImportTabloRender();
+}
+
+async function lucaExcelKaydet() {
+  const secililar = _lucaImportData.filter(r => r.secili);
+  if (secililar.length === 0) {
+    showNotif('❌ En az bir mükellef seçin.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('lucaImportKaydetBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Kaydediliyor...'; }
+  const progEl = document.getElementById('lucaImportProgress');
+  const fillEl = document.getElementById('lucaImportFill');
+  const progTxt = document.getElementById('lucaImportProgressText');
+  if (progEl) progEl.style.display = 'flex';
+
+  let eklenen = 0;
+  for (let i = 0; i < secililar.length; i++) {
+    const r = secililar[i];
+    const ad = r.uzunAd;
+
+    // mukellefler listesine ekle (sadece ad)
+    if (!mukellefler.some(m => m.toLowerCase() === ad.toLowerCase())) {
+      mukellefler.push(ad);
+    }
+
+    // Kart varsa güncelleme yok, yoksa yeni kart ekle
+    const kartVar = mukellefKartlari.some(k => k.ad.toLowerCase() === ad.toLowerCase());
+    if (!kartVar) {
+      mukellefKartlari.push({
+        ad,
+        vkn: r.vkn || '',
+        vd: r.vd || '',
+        tur: r.tur || 'Kurumlar Vergisi Mükellefi',
+        adres: '', tel: '', email: '', not: '', kdvPeriyot: 'aylik'
+      });
+      eklenen++;
+    }
+
+    // İlerleme çubuğu
+    const pct = Math.round(((i+1)/secililar.length)*100);
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (progTxt) progTxt.textContent = `${i+1} / ${secililar.length}`;
+  }
+
+  // Kaydet
+  localStorage.setItem('luca_mukellef', JSON.stringify(mukellefler));
+  mukellefKartlariKaydet();
+  renderMukellefler();
+  mukellefKartListesiRender();
+  gmGuncelle();
+  await cloudSave().catch(() => {});
+
+  if (btn) { btn.disabled = false; btn.textContent = '💾 Seçilenleri Kaydet'; }
+  lucaExcelModalKapat();
+  showNotif(`✅ ${eklenen} yeni mükellef eklendi (${secililar.length - eklenen} zaten kayıtlıydı).`, 'success');
 }
 
 init();
