@@ -303,9 +303,9 @@ async function cloudLoad() {
     if (v.z_data      && typeof zData       !== 'undefined') { zData       = JSON.parse(v.z_data);      renderZTable();       }
     if (v.fatura_data && typeof faturaData  !== 'undefined') { faturaData  = JSON.parse(v.fatura_data); renderFaturaTable?.(); }
     if (v.mukellef    && typeof mukellefler !== 'undefined') { mukellefler = JSON.parse(v.mukellef);    renderMukellefler();  }
-    if (v.fatura_arsiv) localStorage.setItem('luca_fatura_arsiv', v.fatura_arsiv);
+    if (v.fatura_arsiv) localStorage.setItem(typeof _sk === 'function' ? _sk('luca_fatura_arsiv') : 'luca_fatura_arsiv', v.fatura_arsiv);
     if (v.api_key_enc) {
-      localStorage.setItem('_lk', v.api_key_enc);
+      localStorage.setItem(typeof _sk === 'function' ? _sk('_lk') : '_lk', v.api_key_enc);
       if (typeof _loadApiKey === 'function') {
         if (typeof apiKey !== 'undefined') apiKey = _loadApiKey();
         const el = document.getElementById('apiKey');

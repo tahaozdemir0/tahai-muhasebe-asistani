@@ -2130,6 +2130,20 @@ let muhasebeCodes = {
 
 let mukellefler = [];
 
+// ===================== KULLANICI BAZLI STORAGE =====================
+// Her kullanıcının verisi birbirinden ayrı tutulur
+function _uid() {
+  try {
+    const u = JSON.parse(localStorage.getItem('tahai_user') || '{}');
+    return u.id || u.kullanici_adi || '';
+  } catch(e) { return ''; }
+}
+// Kullanıcıya özel localStorage anahtarı üretir
+function _sk(key) {
+  const uid = _uid();
+  return uid ? 'u_' + uid + '_' + key : key;
+}
+
 // ===================== YARDIMCI FONKSİYONLAR =====================
 
 /**
@@ -2181,9 +2195,9 @@ function kdvTutarlariUyusuyorMu(matrah, kdv, toplam) {
  */
 function autoSave() {
   try {
-    localStorage.setItem('luca_fis_data', JSON.stringify(fisData));
-    localStorage.setItem('luca_z_data', JSON.stringify(zData));
-    localStorage.setItem('luca_fatura_data', JSON.stringify(faturaData));
+    localStorage.setItem(_sk('luca_fis_data'), JSON.stringify(fisData));
+    localStorage.setItem(_sk('luca_z_data'), JSON.stringify(zData));
+    localStorage.setItem(_sk('luca_fatura_data'), JSON.stringify(faturaData));
   } catch(e) {
     console.warn('[AutoSave] Kaydetme hatası:', e.message);
   }
@@ -2199,13 +2213,13 @@ async function autoLoad() {
   const bulutYuklendi = await cloudLoad().catch(() => false);
   if (bulutYuklendi) return; // Bulut başarılıysa localStorage'a gerek yok
   try {
-    const fis = localStorage.getItem('luca_fis_data');
+    const fis = localStorage.getItem(_sk('luca_fis_data'));
     if (fis) { fisData = JSON.parse(fis); if (fisData.length > 0) { renderFisTable(); document.getElementById('statFis').textContent = fisData.length; } }
 
-    const z = localStorage.getItem('luca_z_data');
+    const z = localStorage.getItem(_sk('luca_z_data'));
     if (z) { zData = JSON.parse(z); if (zData.length > 0) { renderZTable(); document.getElementById('statZ').textContent = zData.length; } }
 
-    const fatura = localStorage.getItem('luca_fatura_data');
+    const fatura = localStorage.getItem(_sk('luca_fatura_data'));
     if (fatura) { faturaData = JSON.parse(fatura); if (faturaData.length > 0) { renderFaturaTable(); document.getElementById('statFatura').textContent = faturaData.length; } }
   } catch(e) {
     console.warn('[AutoLoad] Yükleme hatası:', e.message);
@@ -2246,7 +2260,7 @@ async function init() {
     document.getElementById('apiKey').value = saved ? '●'.repeat(16) + saved.slice(-4) : '';
     setApiStatus(true);
   }
-  const savedMukellef = localStorage.getItem('luca_mukellef');
+  const savedMukellef = localStorage.getItem(_sk('luca_mukellef'));
   if (savedMukellef) {
     mukellefler = JSON.parse(savedMukellef);
     renderMukellefler();
@@ -2288,7 +2302,7 @@ function saveApiKey() {
   // XOR şifrele
   const _xk = [0x4C,0x55,0x43,0x41,0x5F,0x53,0x45,0x43];
   const _enc = Array.from(val).map((ch,i) => (ch.charCodeAt(0) ^ _xk[i%_xk.length]).toString(16).padStart(2,'0')).join('');
-  localStorage.setItem('_lk', _enc);
+  localStorage.setItem(_sk('_lk'), _enc);
   localStorage.removeItem('luca_api'); // düz metin versiyonu sil
   setApiStatus(true);
   showNotif('✅ API anahtarı kaydedildi!', 'success');
@@ -2697,7 +2711,7 @@ function kartFisArsivGoster(adParam) {
 // Arşivden tek fiş sil
 function arsivFisSil(ad, donem, idx) {
   if (!confirm('Bu fişi arşivden silmek istediğinize emin misiniz?')) return;
-  const key = 'tahai_fis_arsiv_' + ad;
+  const key = _sk('tahai_fis_arsiv_' + ad);
   const arsiv = getMukellefFisArsiv(ad);
   // Döneme göre sıralı index bul
   const donemFisler = arsiv.filter(r => (r.donem||r.tarih||'').slice(0,7) === donem);
@@ -2725,7 +2739,7 @@ function fisMukellefKaydet() {
 
   let kaydedilen = 0;
   Object.entries(gruplar).forEach(([mukellef, fisler]) => {
-    const key = 'tahai_fis_arsiv_' + mukellef;
+    const key = _sk('tahai_fis_arsiv_' + mukellef);
     const mevcut = JSON.parse(localStorage.getItem(key) || '[]');
     // Mükerrer kontrolü — aynı tarih+satıcı+toplam kombinasyonu varsa ekleme
     fisler.forEach(yeni => {
@@ -2745,7 +2759,7 @@ function fisMukellefKaydet() {
 
 // Fiş arşivinden mükellef fişlerini al
 function getMukellefFisArsiv(ad) {
-  const key = 'tahai_fis_arsiv_' + ad;
+  const key = _sk('tahai_fis_arsiv_' + ad);
   return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
@@ -3523,7 +3537,7 @@ function karsilastirMukellefKaydet() {
   }
   const donem = document.getElementById('faturaDonem') ? document.getElementById('faturaDonem').value : '';
   const alisSatis = window._faturaAlisSatis || 'satis';
-  const kayitKey = 'luca_fatura_' + mukAd.replace(/[^a-z0-9]/gi,'_');
+  const kayitKey = _sk('luca_fatura_' + mukAd.replace(/[^a-z0-9]/gi,'_'));
   let kayitlar = JSON.parse(localStorage.getItem(kayitKey) || '{}');
   const kayitAdi = (donem || new Date().toISOString().slice(0,7)) + '_' + alisSatis;
   const eslesen = window._karsSonuclar.filter(r => r.durum === '✅').length;
@@ -3540,10 +3554,10 @@ function karsilastirMukellefKaydet() {
   };
   localStorage.setItem(kayitKey, JSON.stringify(kayitlar));
   // Mükellef kartında göstermek için genel listeye de ekle
-  let tumKayitlar = JSON.parse(localStorage.getItem('luca_fatura_arsiv') || '{}');
+  let tumKayitlar = JSON.parse(localStorage.getItem(_sk('luca_fatura_arsiv')) || '{}');
   if (!tumKayitlar[mukAd]) tumKayitlar[mukAd] = {};
   tumKayitlar[mukAd][kayitAdi] = kayitlar[kayitAdi];
-  localStorage.setItem('luca_fatura_arsiv', JSON.stringify(tumKayitlar));
+  localStorage.setItem(_sk('luca_fatura_arsiv'), JSON.stringify(tumKayitlar));
   showNotif('✅ ' + mukAd + ' → ' + (alisSatis==='alis'?'Alış':'Satış') + ' faturaları kaydedildi! (' + eslesen + ' eşleşti, ' + sorunlu + ' sorunlu)', 'success');
 }
 
@@ -3572,7 +3586,7 @@ function faturaMukellefDegisti() {
 function arsivMukellefListesiDoldur() {
   const sel = document.getElementById('arsivMukellefSec');
   if (!sel) return;
-  const arsiv = JSON.parse(localStorage.getItem('luca_fatura_arsiv') || '{}');
+  const arsiv = JSON.parse(localStorage.getItem(_sk('luca_fatura_arsiv')) || '{}');
   sel.innerHTML = '<option value="">— Mükellef seçin —</option>';
   Object.keys(arsiv).forEach(m => {
     const opt = document.createElement('option');
@@ -3595,13 +3609,13 @@ function arsivGoster() {
     el.innerHTML = '<div style="color:var(--text3); font-size:13px; padding:20px; text-align:center;">Mükellef seçin</div>';
     return;
   }
-  const arsiv = JSON.parse(localStorage.getItem('luca_fatura_arsiv') || '{}');
+  const arsiv = JSON.parse(localStorage.getItem(_sk('luca_fatura_arsiv')) || '{}');
   const kayitlar = arsiv[muk] || {};
   if (Object.keys(kayitlar).length === 0) {
     el.innerHTML = '<div style="color:var(--text3); font-size:13px; padding:20px; text-align:center;">' + muk + ' için henüz kayıtlı karşılaştırma yok.<br><br>📄 Faturalar → 🔄 Luca↔Fatura Entegratörü Karşılaştır → 💾 Mükelleffe Kaydet</div>';
     return;
   }
-  const duzeltmeler = JSON.parse(localStorage.getItem('luca_duzeltme_' + muk.replace(/[^a-z0-9]/gi,'_')) || '{}');
+  const duzeltmeler = JSON.parse(localStorage.getItem(_sk('luca_duzeltme_' + muk.replace(/[^a-z0-9]/gi,'_'))) || '{}');
   el.innerHTML = Object.entries(kayitlar).sort((a,b) => b[0].localeCompare(a[0])).map(([ad, k]) => {
     const sorunlular = (k.detay || []).filter(r => r.durum !== '✅');
     const toplamSorunlu = sorunlular.length;
@@ -3667,7 +3681,7 @@ function duzeltmeToggle(checkbox) {
   const ad = checkbox.dataset.ad;
   const no = checkbox.dataset.no;
   const key = ad + '_' + no;
-  const storKey = 'luca_duzeltme_' + muk.replace(/[^a-z0-9]/gi,'_');
+  const storKey = _sk('luca_duzeltme_' + muk.replace(/[^a-z0-9]/gi,'_'));
   const duzeltmeler = JSON.parse(localStorage.getItem(storKey) || '{}');
   if (checkbox.checked) {
     duzeltmeler[key] = { tarih: new Date().toLocaleDateString('tr-TR'), fatura_no: no };
@@ -3685,9 +3699,9 @@ function arsivSil() {
   const muk = document.getElementById('arsivMukellefSec').value;
   if (!muk) { showNotif('Önce mükellef seç!', 'error'); return; }
   if (!confirm(muk + ' arşivini silmek istiyor musun?')) return;
-  let arsiv = JSON.parse(localStorage.getItem('luca_fatura_arsiv') || '{}');
+  let arsiv = JSON.parse(localStorage.getItem(_sk('luca_fatura_arsiv')) || '{}');
   delete arsiv[muk];
-  localStorage.setItem('luca_fatura_arsiv', JSON.stringify(arsiv));
+  localStorage.setItem(_sk('luca_fatura_arsiv'), JSON.stringify(arsiv));
   arsivMukellefListesiDoldur();
   arsivGoster();
   showNotif(muk + ' arşivi silindi.', 'success');
@@ -4088,7 +4102,7 @@ function faturaIsleMukellefKaydet() {
   const mukellef = document.getElementById('faturaIsleMukellef').value;
   if (!mukellef) { showNotif('⚠️ Önce mükellef seç!', 'error'); return; }
 
-  const key = 'tahai_fatura_arsiv_' + mukellef;
+  const key = _sk('tahai_fatura_arsiv_' + mukellef);
   const mevcut = JSON.parse(localStorage.getItem(key) || '[]');
   let eklenen = 0;
   faturaIsleData.forEach(yeni => {
@@ -4123,7 +4137,7 @@ function addMukellef() {
   if (!val) return;
   if (!mukellefler.includes(val)) {
     mukellefler.push(val);
-    localStorage.setItem('luca_mukellef', JSON.stringify(mukellefler));
+    localStorage.setItem(_sk('luca_mukellef'), JSON.stringify(mukellefler));
     renderMukellefler();
   }
   document.getElementById('newMukellef').value = '';
@@ -4131,7 +4145,7 @@ function addMukellef() {
 
 function removeMukellef(i) {
   mukellefler.splice(i, 1);
-  localStorage.setItem('luca_mukellef', JSON.stringify(mukellefler));
+  localStorage.setItem(_sk('luca_mukellef'), JSON.stringify(mukellefler));
   renderMukellefler();
 }
 
@@ -4197,7 +4211,7 @@ let hatirDurum = {}; // { mukellef: true/false }
 
 function hatirRender() {
   const donem = document.getElementById('hatirDonem').value;
-  const key = 'hatir_' + donem;
+  const key = _sk('hatir_' + donem);
   const saved = localStorage.getItem(key);
   if (saved) hatirDurum = JSON.parse(saved);
 
@@ -4230,7 +4244,7 @@ function hatirRender() {
 function hatirToggle(m) {
   hatirDurum[m] = !hatirDurum[m];
   const donem = document.getElementById('hatirDonem').value;
-  localStorage.setItem('hatir_' + donem, JSON.stringify(hatirDurum));
+  localStorage.setItem(_sk('hatir_' + donem), JSON.stringify(hatirDurum));
   hatirRender();
   const geldi = hatirDurum[m];
   showNotif(geldi ? `✅ ${m} - fiş geldi!` : `↩️ ${m} - geri alındı`, geldi ? 'success' : 'error');
@@ -4239,7 +4253,7 @@ function hatirToggle(m) {
 function hatirSifirla() {
   hatirDurum = {};
   const donem = document.getElementById('hatirDonem').value;
-  localStorage.setItem('hatir_' + donem, JSON.stringify(hatirDurum));
+  localStorage.setItem(_sk('hatir_' + donem), JSON.stringify(hatirDurum));
   hatirRender();
   showNotif('🔄 Dönem sıfırlandı', 'success');
 }
@@ -4247,7 +4261,7 @@ function hatirSifirla() {
 function hatirHepsiniIsaretle() {
   mukellefler.forEach(m => hatirDurum[m] = true);
   const donem = document.getElementById('hatirDonem').value;
-  localStorage.setItem('hatir_' + donem, JSON.stringify(hatirDurum));
+  localStorage.setItem(_sk('hatir_' + donem), JSON.stringify(hatirDurum));
   hatirRender();
   showNotif('✅ Tüm fişler işaretlendi!', 'success');
 }
@@ -4421,12 +4435,12 @@ function renderKamTable() {
 let mukellefKartlari = [];
 
 function mukellefKartlariYukle() {
-  const s = localStorage.getItem('tahai_kartlar');
+  const s = localStorage.getItem(_sk('tahai_kartlar'));
   if (s) mukellefKartlari = JSON.parse(s);
 }
 
 function mukellefKartlariKaydet() {
-  localStorage.setItem('tahai_kartlar', JSON.stringify(mukellefKartlari));
+  localStorage.setItem(_sk('tahai_kartlar'), JSON.stringify(mukellefKartlari));
 }
 
 function mukellefKartListesiRender() {
@@ -4575,7 +4589,7 @@ function kartKaydet() {
     // Mükellef listesine de ekle
     if (!mukellefler.includes(ad)) {
       mukellefler.push(ad);
-      localStorage.setItem('luca_mukellef', JSON.stringify(mukellefler));
+      localStorage.setItem(_sk('luca_mukellef'), JSON.stringify(mukellefler));
       renderMukellefler();
     }
   }
@@ -4673,7 +4687,7 @@ function veriYedekle() {
   // Tüm hatırlatıcı verilerini topla
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith('hatir_')) {
+    if (k && (k.startsWith('hatir_') || k.includes('_hatir_'))) {
       yedek.hatirDurumlari[k] = JSON.parse(localStorage.getItem(k));
     }
   }
@@ -4693,7 +4707,7 @@ function veriGeriYukle(input) {
     try {
       const yedek = JSON.parse(e.target.result);
       if (!yedek.versiyon) throw new Error('Geçersiz yedek dosyası');
-      if (yedek.mukellefler) { mukellefler = yedek.mukellefler; localStorage.setItem('luca_mukellef', JSON.stringify(mukellefler)); renderMukellefler(); }
+      if (yedek.mukellefler) { mukellefler = yedek.mukellefler; localStorage.setItem(_sk('luca_mukellef'), JSON.stringify(mukellefler)); renderMukellefler(); }
       if (yedek.mukellefKartlari) { mukellefKartlari = yedek.mukellefKartlari; mukellefKartlariKaydet(); mukellefKartListesiRender(); }
       if (yedek.muhasebeCodes) { muhasebeCodes = yedek.muhasebeCodes; renderMuhasebeKodlari(); }
       if (yedek.hatirDurumlari) { Object.entries(yedek.hatirDurumlari).forEach(([k,v]) => localStorage.setItem(k, JSON.stringify(v))); }
@@ -5322,7 +5336,7 @@ CEVABI SADECE JSON olarak döndür, başka hiçbir şey yazma:
 
     // Hesap kodlarını localStorage'a kaydet (mükellef bazlı)
     if (sonuc.hesap_esleme) {
-      const key = 'tahai_hesap_kodlari_' + mukellef;
+      const key = _sk('tahai_hesap_kodlari_' + mukellef);
       const mevcutKodlar = JSON.parse(localStorage.getItem(key) || '{}');
       // AI önerisi + mevcut mizan kodlarını birleştir
       const tumKodlar = {
@@ -5407,7 +5421,7 @@ function mizanKaydet() {
   if (!mukellef) { showNotif('⚠️ Mükellef seç!', 'error'); return; }
   const donem = document.getElementById('mizanDonem').value;
 
-  const key    = 'tahai_mizan_' + mukellef;
+  const key    = _sk('tahai_mizan_' + mukellef);
   const arsiv  = JSON.parse(localStorage.getItem(key) || '[]');
   const firmaAd = document.getElementById('mizanFirmaAd').textContent.replace('| ','');
 
@@ -5431,7 +5445,7 @@ function mizanArsivGoster(mukellef) {
   const el = document.getElementById('mizanArsivListesi');
   if (!mukellef) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Mükellef seçin.</div>'; return; }
 
-  const key   = 'tahai_mizan_' + mukellef;
+  const key   = _sk('tahai_mizan_' + mukellef);
   const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
 
   if (arsiv.length === 0) {
@@ -5455,7 +5469,7 @@ function mizanArsivGoster(mukellef) {
 
 // Arşivden mizan yükle
 function mizanArsivYukle(mukellef, idx) {
-  const key   = 'tahai_mizan_' + mukellef;
+  const key   = _sk('tahai_mizan_' + mukellef);
   const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
   if (!arsiv[idx]) return;
 
@@ -5478,7 +5492,7 @@ function mizanArsivYukle(mukellef, idx) {
 // Arşivden mizan sil
 function mizanArsivSil(mukellef, idx) {
   if (!confirm('Bu mizan kaydını silmek istiyor musunuz?')) return;
-  const key   = 'tahai_mizan_' + mukellef;
+  const key   = _sk('tahai_mizan_' + mukellef);
   const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
   arsiv.splice(idx, 1);
   localStorage.setItem(key, JSON.stringify(arsiv));
@@ -5506,7 +5520,7 @@ function mizanSifirla() {
 // Mükellefe özel öğrenilen hesap kodlarını getir
 function getMukellefHesapKodlari(mukellef) {
   if (!mukellef) return null;
-  const key = 'tahai_hesap_kodlari_' + mukellef;
+  const key = _sk('tahai_hesap_kodlari_' + mukellef);
   const data = localStorage.getItem(key);
   return data ? JSON.parse(data) : null;
 }
@@ -5598,7 +5612,7 @@ function gmSec(ad) {
   document.getElementById('gmDropdown')?.classList.remove('gm-open');
   document.getElementById('gmArama') && (document.getElementById('gmArama').value = '');
   // localStorage'a kaydet
-  localStorage.setItem('gm_secili', ad);
+  localStorage.setItem(_sk('gm_secili'), ad);
   // Tüm modül alanlarını doldur
   globalMukellefAlanlariDoldur(ad);
   showNotif('✅ Mükellef seçildi: ' + ad, 'success');
@@ -5656,7 +5670,7 @@ function globalMukellefAlanlariDoldur(ad) {
 
 // Sayfa yüklenince son seçili mükellef'i geri yükle
 function gmYukle() {
-  const kayitli = localStorage.getItem('gm_secili');
+  const kayitli = localStorage.getItem(_sk('gm_secili'));
   if (kayitli) {
     _gmSecili = kayitli;
     const btnAd = document.getElementById('gmBtnAd');
@@ -5846,7 +5860,7 @@ async function lucaExcelKaydet() {
   }
 
   // Kaydet
-  localStorage.setItem('luca_mukellef', JSON.stringify(mukellefler));
+  localStorage.setItem(_sk('luca_mukellef'), JSON.stringify(mukellefler));
   mukellefKartlariKaydet();
   renderMukellefler();
   mukellefKartListesiRender();
