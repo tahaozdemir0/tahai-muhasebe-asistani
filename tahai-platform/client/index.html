@@ -1766,6 +1766,7 @@
         <div style="display:flex; gap:10px; margin-bottom:16px;">
           <button class="btn btn-primary" onclick="mukellefKartEkle()">+ Yeni Mükellef Kartı</button>
           <button class="btn btn-outline" onclick="lucaExcelModalAc()" style="color:var(--accent2);border-color:var(--accent2);">📥 Luca'dan Toplu Aktar</button>
+          <button class="btn btn-outline" onclick="tumKartlariSil()" style="color:var(--danger);border-color:var(--danger);margin-left:auto;">🗑️ Tümünü Sil</button>
         </div>
 
         <!-- Luca Toplu Aktarım Modali -->
@@ -4623,6 +4624,7 @@ function mukellefKartListesiRender() {
         <div style="font-size:10px; color:var(--text3);">${ozet.islemSayisi} işlem</div>
       </div>
       <button onclick="event.stopPropagation();kartAc(${i})" style="background:transparent;border:1px solid var(--border);color:var(--text3);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;" title="Kartı Düzenle">✎</button>
+      <button onclick="event.stopPropagation();kartHizliSil(${i})" style="background:transparent;border:1px solid rgba(248,113,113,.3);color:var(--danger);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;" title="Sil">🗑️</button>
       <div style="color:var(--accent2); font-size:20px;">›</div>
     </div>`;
   }).join('');
@@ -4766,6 +4768,38 @@ function kartSil() {
   mukellefKartListesiRender();
   kartModalKapat();
   showNotif('🗑️ Mükellef kartı silindi.', 'error');
+}
+
+function kartHizliSil(i) {
+  const k = mukellefKartlari[i];
+  if (!k) return;
+  if (!confirm(`"${k.ad}" kartını silmek istiyor musunuz?`)) return;
+  // Kart ve mükellef listesinden sil
+  mukellefKartlari.splice(i, 1);
+  mukellefKartlariKaydet();
+  const mukIdx = mukellefler.findIndex(m => m.toLowerCase() === k.ad.toLowerCase());
+  if (mukIdx !== -1) { mukellefler.splice(mukIdx, 1); localStorage.setItem(_sk('luca_mukellef'), JSON.stringify(mukellefler)); }
+  renderMukellefler();
+  mukellefKartListesiRender();
+  // Workspace'de bu mükellef açıksa çık
+  if (_wsAktif?.ad === k.ad) wsCik();
+  showNotif(`🗑️ "${k.ad}" silindi.`, 'error');
+  cloudSave().catch(() => {});
+}
+
+function tumKartlariSil() {
+  if (mukellefKartlari.length === 0) { showNotif('Silinecek kart yok.', 'error'); return; }
+  const sayi = mukellefKartlari.length;
+  if (!confirm(`Tüm ${sayi} mükellef kartını silmek istiyor musunuz?\n\nBu işlem geri alınamaz!`)) return;
+  mukellefKartlari = [];
+  mukellefKartlariKaydet();
+  mukellefler = [];
+  localStorage.setItem(_sk('luca_mukellef'), JSON.stringify([]));
+  renderMukellefler();
+  mukellefKartListesiRender();
+  if (_wsAktif) wsCik();
+  showNotif(`🗑️ ${sayi} mükellef kartı silindi.`, 'error');
+  cloudSave().catch(() => {});
 }
 
 // ===================== BEYANNAME TAKVİMİ =====================
@@ -5701,17 +5735,37 @@ async function doLogin() {
 }
 
 function logout() {
+  // Kullanıcıya ait tüm localStorage verisini temizle (güvenlik)
+  const uid = _uid();
+  if (uid) {
+    const prefix = 'u_' + uid + '_';
+    const silinecek = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) silinecek.push(k);
+    }
+    silinecek.forEach(k => localStorage.removeItem(k));
+  }
+  // Oturum bilgilerini temizle
   sessionStorage.removeItem('_jwt');
   sessionStorage.removeItem('_st');
+  sessionStorage.removeItem('_su');
   localStorage.removeItem('tahai_token');
+  localStorage.removeItem('tahai_user');
+  // Uygulama state'ini sıfırla
+  mukellefler = [];
+  mukellefKartlari = [];
+  fisData = []; zData = []; faturaData = [];
+  _wsAktif = null; _wsAktifIdx = -1;
+  _gmSecili = null;
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
+  document.getElementById('gmBtnAd').textContent = '— Seçilmedi —';
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('appHeader').style.display = 'none';
   document.getElementById('appMain').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'none';
   document.getElementById('wsBanner').style.display = 'none';
-  _wsAktif = null; _wsAktifIdx = -1;
 }
 
 // ===================== MÜKELLEF WORKSPACE =====================
