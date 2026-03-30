@@ -5946,7 +5946,7 @@ function gmGuncelle() {
   }
   liste.innerHTML = tumAdlar.map(ad => {
     const aktif = ad === _gmSecili ? ' gm-item-aktif' : '';
-    return `<div class="gm-item${aktif}" onclick="gmSec('${ad.replace(/'/g,"\\'")}'">${ad}</div>`;
+    return `<div class="gm-item${aktif}" data-ad="${ad.replace(/"/g,'&quot;')}" onclick="gmSec(this.dataset.ad)">${ad}</div>`;
   }).join('');
 }
 
