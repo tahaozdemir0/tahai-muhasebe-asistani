@@ -2692,7 +2692,7 @@ function setProgressWithText(wrapId, barId, fillId, textId, current, total) {
 // ===================== Z RAPORU =====================
 async function processZRaporu() {
   if (!_mukellefKontrol()) return;
-  if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
   if (zFiles.length === 0) return;
 
   const mukellef = document.getElementById('zMukellef').value || 'Bilinmiyor';
@@ -3121,7 +3121,7 @@ function fisKaydet(idx) {
 // ===================== FATURALAR =====================
 async function processFisler() {
   if (!_mukellefKontrol()) return;
-  if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
   if (fisFiles.length === 0) return;
 
   const mukellef = document.getElementById('fisMukellef')?.value || 'Bilinmiyor';
@@ -3216,7 +3216,7 @@ KURALLAR:
 
 async function processFaturalar() {
   if (!_mukellefKontrol()) return;
-  if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
   if (faturaFiles.length === 0) return;
 
   document.getElementById('faturaBtn').disabled = true;
@@ -4533,7 +4533,7 @@ function cekilenTemizle() {
 }
 
 async function kameraIsle() {
-  if (!apiKey) { showNotif('❌ API anahtarı gerekli!', 'error'); return; }
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
   if (cekilenler.length === 0) return;
 
   const mukellef = document.getElementById('kamMukellef').value || 'Bilinmiyor';
