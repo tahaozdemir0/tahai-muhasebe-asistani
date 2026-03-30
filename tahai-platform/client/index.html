@@ -877,8 +877,8 @@
 </head>
 <body>
 
-<!-- GİZLİ ADMIN: Sağ üst köşeye çift tıkla -->
-<div class="secret-area" ondblclick="toggleAdminPanel()" title=""></div>
+<!-- secret-area: admin panel erişimi devre dışı -->
+<div class="secret-area" title=""></div>
 
 <!-- LOGİN EKRANI -->
 <div class="login-overlay" id="loginOverlay">
@@ -2422,14 +2422,7 @@ async function init() {
   // Session token kontrolü — geçerli session varsa login gösterme
   if (_checkSession()) {
     _showApp();
-    const saved = _loadApiKey();
-    if (saved) { apiKey = saved; document.getElementById('apiKey').value = saved ? '●'.repeat(16) + saved.slice(-4) : ''; }
-  }
-  const saved = _loadApiKey();
-  if (saved) {
-    apiKey = saved;
-    document.getElementById('apiKey').value = saved ? '●'.repeat(16) + saved.slice(-4) : '';
-    setApiStatus(true);
+    setApiStatus(true); // Backend API key kullanıyor, oturum yeterlice
   }
   const savedMukellef = localStorage.getItem(_sk('luca_mukellef'));
   if (savedMukellef) {
@@ -2452,13 +2445,12 @@ async function init() {
   // 4) Auto-load: önceki verileri yükle
   await autoLoad();
 
-  // Tüm butonların apiKey durumunu yansıtması için kısa gecikme
+  // Tüm butonların oturum durumunu yansıtması için kısa gecikme
   setTimeout(() => {
-    const _ak = _loadApiKey();
-    if (_ak && _ak.startsWith('sk-ant-')) apiKey = _ak;
-    document.getElementById('fisBtn').disabled = fisFiles.length === 0 || !apiKey;
+    const _hasSession = !!(sessionStorage.getItem('_jwt') || localStorage.getItem('tahai_token'));
+    document.getElementById('fisBtn').disabled = fisFiles.length === 0 || !_hasSession;
     const zBtn = document.getElementById('zBtn');
-    if (zBtn) zBtn.disabled = zFiles.length === 0 || !apiKey;
+    if (zBtn) zBtn.disabled = zFiles.length === 0 || !_hasSession;
   }, 100);
 }
 
@@ -2543,7 +2535,7 @@ function handleZFiles(newFiles) {
   });
   zFiles = [...zFiles, ...valid];
   renderFileList(zFiles, 'zFileList', 'removeZFile');
-  document.getElementById('zBtn').disabled = zFiles.length === 0 || !apiKey;
+  document.getElementById('zBtn').disabled = zFiles.length === 0 || !_checkSession();
 }
 
 function removeZFile(i) { zFiles.splice(i, 1); handleZFiles([]); }
@@ -2555,10 +2547,7 @@ function handleFisFiles(newFiles) {
   });
   fisFiles = [...fisFiles, ...valid];
   renderFileList(fisFiles, 'fisFileList', 'removeFisFile');
-  // apiKey her zaman _loadApiKey() ile kontrol et — XOR ile saklandığı için
-  const _ak = _loadApiKey();
-  if (_ak && _ak.startsWith('sk-ant-')) apiKey = _ak;
-  document.getElementById('fisBtn').disabled = fisFiles.length === 0 || !apiKey;
+  document.getElementById('fisBtn').disabled = fisFiles.length === 0 || !_checkSession();
 }
 
 function removeFisFile(i) { fisFiles.splice(i, 1); handleFisFiles([]); }
@@ -2566,7 +2555,7 @@ function removeFisFile(i) { fisFiles.splice(i, 1); handleFisFiles([]); }
 function handleFaturaFiles(newFiles) {
   faturaFiles = [...faturaFiles, ...Array.from(newFiles)];
   renderFileList(faturaFiles, 'faturaFileList', 'removeFaturaFile');
-  document.getElementById('faturaBtn').disabled = faturaFiles.length === 0 || !apiKey;
+  document.getElementById('faturaBtn').disabled = faturaFiles.length === 0 || !_checkSession();
 }
 
 function handleFaturaGorselFiles(newFiles) { handleFaturaFiles(newFiles); }

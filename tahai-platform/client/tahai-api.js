@@ -92,9 +92,8 @@ async function callClaude(prompt, imageFile, retry) {
         imageData = { data: b64, mediaType: mt };
       }
 
-      // Geçiş dönemi: browser'daki API key'i de gönder (server'da yoksa kullanılır)
+      // API key sunucu tarafında .env'den alınır — frontend'den gönderilmez
       const body = { prompt, image: imageData };
-      if (typeof apiKey !== 'undefined' && apiKey) body.api_key = apiKey;
 
       const data = await _tFetch('/api/claude', {
         method: 'POST',
