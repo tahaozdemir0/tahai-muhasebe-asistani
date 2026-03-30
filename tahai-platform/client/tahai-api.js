@@ -114,15 +114,13 @@ async function callClaude(prompt, imageFile, retry) {
         await new Promise(r => setTimeout(r, 1500));
         return callClaude(prompt, imageFile, false);
       }
-      // Backend erişilemiyor veya key yok → direkt API'ye düş
-      console.warn('[TahAPI] Backend proxy başarısız, doğrudan API deneniyor:', e.message);
+      // Backend başarısız — gerçek hatayı fırlat, fallback yok
+      throw new Error('AI bağlantı hatası: ' + e.message);
     }
   }
 
-  // ─── Fallback: orijinal doğrudan Anthropic çağrısı ───────────────────────
-  if (typeof apiKey === 'undefined' || !apiKey) {
-    throw new Error('API anahtarı yok. Ayarlar sayfasından girin ya da backend\'e ANTHROPIC_API_KEY ekleyin.');
-  }
+  // Token yoksa giriş yap
+  throw new Error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
 
   const content = [];
   if (imageFile) {
