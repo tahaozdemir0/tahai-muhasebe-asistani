@@ -3312,7 +3312,7 @@ function downloadExcel(type) {
     const rows = [];
     data.forEach(r => {
       const evrakNo  = r.z_sayac || '';
-      const tarih    = r.tarih || '';
+      const tarih    = _fmtTarih(r.tarih);
       const aciklama = 'Z RAPORU' + (r.z_sayac ? ' ' + r.z_sayac : '');
       const toplam   = r.toplam || r.toplam_ciro || 0;
 
@@ -3341,7 +3341,7 @@ function downloadExcel(type) {
   } else if (type === 'fis') {
     filename = 'luca_fisler.csv';
     headers = ['Mükellef','Tarih','Fiş Türü','Satıcı / Yer','KDV Oranı (%)','Matrah (₺)','KDV Tutarı (₺)','Toplam (₺)','Muhasebe Kodu'];
-    const fisSatirlar = fisData.map(r => [r.mukellef, r.tarih, r.fis_turu, r.satici, r.kdv_orani, formatSayi(r.matrah), formatSayi(r.kdv_tutari), formatSayi(r.toplam), r.muhasebe_kodu]);
+    const fisSatirlar = fisData.map(r => [r.mukellef, _fmtTarih(r.tarih), r.fis_turu, r.satici, r.kdv_orani, formatSayi(r.matrah), formatSayi(r.kdv_tutari), formatSayi(r.toplam), r.muhasebe_kodu]);
     downloadCSV(headers, fisSatirlar, filename);
   } else if (type === 'fatura') {
     data = faturaData;
@@ -3353,6 +3353,21 @@ function downloadExcel(type) {
 
   statExcelCount++;
   document.getElementById('statExcel').textContent = statExcelCount;
+}
+
+// Herhangi bir tarih formatını dd.mm.yyyy'ye çevirir
+function _fmtTarih(t) {
+  if (!t) return '';
+  const s = String(t).trim();
+  // Zaten dd.mm.yyyy
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) return s;
+  // ISO: 2026-03-15
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  // dd/mm/yyyy
+  const sl = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (sl) return `${sl[1].padStart(2,'0')}.${sl[2].padStart(2,'0')}.${sl[3]}`;
+  return s;
 }
 
 function downloadCSV(headers, rows, filename) {
@@ -3991,7 +4006,7 @@ function downloadZLuca() {
   const rows = [];
   zData.forEach(function(r) {
     var evrakNo  = r.z_sayac || '';
-    var tarih    = r.tarih || '';
+    var tarih    = _fmtTarih(r.tarih);
     var aciklama = 'Z RAPORU' + (r.z_sayac ? ' ' + r.z_sayac : '');
     if ((r.kdv_10_tutar || 0) > 0) {
       var t10 = (r.kdv_10_matrah || 0) + (r.kdv_10_tutar || 0);
@@ -4230,7 +4245,7 @@ function faturaIsleExcel() {
 
   faturaIsleData.forEach(r => {
     const evrakNo  = r.fatura_no || '';
-    const tarih    = r.tarih || '';
+    const tarih    = _fmtTarih(r.tarih);
     const aciklama = (r.firma || '') + (r.aciklama ? ' - ' + r.aciklama : '');
     const matrah   = r.matrah || 0;
     const kdvTutar = r.kdv_tutari || 0;
@@ -4268,21 +4283,7 @@ function faturaIsleExcel() {
     }
   });
 
-  // XLSX olarak indir (SheetJS)
-  if (typeof XLSX !== 'undefined') {
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    // Sütun genişlikleri
-    ws['!cols'] = [14,22,18,14,6,40,14,14].map(w => ({wch:w}));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Luca');
-    XLSX.writeFile(wb, mukellef + '_luca_fatura.xlsx');
-    showNotif('✅ Luca Excel dosyası indirildi!', 'success');
-  } else {
-    // Fallback: CSV
-    downloadCSV(headers, rows, mukellef + '_luca_fatura.csv');
-    showNotif('✅ Luca CSV dosyası indirildi!', 'success');
-  }
+  downloadCSV(headers, rows, mukellef + '_luca_fatura.csv');
 }
 
 function faturaIsleMukellefKaydet() {
