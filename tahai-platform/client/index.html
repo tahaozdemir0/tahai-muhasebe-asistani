@@ -282,6 +282,15 @@
     transition: border-color .2s;
   }
   .gm-btn:hover { border-color: var(--accent); }
+  .gm-btn.gm-uyari { border-color: var(--danger) !important; animation: gmShake .4s ease; }
+  @keyframes gmShake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  .gm-btn-bos .gm-name { color: var(--text3) !important; font-style: italic; }
   .gm-btn .gm-label { font-size: 10px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; }
   .gm-btn .gm-name { font-weight: 600; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
   .gm-btn .gm-arrow { margin-left: auto; color: var(--text3); font-size: 10px; }
@@ -2470,9 +2479,10 @@ function showPage(id) {
     document.getElementById('wsBanner').style.display = 'none';
     document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('aktif'));
   }
-  // Workspace aktifse, modüllere gidince mükellef'i doldur
-  if (_wsAktif && id !== 'mukellef-kart') {
-    setTimeout(() => globalMukellefAlanlariDoldur(_wsAktif.ad), 50);
+  // Global mükellef seçili ise, modüllere geçince otomatik doldur
+  const _aktifM = _wsAktif?.ad || _gmSecili;
+  if (_aktifM && id !== 'mukellef-kart') {
+    setTimeout(() => globalMukellefAlanlariDoldur(_aktifM), 50);
   }
 
   if (id === 'faturalar') faturaMukellefListesiDoldur();
@@ -2676,6 +2686,7 @@ function setProgressWithText(wrapId, barId, fillId, textId, current, total) {
 
 // ===================== Z RAPORU =====================
 async function processZRaporu() {
+  if (!_mukellefKontrol()) return;
   if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
   if (zFiles.length === 0) return;
 
@@ -3104,6 +3115,7 @@ function fisKaydet(idx) {
 
 // ===================== FATURALAR =====================
 async function processFisler() {
+  if (!_mukellefKontrol()) return;
   if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
   if (fisFiles.length === 0) return;
 
@@ -3198,6 +3210,7 @@ KURALLAR:
 }
 
 async function processFaturalar() {
+  if (!_mukellefKontrol()) return;
   if (!apiKey) { showNotif('❌ Önce API anahtarını gir!', 'error'); return; }
   if (faturaFiles.length === 0) return;
 
@@ -4049,6 +4062,7 @@ function faturaIsleRemove(idx) {
 }
 
 async function faturaIsleIsle() {
+  if (!_mukellefKontrol()) return;
   const hasAuth = _loadApiKey() || sessionStorage.getItem('_jwt') || localStorage.getItem('tahai_token');
   if (!hasAuth) { showNotif('❌ Önce giriş yap veya API anahtarını gir!', 'error'); return; }
   if (faturaIsleFiles.length === 0) return;
@@ -5900,6 +5914,19 @@ function wsKartDuzenle() {
 function toggleAdminPanel() {
   const p = document.getElementById('adminPanel');
   p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+
+// ===================== MÜKELLEF KONTROL =====================
+function _mukellefKontrol() {
+  if (_gmSecili) return true;
+  showNotif('⚠️ Önce mükellef seçin! Üstteki "Mükellef" butonuna tıklayın.', 'error');
+  // Butonu titret
+  const btn = document.getElementById('gmBtn');
+  if (btn) {
+    btn.classList.add('gm-uyari');
+    setTimeout(() => btn.classList.remove('gm-uyari'), 2000);
+  }
+  return false;
 }
 
 // ===================== GLOBAL MÜKELLEF SEÇİCİ =====================
