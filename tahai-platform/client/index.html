@@ -291,6 +291,16 @@
     80% { transform: translateX(4px); }
   }
   .gm-btn-bos .gm-name { color: var(--text3) !important; font-style: italic; }
+  .mk-etiket {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(34,211,165,.07); border: 1px solid rgba(34,211,165,.25);
+    border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+    color: var(--accent2); cursor: default; min-height: 40px;
+  }
+  .mk-etiket-bos {
+    color: var(--text3); font-weight: 400; font-style: italic;
+    background: var(--surface2); border-color: var(--border);
+  }
   .gm-btn .gm-label { font-size: 10px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; }
   .gm-btn .gm-name { font-weight: 600; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
   .gm-btn .gm-arrow { margin-left: auto; color: var(--text3); font-size: 10px; }
@@ -1015,8 +1025,9 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>MÜKELLEFİ SEÇ / YAZ</label>
-            <input type="text" class="form-input" id="zMukellef" placeholder="Mükellef adı veya VKN..." list="mukellefList" />
+            <label>AKTİF MÜKELLEF</label>
+            <div class="mk-etiket mk-etiket-bos" id="zMukellefEtiket">👤 <span id="zMukellefEtiketAd">— Üstten mükellef seçin —</span></div>
+            <input type="hidden" id="zMukellef" />
             <datalist id="mukellefList"></datalist>
           </div>
           <div class="form-group">
@@ -1093,8 +1104,9 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>MÜKELLEFİ SEÇ / YAZ</label>
-            <input type="text" class="form-input" id="fisMukellef" placeholder="Mükellef adı..." list="mukellefList" />
+            <label>AKTİF MÜKELLEF</label>
+            <div class="mk-etiket mk-etiket-bos" id="fisMukellefEtiket">👤 <span id="fisMukellefEtiketAd">— Üstten mükellef seçin —</span></div>
+            <input type="hidden" id="fisMukellef" />
           </div>
           <div class="form-group">
             <label>DÖNEM</label>
@@ -1193,8 +1205,9 @@
         <!-- Mükellef seçici -->
         <div class="form-row" style="margin-bottom:12px;">
           <div class="form-group" style="max-width:340px;">
-            <label>MÜKELLEFİ SEÇ</label>
-            <select class="form-input" id="faturaMukellef" onchange="faturaMukellefDegisti()">
+            <label>AKTİF MÜKELLEF</label>
+            <div class="mk-etiket mk-etiket-bos" id="faturaMukellefEtiket">👤 <span id="faturaMukellefEtiketAd">— Üstten mükellef seçin —</span></div>
+            <select style="display:none" id="faturaMukellef" onchange="faturaMukellefDegisti()">
               <option value="">— Mükellef seçin —</option>
             </select>
           </div>
@@ -1245,8 +1258,9 @@
             <!-- Mükellef seçimi -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
               <div>
-                <label class="form-label">Mükellef</label>
-                <select class="form-input" id="faturaIsleMukellef">
+                <label class="form-label">AKTİF MÜKELLEF</label>
+                <div class="mk-etiket mk-etiket-bos" id="faturaIsleMukellefEtiket">👤 <span id="faturaIsleMukellefEtiketAd">— Üstten seçin —</span></div>
+                <select style="display:none" id="faturaIsleMukellef">
                   <option value="">-- Seç --</option>
                 </select>
               </div>
@@ -1453,8 +1467,9 @@
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
           <div>
-            <label class="form-label">Mükellef</label>
-            <select class="form-input" id="mizanMukellef" onchange="mizanMukellefDegisti()">
+            <label class="form-label">AKTİF MÜKELLEF</label>
+            <div class="mk-etiket mk-etiket-bos" id="mizanMukellefEtiket">👤 <span id="mizanMukellefEtiketAd">— Üstten seçin —</span></div>
+            <select style="display:none" id="mizanMukellef" onchange="mizanMukellefDegisti()">
               <option value="">-- Seç --</option>
             </select>
           </div>
@@ -1684,8 +1699,9 @@
 
         <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
           <div class="form-group" style="flex:1; min-width:180px;">
-            <label>MÜKELLEf</label>
-            <input type="text" class="form-input" id="kamMukellef" placeholder="Mükellef adı..." list="mukellefList" />
+            <label>AKTİF MÜKELLEF</label>
+            <div class="mk-etiket mk-etiket-bos" id="kamMukellefEtiket">👤 <span id="kamMukellefEtiketAd">— Üstten mükellef seçin —</span></div>
+            <input type="hidden" id="kamMukellef" />
           </div>
           <div class="form-group" style="min-width:140px;">
             <label>DÖNEM</label>
@@ -5987,16 +6003,29 @@ function gmSec(ad) {
   showNotif('✅ Mükellef seçildi: ' + ad, 'success');
 }
 
+function _etiketGuncelle(id, ad) {
+  const el = document.getElementById(id + 'EtiketAd');
+  const wrap = document.getElementById(id + 'Etiket');
+  if (el) el.textContent = ad;
+  if (wrap) {
+    wrap.classList.toggle('mk-etiket-bos', !ad);
+    if (!ad && el) el.textContent = '— Üstten mükellef seçin —';
+  }
+}
+
 function globalMukellefAlanlariDoldur(ad) {
   // Z Raporu
   const zM = document.getElementById('zMukellef');
   if (zM) zM.value = ad;
+  _etiketGuncelle('zMukellef', ad);
   // Fiş İşle
   const fisM = document.getElementById('fisMukellef');
   if (fisM) fisM.value = ad;
+  _etiketGuncelle('fisMukellef', ad);
   // KAM
   const kamM = document.getElementById('kamMukellef');
   if (kamM) kamM.value = ad;
+  _etiketGuncelle('kamMukellef', ad);
   // Faturalar dropdown
   const fatM = document.getElementById('faturaMukellef');
   if (fatM) {
@@ -6011,6 +6040,7 @@ function globalMukellefAlanlariDoldur(ad) {
     fatM.value = ad;
     faturaMukellefDegisti?.();
   }
+  _etiketGuncelle('faturaMukellef', ad);
   // Fatura İşle dropdown
   const fatIsleM = document.getElementById('faturaIsleMukellef');
   if (fatIsleM) {
@@ -6023,6 +6053,7 @@ function globalMukellefAlanlariDoldur(ad) {
     }
     fatIsleM.value = ad;
   }
+  _etiketGuncelle('faturaIsleMukellef', ad);
   // Mizan
   const mizM = document.getElementById('mizanMukellef');
   if (mizM) {
@@ -6035,6 +6066,7 @@ function globalMukellefAlanlariDoldur(ad) {
     }
     mizM.value = ad;
   }
+  _etiketGuncelle('mizanMukellef', ad);
 }
 
 // Sayfa yüklenince son seçili mükellef'i geri yükle
