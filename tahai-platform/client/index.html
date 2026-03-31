@@ -873,6 +873,69 @@
   }
 
   .help-text strong { color: var(--accent); }
+
+  /* ===== KDV & TEVKİFAT KONTROL MODÜLİ ===== */
+  .kdv-ozet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 700px) { .kdv-ozet-grid { grid-template-columns: repeat(2, 1fr); } }
+  .kdv-ozet-kart {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .kdv-ozet-kart .stat-label { font-size: 10px; color: var(--text3); letter-spacing: .05em; margin-bottom: 4px; }
+  .kdv-ozet-kart .stat-value { font-size: 17px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .kdv-ozet-kart.hata { border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.06); }
+  .kdv-ozet-kart.uyari { border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.06); }
+  .kdv-ozet-kart.ok { border-color: rgba(52,211,153,.35); background: rgba(52,211,153,.06); }
+
+  .kdv-filtre-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center;
+  }
+  .kdv-filtre-bar select, .kdv-filtre-bar input {
+    background: var(--card2); border: 1px solid var(--border); color: var(--text1);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; outline: none;
+  }
+
+  /* Tablo satır renkleri */
+  tr.kdv-ok td:first-child { color: #34d399; }
+  tr.kdv-uyari td:first-child { color: #fbbf24; }
+  tr.kdv-hata td:first-child { color: #f87171; }
+  tr.kdv-ok { background: rgba(52,211,153,.03); }
+  tr.kdv-uyari { background: rgba(251,191,36,.05); }
+  tr.kdv-hata { background: rgba(248,113,113,.06); }
+
+  .kdv-detay-row { display: none; }
+  .kdv-detay-row td {
+    background: rgba(248,113,113,.07);
+    border-left: 3px solid #f87171;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .kdv-detay-row.uyari td { background: rgba(251,191,36,.07); border-color: #fbbf24; }
+
+  .badge-hata { background: #f87171; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+  .badge-uyari { background: #fbbf24; color: #000; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+
+  .kdv-ai-panel {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text2);
+    white-space: pre-wrap;
+  }
 </style>
 </head>
 <body>
@@ -1228,6 +1291,7 @@
           <button class="tab" onclick="switchFaturaTab('gorsel')">Görsel / PDF</button>
           <button class="tab" onclick="switchFaturaTab('karsilastir')" style="color:var(--accent2);">🔄 Luca ↔ Fatura Entegratörü Karşılaştır</button>
           <button class="tab" onclick="switchFaturaTab('isle')" style="color:var(--accent3);">📋 Fatura İşle</button>
+          <button class="tab" onclick="switchFaturaTab('kdvtevkifat')" style="color:#f59e0b;">🔍 KDV & Tevkifat Kontrolü</button>
         </div>
 
         <div id="faturaExcelTab">
@@ -1411,6 +1475,91 @@
             </div>
           </div>
         </div>
+
+        <!-- ===== KDV & TEVKİFAT KONTROL SEKMESİ ===== -->
+        <div id="faturaKdvTab" style="display:none;">
+
+          <!-- Dosya yükleme alanı -->
+          <div class="upload-zone" onclick="document.getElementById('kdvExcelInput').click()" style="margin-bottom:14px; cursor:pointer;">
+            <input type="file" id="kdvExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="kdvExcelYukle(this.files)" />
+            <div class="upload-icon">🔍</div>
+            <div class="upload-text">Uyumsoft / İşNet Fatura Listesi Excel'ini yükle — <span>tıkla</span></div>
+            <div class="upload-sub">.xlsx, .xls formatları desteklenir · Sütun başlıkları 1. satırda olmalı</div>
+          </div>
+          <div id="kdvDosyaAd" style="font-size:12px; color:var(--text3); margin-bottom:10px;"></div>
+
+          <!-- Özet kartları (başlangıçta gizli) -->
+          <div id="kdvOzetPanel" style="display:none;">
+            <div class="kdv-ozet-grid">
+              <div class="kdv-ozet-kart">
+                <div class="stat-label">TOPLAM FATURA</div>
+                <div class="stat-value" id="kdvOzSayi">0</div>
+              </div>
+              <div class="kdv-ozet-kart ok">
+                <div class="stat-label">TOPLAM KDV</div>
+                <div class="stat-value" id="kdvOzKdv" style="color:#34d399;">0 ₺</div>
+              </div>
+              <div class="kdv-ozet-kart">
+                <div class="stat-label">TEVKİFATLI FATURA</div>
+                <div class="stat-value" id="kdvOzTevkSayi">0</div>
+              </div>
+              <div class="kdv-ozet-kart">
+                <div class="stat-label">TOPLAM TEVKİFAT</div>
+                <div class="stat-value" id="kdvOzTevk" style="color:var(--accent);">0 ₺</div>
+              </div>
+              <div class="kdv-ozet-kart ok">
+                <div class="stat-label">BEYAN EDİLECEK KDV</div>
+                <div class="stat-value" id="kdvOzBeyan" style="color:#34d399;">0 ₺</div>
+              </div>
+              <div class="kdv-ozet-kart hata">
+                <div class="stat-label">UYARI SAYISI</div>
+                <div class="stat-value" id="kdvOzUyari" style="color:#f87171;">0</div>
+              </div>
+            </div>
+
+            <!-- Filtre & aksiyon bar -->
+            <div class="kdv-filtre-bar">
+              <select id="kdvFiltreDurum" onchange="kdvRenderTablo()">
+                <option value="">Tümü</option>
+                <option value="hata">🔴 Hata</option>
+                <option value="uyari">🟡 Uyarı</option>
+                <option value="ok">🟢 Sorunsuz</option>
+              </select>
+              <input type="text" id="kdvFiltreAra" placeholder="Firma / Fatura No ara..." oninput="kdvRenderTablo()" style="flex:1; min-width:140px;" />
+              <button class="btn btn-primary" onclick="kdvAIAnalizEt()" id="kdvAIBtn" style="font-size:12px;">🤖 AI ile Detaylı Analiz</button>
+              <button class="btn btn-success" onclick="kdvRaporIndir()" style="font-size:12px;">📥 Kontrol Raporunu İndir</button>
+            </div>
+
+            <!-- Sonuç tablosu -->
+            <div class="table-wrap" style="margin-bottom:12px;">
+              <table id="kdvTablo">
+                <thead>
+                  <tr>
+                    <th style="width:36px;">Durum</th>
+                    <th>Fatura No</th>
+                    <th>Tarih</th>
+                    <th>Firma</th>
+                    <th style="max-width:160px;">Açıklama</th>
+                    <th>Matrah</th>
+                    <th>KDV</th>
+                    <th>Tevkifat</th>
+                    <th>Beyan KDV</th>
+                    <th>Toplam</th>
+                    <th>Uyarı</th>
+                  </tr>
+                </thead>
+                <tbody id="kdvTabloBody"></tbody>
+              </table>
+            </div>
+
+            <!-- AI analiz paneli (başlangıçta gizli) -->
+            <div id="kdvAIPanel" style="display:none;">
+              <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:var(--accent);">🤖 AI Analiz Sonucu</div>
+              <div class="kdv-ai-panel" id="kdvAIMetin"></div>
+            </div>
+
+          </div><!-- /kdvOzetPanel -->
+        </div><!-- /faturaKdvTab -->
 
         <div class="file-list" id="faturaFileList"></div>
 
@@ -4299,14 +4448,389 @@ function switchFaturaTab(tab) {
   document.getElementById('faturaGorselTab').style.display = tab === 'gorsel' ? 'block' : 'none';
   document.getElementById('faturaKarsilastirTab').style.display = tab === 'karsilastir' ? 'block' : 'none';
   document.getElementById('faturaIsleTab').style.display = tab === 'isle' ? 'block' : 'none';
-  // Karşılaştırma veya İşle sekmesindeyken normal fatura butonlarını gizle
+  document.getElementById('faturaKdvTab').style.display = tab === 'kdvtevkifat' ? 'block' : 'none';
+  // KDV/Tevkifat veya Karşılaştırma veya İşle sekmesindeyken normal fatura butonlarını gizle
   const faturaAlt = document.getElementById('faturaFileList');
   const faturaBtn = document.getElementById('faturaBtn');
-  const hideBtn = tab === 'karsilastir' || tab === 'isle';
+  const hideBtn = tab === 'karsilastir' || tab === 'isle' || tab === 'kdvtevkifat';
   if (faturaAlt) faturaAlt.style.display = hideBtn ? 'none' : '';
   if (faturaBtn) faturaBtn.parentElement.style.display = hideBtn ? 'none' : '';
   // İşle sekmesi açılınca mükellef listesini güncelle
   if (tab === 'isle') faturaIsleMukellefDoldur();
+}
+
+// ===================== KDV & TEVKİFAT KONTROL MODÜLİ =====================
+
+// Global veri dizisi — parse edilmiş fatura satırları
+let kdvKontrolData = [];
+
+// Tevkifat gerektiren hizmet tanımları: anahtar kelime → beklenen oran {pay}/{payda}
+const _TEVK_KURALLARI = [
+  { kelimeler: ['danışmanlık','danismanlik','müşavirlik','musavirlik','consulting','hizmet bedeli','etüt','etut','proje','mühendislik','muhendislik'], oran: '9/10', aciklama: 'Danışmanlık/Etüt-proje hizmetleri' },
+  { kelimeler: ['temizlik','çamaşır','camasir'], oran: '9/10', aciklama: 'Temizlik hizmetleri' },
+  { kelimeler: ['güvenlik','guvenlik','koruma','özel güvenlik','ozel guvenlik'], oran: '9/10', aciklama: 'Güvenlik ve koruma hizmetleri' },
+  { kelimeler: ['personel','işgücü','isgücü','isguc','bordro'], oran: '9/10', aciklama: 'Personel/işgücü temini' },
+  { kelimeler: ['reklam','ajans','medya','ilan','billboard'], oran: '3/10', aciklama: 'Reklam hizmetleri' },
+  { kelimeler: ['nakliye','taşıma','tasima','servis','lojistik','kargo'], oran: '5/10', aciklama: 'Taşımacılık hizmetleri' },
+  { kelimeler: ['bakım','bakim','montaj','onarım','onarim','servis'], oran: '7/10', aciklama: 'Bakım-onarım ve montaj hizmetleri' },
+  { kelimeler: ['yapım','yapim','inşaat','insaat','tadilat','bina','yapı','yapi'], oran: '4/10', aciklama: 'Yapım işleri' },
+];
+
+// Türkçe para formatı: 1234567.89 → "1.234.567,89"
+function _kdvFmt(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  const num = parseFloat(n) || 0;
+  return num.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Excel hücresini sayıya çevir (boş, string, virgüllü formatlar)
+function _kdvSayi(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).replace(/\./g, '').replace(',', '.').replace(/[^\d.\-]/g, '');
+  return parseFloat(s) || 0;
+}
+
+// ── ADIM 1: Excel Yükleme & Parse ───────────────────────────────────────────
+function kdvExcelYukle(files) {
+  if (!files || files.length === 0) return;
+  const f = files[0];
+  document.getElementById('kdvDosyaAd').textContent = '📎 ' + f.name + ' yükleniyor...';
+  kdvKontrolData = [];
+  document.getElementById('kdvOzetPanel').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      if (typeof XLSX === 'undefined') {
+        showNotif('❌ SheetJS kütüphanesi yüklenemedi.', 'error');
+        return;
+      }
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      if (rows.length < 2) {
+        showNotif('❌ Excel dosyası boş veya geçersiz format.', 'error');
+        return;
+      }
+
+      // Satır 0 başlık, satır 1+ veri; Fatura No boşsa toplam satırı → atla
+      const veri = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const fatNo = String(r[1] || '').trim();
+        if (!fatNo) continue; // toplam/boş satır
+        veri.push({
+          tarih:    String(r[0] || '').trim(),
+          fatNo:    fatNo,
+          fatIsim:  String(r[2] || '').trim(),
+          firma:    String(r[3] || '').trim(),
+          vkn:      String(r[4] || '').trim(),
+          doviz:    String(r[6] || 'TRY').trim(),
+          genelTop: _kdvSayi(r[8]),
+          toplamTL: _kdvSayi(r[9]),
+          topKDV:   _kdvSayi(r[10]),
+          topTevkif: _kdvSayi(r[12]),
+          topBeyan:  _kdvSayi(r[13]),
+          // KDV dilim matrah & tutarları
+          m20: _kdvSayi(r[14]), k20: _kdvSayi(r[15]),
+          m18: _kdvSayi(r[16]), k18: _kdvSayi(r[17]),
+          m10: _kdvSayi(r[18]), k10: _kdvSayi(r[19]),
+          m8:  _kdvSayi(r[20]), k8:  _kdvSayi(r[21]),
+          m1:  _kdvSayi(r[22]), k1:  _kdvSayi(r[23]),
+          m0:  _kdvSayi(r[24]), k0:  _kdvSayi(r[25]),
+        });
+      }
+
+      if (veri.length === 0) {
+        showNotif('⚠️ Hiç fatura satırı bulunamadı. Fatura No sütunu boş olabilir.', 'error');
+        return;
+      }
+
+      // Her satıra kontrol sonuçlarını ekle
+      kdvKontrolData = veri.map(r => _kdvKontrolEt(r));
+
+      document.getElementById('kdvDosyaAd').textContent = '✅ ' + f.name + ' · ' + veri.length + ' fatura yüklendi';
+      kdvRenderOzet();
+      kdvRenderTablo();
+      document.getElementById('kdvOzetPanel').style.display = 'block';
+      document.getElementById('kdvAIPanel').style.display = 'none';
+    } catch(err) {
+      showNotif('❌ Excel parse hatası: ' + err.message, 'error');
+      document.getElementById('kdvDosyaAd').textContent = '❌ Dosya okunamadı: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+// ── ADIM 2 & 3: KDV ve Tevkifat Kontrol Motoru ─────────────────────────────
+function _kdvKontrolEt(r) {
+  const uyarilar = [];
+  const TOLERANS = 0.05;
+
+  // (a) Matrah × oran = KDV tutarı kontrolü
+  const dilimler = [
+    { oran: 0.20, matrah: r.m20, kdv: r.k20, etiket: '%20' },
+    { oran: 0.18, matrah: r.m18, kdv: r.k18, etiket: '%18' },
+    { oran: 0.10, matrah: r.m10, kdv: r.k10, etiket: '%10' },
+    { oran: 0.08, matrah: r.m8,  kdv: r.k8,  etiket: '%8'  },
+    { oran: 0.01, matrah: r.m1,  kdv: r.k1,  etiket: '%1'  },
+  ];
+  let hesapKDV = 0;
+  let topMatrah = 0;
+  dilimler.forEach(d => {
+    if (d.matrah === 0) return;
+    topMatrah += d.matrah;
+    hesapKDV  += d.kdv;
+    const beklenen = Math.round(d.matrah * d.oran * 100) / 100;
+    const fark = Math.abs(beklenen - d.kdv);
+    if (fark > TOLERANS) {
+      uyarilar.push({
+        tip: 'hata',
+        mesaj: `${d.etiket} KDV hesap hatası: Matrah ${_kdvFmt(d.matrah)} × ${d.oran} = ${_kdvFmt(beklenen)} olmalı, kayıtta ${_kdvFmt(d.kdv)} (fark: ${_kdvFmt(fark)} ₺)`
+      });
+    }
+  });
+  topMatrah += r.m0; // %0 matrahı toplama ekle ama KDV hesapta yok
+
+  // (b) KDV dilimleri toplamı = Toplam KDV?
+  if (r.topKDV !== 0) {
+    const farkKDV = Math.abs(hesapKDV - r.topKDV);
+    if (farkKDV > TOLERANS) {
+      uyarilar.push({
+        tip: 'hata',
+        mesaj: `KDV dilim toplamı (${_kdvFmt(hesapKDV)} ₺) ile kayıttaki Toplam KDV (${_kdvFmt(r.topKDV)} ₺) eşleşmiyor (fark: ${_kdvFmt(farkKDV)} ₺)`
+      });
+    }
+  }
+
+  // (c) Toplam KDV + matrah = Genel Toplam?
+  if (r.genelTop !== 0) {
+    const hesapTop = topMatrah + r.topKDV;
+    const farkTop  = Math.abs(hesapTop - r.genelTop);
+    if (farkTop > TOLERANS + 1) { // biraz daha toleranslı (ek vergiler olabilir)
+      uyarilar.push({
+        tip: 'uyari',
+        mesaj: `Matrah + KDV (${_kdvFmt(hesapTop)} ₺) ile Genel Toplam (${_kdvFmt(r.genelTop)} ₺) farkı var (${_kdvFmt(farkTop)} ₺) — Ek vergi olabilir`
+      });
+    }
+  }
+
+  // (d) Beyan KDV = Toplam KDV - Tevkifat?
+  if (r.topKDV !== 0 && r.topBeyan !== 0) {
+    const beklenenBeyan = r.topKDV - r.topTevkif;
+    const farkBeyan = Math.abs(beklenenBeyan - r.topBeyan);
+    if (farkBeyan > TOLERANS) {
+      uyarilar.push({
+        tip: 'hata',
+        mesaj: `Beyan KDV (${_kdvFmt(r.topBeyan)} ₺) = Toplam KDV − Tevkifat (${_kdvFmt(beklenenBeyan)} ₺) olmalı`
+      });
+    }
+  }
+
+  // ── Tevkifat kontrol motoru ──────────────────────────────────────────────
+  const isimKucuk = (r.fatIsim + ' ' + r.firma).toLowerCase();
+  let tevkifatGerekli = null;
+  for (const kural of _TEVK_KURALLARI) {
+    if (kural.kelimeler.some(k => isimKucuk.includes(k))) {
+      tevkifatGerekli = kural;
+      break;
+    }
+  }
+
+  if (tevkifatGerekli) {
+    if (r.topTevkif === 0 && r.topKDV > 0) {
+      // Tevkifat gerekli ama uygulanmamış
+      uyarilar.push({
+        tip: 'hata',
+        mesaj: `"${r.fatIsim || r.firma}" — ${tevkifatGerekli.aciklama} tespit edildi ancak tevkifat uygulanmamış! Beklenen oran: ${tevkifatGerekli.oran}`
+      });
+    } else if (r.topTevkif > 0 && r.topKDV > 0) {
+      // Tevkifat oranı doğru mu?
+      const [pay, payda] = tevkifatGerekli.oran.split('/').map(Number);
+      const beklenenTevk = Math.round(r.topKDV * (pay / payda) * 100) / 100;
+      const farkTevk = Math.abs(beklenenTevk - r.topTevkif);
+      if (farkTevk > 1) { // 1 TL tolerans
+        uyarilar.push({
+          tip: 'uyari',
+          mesaj: `Tevkifat oranı uyuşmazlığı: ${tevkifatGerekli.aciklama} için ${tevkifatGerekli.oran} oranında ${_kdvFmt(beklenenTevk)} ₺ bekleniyor, kayıtta ${_kdvFmt(r.topTevkif)} ₺ var`
+        });
+      }
+    }
+  } else if (r.topTevkif > 0) {
+    // Anahtar kelime yok ama tevkifat var — bilgi uyarısı
+    uyarilar.push({
+      tip: 'uyari',
+      mesaj: `Tevkifat uygulanmış (${_kdvFmt(r.topTevkif)} ₺). Hizmet türünü ve uygunan oranı doğrulayın.`
+    });
+  }
+
+  // Durum belirle
+  const durum = uyarilar.some(u => u.tip === 'hata') ? 'hata'
+              : uyarilar.some(u => u.tip === 'uyari') ? 'uyari'
+              : 'ok';
+
+  return { ...r, uyarilar, durum };
+}
+
+// ── ADIM 4a: Özet Kartları ──────────────────────────────────────────────────
+function kdvRenderOzet() {
+  const toplam = kdvKontrolData.length;
+  const topKDV = kdvKontrolData.reduce((s, r) => s + r.topKDV, 0);
+  const tevkSayi = kdvKontrolData.filter(r => r.topTevkif > 0).length;
+  const topTevk  = kdvKontrolData.reduce((s, r) => s + r.topTevkif, 0);
+  const topBeyan = kdvKontrolData.reduce((s, r) => s + r.topBeyan, 0);
+  const uyariSayi = kdvKontrolData.filter(r => r.durum !== 'ok').length;
+
+  document.getElementById('kdvOzSayi').textContent  = toplam;
+  document.getElementById('kdvOzKdv').textContent   = _kdvFmt(topKDV) + ' ₺';
+  document.getElementById('kdvOzTevkSayi').textContent = tevkSayi;
+  document.getElementById('kdvOzTevk').textContent  = _kdvFmt(topTevk) + ' ₺';
+  document.getElementById('kdvOzBeyan').textContent = _kdvFmt(topBeyan > 0 ? topBeyan : topKDV - topTevk) + ' ₺';
+  document.getElementById('kdvOzUyari').textContent = uyariSayi;
+}
+
+// ── ADIM 4b: Tablo Render ───────────────────────────────────────────────────
+function kdvRenderTablo() {
+  const filtreDurum = document.getElementById('kdvFiltreDurum').value;
+  const filtreAra   = (document.getElementById('kdvFiltreAra').value || '').toLowerCase();
+
+  const filtreli = kdvKontrolData.filter(r => {
+    if (filtreDurum && r.durum !== filtreDurum) return false;
+    if (filtreAra && !r.firma.toLowerCase().includes(filtreAra) && !r.fatNo.toLowerCase().includes(filtreAra)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('kdvTabloBody');
+  const ikonlar = { ok: '🟢', uyari: '🟡', hata: '🔴' };
+
+  tbody.innerHTML = filtreli.map((r, idx) => {
+    const uyariHtml = r.uyarilar.length > 0
+      ? `<span class="badge-${r.durum === 'hata' ? 'hata' : 'uyari'}">${r.uyarilar.length} uyarı</span>`
+      : '<span style="color:var(--text3);font-size:11px;">—</span>';
+    const matrahToplam = r.m20 + r.m18 + r.m10 + r.m8 + r.m1 + r.m0;
+    return `
+      <tr class="kdv-${r.durum}" style="cursor:${r.uyarilar.length ? 'pointer' : 'default'}" onclick="kdvDetayToggle(${idx})">
+        <td style="text-align:center; font-size:16px;">${ikonlar[r.durum]}</td>
+        <td style="font-family:'IBM Plex Mono',monospace; font-size:11px;">${r.fatNo}</td>
+        <td style="white-space:nowrap; font-size:11px;">${r.tarih}</td>
+        <td style="max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${r.firma}">${r.firma}</td>
+        <td style="max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; color:var(--text3);" title="${r.fatIsim}">${r.fatIsim || '—'}</td>
+        <td style="text-align:right;">${_kdvFmt(matrahToplam)}</td>
+        <td style="text-align:right; color:var(--accent);">${_kdvFmt(r.topKDV)}</td>
+        <td style="text-align:right; color:${r.topTevkif > 0 ? '#fbbf24' : 'var(--text3)'};">${r.topTevkif > 0 ? _kdvFmt(r.topTevkif) : '—'}</td>
+        <td style="text-align:right; color:#34d399;">${_kdvFmt(r.topBeyan > 0 ? r.topBeyan : r.topKDV - r.topTevkif)}</td>
+        <td style="text-align:right; font-weight:600;">${_kdvFmt(r.genelTop || r.toplamTL)}</td>
+        <td>${uyariHtml}</td>
+      </tr>
+      ${r.uyarilar.length > 0 ? `
+      <tr class="kdv-detay-row ${r.durum === 'uyari' ? 'uyari' : ''}" id="kdvDetay_${idx}">
+        <td colspan="11">${r.uyarilar.map(u => `<div style="margin-bottom:4px;">${u.tip === 'hata' ? '🔴' : '🟡'} ${u.mesaj}</div>`).join('')}</td>
+      </tr>` : ''}
+    `;
+  }).join('');
+}
+
+// Uyarı detay satırını aç/kapat
+function kdvDetayToggle(idx) {
+  const el = document.getElementById('kdvDetay_' + idx);
+  if (!el) return;
+  el.style.display = el.style.display === 'table-row' ? 'none' : 'table-row';
+}
+
+// ── ADIM 5: Claude AI ile Akıllı Analiz ────────────────────────────────────
+async function kdvAIAnalizEt() {
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
+  if (kdvKontrolData.length === 0) { showNotif('⚠️ Önce fatura listesi yükleyin.', 'error'); return; }
+
+  const btn = document.getElementById('kdvAIBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analiz yapılıyor...';
+  document.getElementById('kdvAIPanel').style.display = 'none';
+
+  // Sadece uyarılı faturaları ve özet istatistikleri gönder (token tasarrufu)
+  const uyarililar = kdvKontrolData.filter(r => r.durum !== 'ok');
+  const ozet = {
+    toplamFatura: kdvKontrolData.length,
+    hataVar: kdvKontrolData.filter(r => r.durum === 'hata').length,
+    uyariVar: kdvKontrolData.filter(r => r.durum === 'uyari').length,
+    toplamKDV: kdvKontrolData.reduce((s, r) => s + r.topKDV, 0),
+    toplamTevkifat: kdvKontrolData.reduce((s, r) => s + r.topTevkif, 0),
+  };
+  const faturaListesi = uyarililar.slice(0, 30).map(r =>
+    `• ${r.fatNo} | ${r.firma} | "${r.fatIsim}" | KDV: ${_kdvFmt(r.topKDV)} ₺ | Tevkifat: ${_kdvFmt(r.topTevkif)} ₺ | ${r.uyarilar.map(u => u.mesaj).join('; ')}`
+  ).join('\n');
+
+  const prompt = `Sen deneyimli bir Türk muhasebe danışmanısın. Aşağıdaki fatura KDV ve tevkifat kontrol raporunu incele.
+
+ÖZET:
+- Toplam Fatura: ${ozet.toplamFatura}
+- Hata Tespit Edilen: ${ozet.hataVar}
+- Uyarı Verilen: ${ozet.uyariVar}
+- Toplam KDV: ${_kdvFmt(ozet.toplamKDV)} ₺
+- Toplam Tevkifat: ${_kdvFmt(ozet.toplamTevkifat)} ₺
+
+SORUNLU FATURALAR:
+${faturaListesi || 'Sorunlu fatura yok.'}
+
+Lütfen şunları değerlendir:
+1. Kritik vergi riskleri nelerdir?
+2. Tevkifat eksikliği olan faturalar var mı, ne yapılmalı?
+3. KDV hesaplama hatalarında olası nedeni ne olabilir?
+4. Muhasebeci olarak en öncelikli dikkat edilmesi gereken noktalar neler?
+
+Kısa, net ve pratik bir değerlendirme yaz. Madde madde açıkla.`;
+
+  try {
+    const yanit = await callClaude(prompt);
+    document.getElementById('kdvAIMetin').textContent = yanit;
+    document.getElementById('kdvAIPanel').style.display = 'block';
+  } catch (e) {
+    showNotif('❌ AI analiz hatası: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 AI ile Detaylı Analiz';
+  }
+}
+
+// ── ADIM 6: Excel Rapor İndir ────────────────────────────────────────────────
+function kdvRaporIndir() {
+  if (kdvKontrolData.length === 0) { showNotif('⚠️ İndirilecek veri yok.', 'error'); return; }
+
+  const ikonlar = { ok: 'Sorunsuz', uyari: 'Uyarı', hata: 'Hata' };
+  const basliklar = ['Durum','Fatura No','Tarih','Firma','Açıklama','VKN','Matrah (TL)','KDV (TL)','Tevkifat (TL)','Beyan KDV (TL)','Genel Toplam','Uyarı Detayı'];
+
+  const satirlar = kdvKontrolData.map(r => {
+    const matrah = r.m20 + r.m18 + r.m10 + r.m8 + r.m1 + r.m0;
+    const beyan  = r.topBeyan > 0 ? r.topBeyan : r.topKDV - r.topTevkif;
+    return [
+      ikonlar[r.durum],
+      r.fatNo,
+      r.tarih,
+      r.firma,
+      r.fatIsim,
+      r.vkn,
+      matrah.toFixed(2).replace('.', ','),
+      r.topKDV.toFixed(2).replace('.', ','),
+      r.topTevkif.toFixed(2).replace('.', ','),
+      beyan.toFixed(2).replace('.', ','),
+      (r.genelTop || r.toplamTL).toFixed(2).replace('.', ','),
+      r.uyarilar.map(u => u.mesaj).join(' | '),
+    ];
+  });
+
+  // UTF-8 BOM + noktalı virgül CSV (Luca/Excel uyumlu)
+  const bom = '\uFEFF';
+  const csv = bom + [basliklar, ...satirlar].map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'KDV_Tevkifat_Kontrol_Raporu.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotif('✅ Kontrol raporu indirildi!', 'success');
 }
 
 // ===================== MÜKELLEFler =====================
