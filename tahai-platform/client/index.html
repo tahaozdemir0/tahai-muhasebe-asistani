@@ -936,6 +936,70 @@
     color: var(--text2);
     white-space: pre-wrap;
   }
+
+  /* ===== MUAVİN / TERS BAKİYE KAYNAK TESPİTİ ===== */
+  .muavin-hesap-panel {
+    border: 1px solid rgba(248,113,113,.25);
+    border-radius: 10px;
+    background: rgba(248,113,113,.04);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .muavin-hesap-baslik {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 13px; margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .muavin-hesap-kod {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--accent); font-size: 12px;
+  }
+  .muavin-donус-kart {
+    background: rgba(248,113,113,.08);
+    border-left: 3px solid #f87171;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .muavin-donuc-kart-ok {
+    background: rgba(52,211,153,.06);
+    border-left: 3px solid #34d399;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  .muavin-grafik-wrap {
+    overflow-x: auto;
+    margin: 10px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card2);
+    padding: 8px;
+  }
+  .muavin-hareketler-tablo { display: none; margin-top: 10px; }
+  .muavin-hareketler-tablo.acik { display: block; }
+  .muavin-expand-btn {
+    font-size: 11px; padding: 3px 10px;
+    background: var(--card2); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 6px; cursor: pointer;
+    margin-left: auto;
+  }
+  .muavin-expand-btn:hover { background: var(--surface2); }
+  .muavin-ozet-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .muavin-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 20px;
+    font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+  }
+  .muavin-badge-hata  { background: rgba(248,113,113,.2); color: #f87171; border: 1px solid rgba(248,113,113,.3); }
+  .muavin-badge-ok    { background: rgba(52,211,153,.15); color: #34d399; border: 1px solid rgba(52,211,153,.3); }
+  .muavin-badge-info  { background: rgba(99,102,241,.15); color: var(--accent); border: 1px solid rgba(99,102,241,.3); }
+  .muavin-tablo-link {
+    cursor: pointer; color: var(--accent); font-size: 11px; text-decoration: underline; white-space: nowrap;
+  }
+  tr.muavin-ters-satir { background: rgba(248,113,113,.10) !important; }
+  tr.muavin-donuc-satir { background: rgba(248,113,113,.20) !important; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -1711,10 +1775,35 @@
                 <th style="text-align:right;">Borç Bakiye</th>
                 <th style="text-align:right;">Alacak Bakiye</th>
                 <th>Durum</th>
+                <th>İşlem</th>
               </tr>
             </thead>
             <tbody id="mizanBody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- MUAVİN TERS BAKİYE KAYNAK TESPİTİ PANELİ -->
+      <div id="mizanMuavinPanel" style="display:none; margin-top:16px;">
+        <div class="card">
+          <div class="card-title">🔍 Ters Bakiye Kaynak Tespiti</div>
+          <div class="card-desc">Ters bakiyeli hesapların hangi fişten kaynaklandığını bulmak için Luca muavin defter Excel'ini yükleyin.</div>
+
+          <!-- Ters bakiye özet bilgisi -->
+          <div id="mizanTersBakiyeOzet" style="margin-bottom:12px;"></div>
+
+          <!-- Muavin dosya yükleme alanı -->
+          <div class="upload-zone" onclick="document.getElementById('muavinFileInput').click()" style="margin-bottom:10px; cursor:pointer;" id="muavinUploadZone">
+            <input type="file" id="muavinFileInput" accept=".xlsx,.xls" style="display:none" onchange="muavinYukle(this.files[0])" />
+            <div class="upload-icon">📒</div>
+            <div class="upload-text">Luca Muavin Defter Excel'ini yükle — <span>tıkla</span></div>
+            <div class="upload-sub">Luca → Raporlar → Muavin Defter → Excel aktarımı</div>
+          </div>
+          <div id="muavinDosyaAd" style="font-size:12px; color:var(--text3); margin-bottom:12px;"></div>
+          <input type="hidden" id="muavinHedefKod" value="" />
+
+          <!-- Analiz sonuçları (hesap bazında) -->
+          <div id="mizanMuavinSonuc" style="display:none;"></div>
         </div>
       </div>
 
@@ -5816,6 +5905,8 @@ function fmt(n) {
 let mizanSatirlar   = [];  // Parse edilen mizan satırları
 let mizanDosyaAdi   = '';  // Yüklenen dosya adı
 let mizanFiltreMetn = '';  // Arama filtresi
+let _muavinData     = {};  // { hesapKodu: { hareketler, tersDonusler, nakliYekun } }
+let _muavinYuklendi = false; // Muavin dosyası parse edildi mi
 
 // Mükellef değişince arşivi yenile
 function mizanMukellefDegisti() {
@@ -5964,6 +6055,13 @@ function parseMizanSatirlar(raw, dosyaAdi) {
   mizanKdvMutabakat();
   // Tabloyu göster
   renderMizanTable(satirlar);
+  // Ters bakiye panelini güncelle
+  _mizanTersBakiyeGuncelle();
+  // Muavin sıfırla (yeni mizan yüklendi)
+  _muavinData = {}; _muavinYuklendi = false;
+  document.getElementById('mizanMuavinSonuc').style.display = 'none';
+  document.getElementById('mizanMuavinSonuc').innerHTML = '';
+  document.getElementById('muavinDosyaAd').textContent = '';
   // Butonları aktifleştir
   document.getElementById('mizanAnalizBtn').disabled = false;
   document.getElementById('mizanKaydetBtn').disabled = false;
@@ -6011,13 +6109,18 @@ function renderMizanTable(satirlar) {
   const fmt = n => n ? n.toLocaleString('tr-TR', {minimumFractionDigits:2}) : '—';
 
   document.getElementById('mizanBody').innerHTML = goster.map(r => {
-    // Ters bakiye kontrolü
-    const tersBakiye = (r.hesap_kodu.startsWith('1') && r.alacak_bak > 0 && r.borc_bak === 0) ||
-                       (r.hesap_kodu.startsWith('3') && r.borc_bak > 0 && r.alacak_bak === 0);
+    // Genişletilmiş ters bakiye kontrolü — tüm hesap sınıfları
+    const tersBakiye = _tersBakiyeMi(r);
     const sifirBakiye = r.borc_bak === 0 && r.alacak_bak === 0;
     const uyari = tersBakiye ? '<span style="color:var(--danger);font-size:11px;">⚠️ Ters</span>'
                 : sifirBakiye ? '<span style="color:var(--text3);font-size:11px;">— Sıfır</span>'
                 : '<span style="color:var(--accent2);font-size:11px;">✓</span>';
+    // Ters bakiyeli hesaplarda "Sebebini Bul" butonu
+    const islemBtn = tersBakiye
+      ? `<button class="muavin-expand-btn" style="margin-left:0;font-size:11px;color:#f87171;border-color:rgba(248,113,113,.4);"
+           onclick="muavinKaynakAc('${r.hesap_kodu.replace(/'/g,"\\'")}','${(r.hesap_adi||'').replace(/'/g,"\\'")}')">
+           🔍 Sebebini Bul</button>`
+      : '';
 
     return `<tr style="${tersBakiye ? 'background:rgba(248,113,113,0.06);' : ''}">
       <td style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;font-weight:600;color:var(--accent);">${r.hesap_kodu}</td>
@@ -6027,6 +6130,7 @@ function renderMizanTable(satirlar) {
       <td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:var(--accent);">${fmt(r.borc_bak)}</td>
       <td style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:var(--accent2);">${fmt(r.alacak_bak)}</td>
       <td style="text-align:center;">${uyari}</td>
+      <td style="text-align:center;">${islemBtn}</td>
     </tr>`;
   }).join('');
 
@@ -6037,6 +6141,438 @@ function renderMizanTable(satirlar) {
 function mizanFiltrele(val) {
   mizanFiltreMetn = val;
   renderMizanTable(mizanSatirlar);
+}
+
+// ─── Ters Bakiye Yardımcı Fonksiyonlar ────────────────────────────────────
+
+// Hesap kodunun ilk rakamına göre ters bakiye kuralı uygula
+function _tersBakiyeMi(r) {
+  const ilk = parseInt(r.hesap_kodu.charAt(0));
+  if (isNaN(ilk)) return false;
+  // 1xx (Dönen Varlıklar), 2xx (Duran Varlıklar), 7xx (Giderler) → Borç bakiye olmalı
+  if ([1, 2, 7].includes(ilk)) return r.alacak_bak > 0;
+  // 3xx (K.V. Borçlar), 4xx (U.V. Borçlar), 5xx (Özkaynaklar), 6xx (Gelirler) → Alacak bakiye olmalı
+  if ([3, 4, 5, 6].includes(ilk)) return r.borc_bak > 0;
+  return false;
+}
+
+// Hesabın borç mu alacak mı bakiye vermesi gerektiğini döndür
+function _borcBakiyeOlmali(hesapKodu) {
+  const ilk = parseInt(hesapKodu.charAt(0));
+  return [1, 2, 7].includes(ilk);
+}
+
+// Mizan yüklendikten sonra ters bakiyeli hesap var mı kontrol et ve paneli göster
+function _mizanTersBakiyeGuncelle() {
+  const tersBakiyeliler = mizanSatirlar.filter(r => _tersBakiyeMi(r));
+  const panel = document.getElementById('mizanMuavinPanel');
+  const ozet  = document.getElementById('mizanTersBakiyeOzet');
+
+  if (tersBakiyeliler.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  ozet.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <span class="muavin-badge muavin-badge-hata">⚠️ ${tersBakiyeliler.length} Ters Bakiyeli Hesap</span>
+      ${tersBakiyeliler.map(r => `
+        <span class="muavin-badge muavin-badge-hata" style="cursor:pointer;" onclick="muavinKaynakAc('${r.hesap_kodu.replace(/'/g,"\\'")}','${(r.hesap_adi||'').replace(/'/g,"\\'")}')">
+          ${r.hesap_kodu}
+        </span>`).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--text3);">Muavin defteri yükleyerek kaynağı tespit edin veya tabloda "🔍 Sebebini Bul" butonuna tıklayın.</div>`;
+}
+
+// ─── "Sebebini Bul" butonuna tıklanınca ──────────────────────────────────
+function muavinKaynakAc(hesapKodu, hesapAdi) {
+  const panel = document.getElementById('mizanMuavinPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('muavinHedefKod').value = hesapKodu;
+
+  if (_muavinYuklendi) {
+    // Muavin zaten yüklüyse direkt o hesabı göster
+    _muavinTekHesapGoster(hesapKodu, hesapAdi);
+  } else {
+    showNotif(`ℹ️ "${hesapKodu}" hesabını analiz etmek için muavin defterini yükleyin.`, 'info');
+  }
+}
+
+// ─── ADIM 2: Muavin Defter Yükle ──────────────────────────────────────────
+function muavinYukle(file) {
+  if (!file) return;
+  const dosyaEl = document.getElementById('muavinDosyaAd');
+  dosyaEl.textContent = '⏳ ' + file.name + ' yükleniyor...';
+  _muavinData = {};
+  _muavinYuklendi = false;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const buf = e.target.result;
+    if (typeof XLSX === 'undefined') {
+      dosyaEl.textContent = '⏳ SheetJS yükleniyor...';
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload  = () => _muavinParse(buf, file.name);
+      s.onerror = () => showNotif('❌ SheetJS yüklenemedi.', 'error');
+      document.head.appendChild(s);
+      return;
+    }
+    _muavinParse(buf, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── ADIM 2: Muavin Parse Motoru ──────────────────────────────────────────
+function _muavinParse(buf, dosyaAdi) {
+  try {
+    const wb   = XLSX.read(buf, { type: 'array' });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    // Hesap bloklarını ayıkla: her blok bir hesap kodu satırıyla başlar
+    const hesaplar = {};
+    let mevcut       = null;  // o an işlenen hesap bloğu
+    let baslikGeldi  = false; // sütun başlığı satırı geçildi mi
+    let nakliBorc    = 0;
+    let nakliAlacak  = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const r    = rows[i];
+      const c0   = String(r[0] || '').trim();
+      const c3   = String(r[3] || '').trim();
+      const c0lo = c0.toLowerCase();
+
+      // Hesap kodu satırı tespiti:
+      // Şekil: "102.01.001 HALKBANK - TL" — sadece c0 dolu, borç/alacak sütunları boş
+      // Regex: rakamla başlayan, en az bir nokta içeren ve kısa bir sözcük dizisi
+      if (/^\d[\d.]{1,}/.test(c0) && !_muavinSayi(r[4]) && !_muavinSayi(r[5])) {
+        const eslesti = c0.match(/^([\d.]+)(.*)/);
+        if (eslesti) {
+          const kod = eslesti[1].replace(/\.$/, ''); // sondaki noktayı sil
+          const ad  = (eslesti[2] + ' ' + String(r[1] || '') + ' ' + String(r[2] || '')).trim();
+          mevcut = { kod, ad, hareketler: [] };
+          hesaplar[kod] = mevcut;
+          baslikGeldi = false;
+          nakliBorc   = 0;
+          nakliAlacak = 0;
+        }
+        continue;
+      }
+
+      if (!mevcut) continue;
+
+      // Sütun başlığı satırı (TARİH, TİP …)
+      if (/tarih/i.test(c0) || /tarih/i.test(c3)) {
+        baslikGeldi = true;
+        continue;
+      }
+
+      if (!baslikGeldi) continue;
+
+      // Nakli Yekün satırı
+      if (/nakli/i.test(c3) || /nakl/i.test(c0lo)) {
+        nakliBorc   = _muavinSayi(r[4]);
+        nakliAlacak = _muavinSayi(r[5]);
+        continue;
+      }
+
+      // Toplam satırı — bu bloğu kapat
+      if (/toplam/i.test(c0) || /toplam/i.test(c3)) continue;
+
+      // Tamamen boş satır — sonraki bloğa geç
+      if (!c0 && !r[1] && !r[2] && !r[3] && !_muavinSayi(r[4]) && !_muavinSayi(r[5])) continue;
+
+      // Hareket satırı: c0 tarih gibi görünüyorsa
+      if (c0 && /\d/.test(c0)) {
+        const borc   = _muavinSayi(r[4]);
+        const alacak = _muavinSayi(r[5]);
+        const bakiye = _muavinSayi(r[6]);
+        if (borc === 0 && alacak === 0) continue;
+        mevcut.hareketler.push({
+          tarih:    c0,
+          tip:      String(r[1] || '').trim(),
+          fisNo:    String(r[2] || '').trim(),
+          aciklama: c3 || String(r[3] || '').trim(),
+          borc,
+          alacak,
+          bakiyeLuca: bakiye,
+        });
+      }
+    }
+
+    // ─── ADIM 3: Her hesap için kümülatif bakiye hesapla + ters dönüş noktalarını bul
+    _muavinData = {};
+    for (const [kod, hesap] of Object.entries(hesaplar)) {
+      if (hesap.hareketler.length === 0) continue;
+
+      const borcBakiyeOlmali = _borcBakiyeOlmali(kod);
+      let kumBakiye = nakliBorc - nakliAlacak; // nakli yekünden gelen başlangıç bakiyesi
+
+      const hareketlerKum = hesap.hareketler.map(h => {
+        kumBakiye += (h.borc - h.alacak);
+        return { ...h, kumBakiye };
+      });
+
+      // Ters dönüş noktalarını tespit et
+      const tersDonusler = [];
+      let oncekiKum = nakliBorc - nakliAlacak;
+      for (const h of hareketlerKum) {
+        const simdi = h.kumBakiye;
+        if (borcBakiyeOlmali && oncekiKum >= 0 && simdi < 0) {
+          tersDonusler.push({ ...h, yon: 'alacak' });
+        } else if (!borcBakiyeOlmali && oncekiKum <= 0 && simdi > 0) {
+          tersDonusler.push({ ...h, yon: 'borc' });
+        }
+        oncekiKum = simdi;
+      }
+
+      _muavinData[kod] = {
+        kod, ad: hesap.ad,
+        hareketler: hareketlerKum,
+        tersDonusler,
+        nakliBorc,
+        nakliAlacak,
+      };
+    }
+
+    _muavinYuklendi = true;
+    document.getElementById('muavinDosyaAd').textContent = `✅ ${dosyaAdi} · ${Object.keys(_muavinData).length} hesap yüklendi`;
+
+    // Ters bakiyeli tüm hesaplar için analiz göster
+    const tersBakiyeliler = mizanSatirlar.filter(r => _tersBakiyeMi(r));
+    _muavinTumunuGoster(tersBakiyeliler);
+
+  } catch (err) {
+    showNotif('❌ Muavin parse hatası: ' + err.message, 'error');
+    document.getElementById('muavinDosyaAd').textContent = '❌ Dosya okunamadı: ' + err.message;
+  }
+}
+
+// Türkçe formatlı muavin sayılarını parse et: "1.234.567,89" → 1234567.89
+function _muavinSayi(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
+}
+
+// ─── ADIM 4: Sonuç Gösterimi (tüm ters bakiyeli hesaplar) ─────────────────
+function _muavinTumunuGoster(tersBakiyeliler) {
+  const sonucPanel = document.getElementById('mizanMuavinSonuc');
+  sonucPanel.style.display = 'block';
+
+  const satirlar = tersBakiyeliler.map(r => {
+    const veri = _muavinVeriBul(r.hesap_kodu);
+    return _muavinHesapHtml(r.hesap_kodu, r.hesap_adi, veri);
+  });
+
+  // Muavinde olup mizanda görünmeyen ters bakiyeli hesap yoksa
+  const bulunamayan = tersBakiyeliler.filter(r => !_muavinVeriBul(r.hesap_kodu));
+  const uyari = bulunamayan.length
+    ? `<div class="muavin-donuc-kart-ok" style="background:rgba(251,191,36,.07);border-color:#fbbf24;margin-bottom:10px;">
+        ⚠️ ${bulunamayan.map(r => r.hesap_kodu).join(', ')} hesapları muavinde bulunamadı. Doğru muavin dosyasını yüklediğinizden emin olun.
+       </div>` : '';
+
+  sonucPanel.innerHTML = uyari + satirlar.join('');
+}
+
+// Tek bir hesabı göster (Sebebini Bul butonundan çağrılır)
+function _muavinTekHesapGoster(hesapKodu, hesapAdi) {
+  const sonucPanel = document.getElementById('mizanMuavinSonuc');
+  sonucPanel.style.display = 'block';
+  const veri = _muavinVeriBul(hesapKodu);
+  const html = _muavinHesapHtml(hesapKodu, hesapAdi, veri);
+  // Zaten varsa güncelle, yoksa ekle
+  const mevcut = document.getElementById('muavinBolum_' + hesapKodu.replace(/\./g,'_'));
+  if (mevcut) {
+    mevcut.outerHTML = html;
+  } else {
+    sonucPanel.insertAdjacentHTML('afterbegin', html);
+  }
+  setTimeout(() => {
+    const el = document.getElementById('muavinBolum_' + hesapKodu.replace(/\./g,'_'));
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+// Muavin verisinde hesap kodunu ara — tam eşleşme veya önek eşleşmesi
+function _muavinVeriBul(hedefKod) {
+  if (_muavinData[hedefKod]) return _muavinData[hedefKod];
+  // Mizan kodu daha kısa olabilir (102 vs 102.01.001): öneki ara
+  for (const [kod, veri] of Object.entries(_muavinData)) {
+    if (kod.startsWith(hedefKod) || hedefKod.startsWith(kod)) return veri;
+  }
+  return null;
+}
+
+// Bir hesap için HTML bloğunu üret
+function _muavinHesapHtml(hesapKodu, hesapAdi, veri) {
+  const safeId = hesapKodu.replace(/\./g, '_');
+
+  if (!veri) {
+    return `<div id="muavinBolum_${safeId}" class="muavin-hesap-panel">
+      <div class="muavin-hesap-baslik">
+        <span class="muavin-hesap-kod">${hesapKodu}</span>
+        <span>${hesapAdi}</span>
+        <span class="muavin-badge muavin-badge-hata">Muavinde Bulunamadı</span>
+      </div>
+      <div style="font-size:12px;color:var(--text3);">Bu hesap kodu muavin dosyasında tespit edilemedi. Luca'dan doğru hesap kodunu içeren muavin export'unu yükleyin.</div>
+    </div>`;
+  }
+
+  const fmt = n => (n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+  const { tersDonusler, hareketler, nakliBorc, nakliAlacak } = veri;
+
+  // Ters dönüş kartları
+  const donusKartlari = tersDonusler.length > 0
+    ? tersDonusler.map(d => `
+        <div class="muavin-donус-kart">
+          📌 <strong>${d.tarih}</strong> tarihinde Fiş No: <strong>${d.fisNo || '—'}</strong> ile ters bakiyeye düştü<br>
+          Bu fişte: Borç <strong>${fmt(d.borc)} ₺</strong> / Alacak <strong>${fmt(d.alacak)} ₺</strong><br>
+          Açıklama: ${d.aciklama || '—'}<br>
+          Bu fişten sonra bakiye: <strong style="color:#f87171;">${fmt(Math.abs(d.kumBakiye))} ₺ (${d.kumBakiye < 0 ? 'Alacak/Ters' : 'Borç/Ters'})</strong>
+        </div>`).join('')
+    : `<div class="muavin-donuc-kart-ok">✅ Bu hesapta ters dönüş noktası tespit edilmedi. Nakli yekünden başlayarak bakiye normal seyrediyor.</div>`;
+
+  // SVG grafik
+  const grafik = _muavinGrafik(hareketler, nakliBorc - nakliAlacak, hesapKodu);
+
+  // Hareketler tablosu (gizli, toggle ile açılır)
+  const harTablo = `
+    <div class="table-wrap" style="max-height:260px;overflow-y:auto;">
+      <table>
+        <thead><tr>
+          <th>Tarih</th><th>Tip</th><th>Fiş No</th><th>Açıklama</th>
+          <th style="text-align:right;">Borç</th><th style="text-align:right;">Alacak</th>
+          <th style="text-align:right;">Kümülatif Bakiye</th>
+        </tr></thead>
+        <tbody>${hareketler.map((h, idx) => {
+          const ters = tersDonusler.some(d => d.fisNo === h.fisNo && d.tarih === h.tarih);
+          return `<tr class="${ters ? 'muavin-donuc-satir' : (h.kumBakiye < 0 ? 'muavin-ters-satir' : '')}">
+            <td style="white-space:nowrap;">${h.tarih}</td>
+            <td>${h.tip}</td>
+            <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;">${h.fisNo}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${h.aciklama}">${h.aciklama}</td>
+            <td style="text-align:right;">${h.borc ? fmt(h.borc) : '—'}</td>
+            <td style="text-align:right;">${h.alacak ? fmt(h.alacak) : '—'}</td>
+            <td style="text-align:right;font-weight:600;color:${h.kumBakiye < 0 ? '#f87171' : '#34d399'};">${fmt(h.kumBakiye)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+
+  return `<div id="muavinBolum_${safeId}" class="muavin-hesap-panel">
+    <div class="muavin-hesap-baslik">
+      <span class="muavin-hesap-kod">${hesapKodu}</span>
+      <span>${hesapAdi || veri.ad}</span>
+      <span class="muavin-badge ${tersDonusler.length ? 'muavin-badge-hata' : 'muavin-badge-ok'}">
+        ${tersDonusler.length ? tersDonusler.length + ' Ters Dönüş' : '✓ Normal'}
+      </span>
+      <span class="muavin-badge muavin-badge-info">${hareketler.length} hareket</span>
+      <button class="muavin-expand-btn" onclick="muavinToggle('${safeId}')">Hareketleri Göster ▼</button>
+    </div>
+    <div class="muavin-ozet-badges">
+      <span class="muavin-badge muavin-badge-info">Nakli Yekün B: ${fmt(nakliBorc)} ₺</span>
+      <span class="muavin-badge muavin-badge-info">Nakli Yekün A: ${fmt(nakliAlacak)} ₺</span>
+      <span class="muavin-badge muavin-badge-info">Başlangıç Bakiye: ${fmt(nakliBorc - nakliAlacak)} ₺</span>
+    </div>
+    ${donusKartlari}
+    <div class="muavin-grafik-wrap">${grafik}</div>
+    <div id="muavinHar_${safeId}" class="muavin-hareketler-tablo">${harTablo}</div>
+  </div>`;
+}
+
+// Hareketler tablosunu aç/kapat
+function muavinToggle(safeId) {
+  const el  = document.getElementById('muavinHar_' + safeId);
+  const btn = el.previousElementSibling.previousElementSibling.querySelector('.muavin-expand-btn');
+  el.classList.toggle('acik');
+  if (btn) btn.textContent = el.classList.contains('acik') ? 'Hareketleri Gizle ▲' : 'Hareketleri Göster ▼';
+}
+
+// ─── ADIM 4a: SVG Çizgi Grafiği ───────────────────────────────────────────
+function _muavinGrafik(hareketler, baslangicBakiye, hesapKodu) {
+  if (hareketler.length === 0) return '<div style="color:var(--text3);font-size:12px;padding:8px;">Grafik için hareket verisi yok.</div>';
+
+  const W = 560, H = 130, PAD = { t: 14, r: 16, b: 28, l: 70 };
+  const iW = W - PAD.l - PAD.r;
+  const iH = H - PAD.t - PAD.b;
+
+  // Bakiye değerleri (başlangıç dahil)
+  const bakiyeler = [baslangicBakiye, ...hareketler.map(h => h.kumBakiye)];
+  const minB = Math.min(...bakiyeler);
+  const maxB = Math.max(...bakiyeler);
+  const aralik = maxB - minB || 1;
+
+  // x-y koordinat dönüşümleri
+  const px = i => PAD.l + (i / (bakiyeler.length - 1)) * iW;
+  const py = v => PAD.t + (1 - (v - minB) / aralik) * iH;
+
+  // Sıfır çizgisi y koordinatı
+  const y0 = py(0);
+
+  // Polyline noktaları
+  const noktalar = bakiyeler.map((b, i) => `${px(i)},${py(b)}`).join(' ');
+
+  // Doldurulmuş alan — borç tarafı (üst) yeşil, alacak (alt/ters) kırmızı
+  const alanNoktalari = [
+    `${PAD.l},${py(baslangicBakiye)}`,
+    ...hareketler.map((h, i) => `${px(i + 1)},${py(h.kumBakiye)}`),
+    `${px(hareketler.length)},${y0}`,
+    `${PAD.l},${y0}`
+  ].join(' ');
+
+  // Ters dönüş noktaları (kırmızı daire)
+  const borcBakOlmali = _borcBakiyeOlmali(hesapKodu);
+  const donusNoktalar = hareketler.map((h, i) => {
+    const onceki = i === 0 ? baslangicBakiye : hareketler[i-1].kumBakiye;
+    const simdi  = h.kumBakiye;
+    const ters = borcBakOlmali ? (onceki >= 0 && simdi < 0) : (onceki <= 0 && simdi > 0);
+    if (!ters) return '';
+    return `<circle cx="${px(i+1)}" cy="${py(simdi)}" r="5" fill="#f87171" stroke="#fff" stroke-width="1.5">
+      <title>${h.tarih} Fiş:${h.fisNo} Bakiye:${simdi.toLocaleString('tr-TR')}</title></circle>`;
+  }).join('');
+
+  // Y eksen etiketleri
+  const yEtk = v => (v/1000).toFixed(0) + 'K';
+  const yTick = [minB, minB + aralik/2, maxB].map(v =>
+    `<text x="${PAD.l - 6}" y="${py(v) + 4}" text-anchor="end" font-size="9" fill="#888">${yEtk(v)}</text>
+     <line x1="${PAD.l}" y1="${py(v)}" x2="${PAD.l + iW}" y2="${py(v)}" stroke="#333" stroke-width="0.4" stroke-dasharray="3,3"/>`
+  ).join('');
+
+  // X eksen etiket (başlangıç ve son tarih)
+  const xEtk = hareketler.length > 0 ? [
+    `<text x="${PAD.l}" y="${H - 6}" text-anchor="middle" font-size="9" fill="#888">${hareketler[0].tarih}</text>`,
+    `<text x="${px(hareketler.length)}" y="${H - 6}" text-anchor="middle" font-size="9" fill="#888">${hareketler[hareketler.length-1].tarih}</text>`
+  ].join('') : '';
+
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%;">
+    <!-- Arka plan -->
+    <rect x="${PAD.l}" y="${PAD.t}" width="${iW}" height="${iH}" fill="none" stroke="#333" stroke-width="0.5" rx="2"/>
+    <!-- Y ekseni gridler ve etiketler -->
+    ${yTick}
+    <!-- X etiketi -->
+    ${xEtk}
+    <!-- Sıfır çizgisi -->
+    <line x1="${PAD.l}" y1="${y0}" x2="${PAD.l + iW}" y2="${y0}" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4,2"/>
+    <text x="${PAD.l - 6}" y="${y0 + 4}" text-anchor="end" font-size="9" fill="#6b7280">0</text>
+    <!-- Doldurulmuş alan -->
+    <polygon points="${alanNoktalari}" fill="${minB >= 0 ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}"/>
+    <!-- Çizgi -->
+    <polyline points="${noktalar}" fill="none" stroke="${minB >= 0 ? '#34d399' : '#f87171'}" stroke-width="1.8" stroke-linejoin="round"/>
+    <!-- Ters dönüş noktaları -->
+    ${donusNoktalar}
+    <!-- Başlangıç noktası -->
+    <circle cx="${PAD.l}" cy="${py(baslangicBakiye)}" r="3" fill="#6366f1"/>
+    <!-- Bitiş noktası -->
+    <circle cx="${px(hareketler.length)}" cy="${py(hareketler[hareketler.length-1].kumBakiye)}" r="3"
+      fill="${hareketler[hareketler.length-1].kumBakiye < 0 ? '#f87171' : '#34d399'}"/>
+    <!-- Grafik başlığı -->
+    <text x="${PAD.l + iW/2}" y="${PAD.t - 2}" text-anchor="middle" font-size="10" fill="#888">${hesapKodu} — Bakiye Seyri</text>
+  </svg>`;
 }
 
 // AI Analiz — hesap kodlarını öğren + anomali tespit
@@ -6242,6 +6778,7 @@ function mizanArsivYukle(mukellef, idx) {
 
   mizanKdvMutabakat();
   renderMizanTable(mizanSatirlar);
+  _mizanTersBakiyeGuncelle();
   document.getElementById('mizanAnalizBtn').disabled = false;
   document.getElementById('mizanKaydetBtn').disabled = false;
   showNotif('✅ Mizan yüklendi.', 'success');
