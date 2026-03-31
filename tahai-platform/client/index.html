@@ -6145,21 +6145,46 @@ function mizanFiltrele(val) {
 
 // ─── Ters Bakiye Yardımcı Fonksiyonlar ────────────────────────────────────
 
-// Hesap kodunun ilk rakamına göre ters bakiye kuralı uygula
+// Hesap kodunun ilk (ve gerekirse ikinci) rakamına göre ters bakiye kuralı uygula
+// Türk Tekdüzen Hesap Planı'na göre:
 function _tersBakiyeMi(r) {
-  const ilk = parseInt(r.hesap_kodu.charAt(0));
+  const kod  = r.hesap_kodu || '';
+  const ilk  = parseInt(kod.charAt(0));
+  const ikinci = parseInt(kod.charAt(1)); // 2. rakam (NaN olabilir)
   if (isNaN(ilk)) return false;
-  // 1xx (Dönen Varlıklar), 2xx (Duran Varlıklar), 7xx (Giderler) → Borç bakiye olmalı
-  if ([1, 2, 7].includes(ilk)) return r.alacak_bak > 0;
-  // 3xx (K.V. Borçlar), 4xx (U.V. Borçlar), 5xx (Özkaynaklar), 6xx (Gelirler) → Alacak bakiye olmalı
-  if ([3, 4, 5, 6].includes(ilk)) return r.borc_bak > 0;
+
+  // 1xx Dönen Varlıklar, 2xx Duran Varlıklar → Borç bakiye olmalı
+  if (ilk === 1 || ilk === 2) return r.alacak_bak > 0;
+
+  // 3xx K.V. Borçlar, 4xx U.V. Borçlar, 5xx Özkaynaklar → Alacak bakiye olmalı
+  if (ilk === 3 || ilk === 4 || ilk === 5) return r.borc_bak > 0;
+
+  // 6xx Gelir Tablosu hesapları — 2. rakama göre ayrılır:
+  //   GELİR hesapları (alacak olmalı): 60 Brüt Satışlar, 64 Diğer Olağan Gelirler, 67 Olağandışı Gelirler
+  //   GİDER hesapları (borç olmalı)  : 61 Satış İndirimleri, 62 Satışların Maliyeti,
+  //                                    63 Faaliyet Giderleri, 65 Diğer Olağan Giderler,
+  //                                    68 Olağandışı Gider ve Zararlar
+  //   69 Dönem Net Kârı/Zararı → yapısı değişken, kural uygulanmaz
+  if (ilk === 6) {
+    if ([0, 4, 7].includes(ikinci)) return r.borc_bak > 0;   // Gelir → alacak olmalı
+    if ([1, 2, 3, 5, 8].includes(ikinci)) return r.alacak_bak > 0; // Gider → borç olmalı
+    return false; // 69 veya belirsiz
+  }
+
+  // 7xx Maliyet Hesapları (7/A) → Borç bakiye olmalı
+  if (ilk === 7) return r.alacak_bak > 0;
+
   return false;
 }
 
-// Hesabın borç mu alacak mı bakiye vermesi gerektiğini döndür
+// Hesabın borç mu alacak mı bakiye vermesi gerektiğini döndür (muavin analizi için)
 function _borcBakiyeOlmali(hesapKodu) {
-  const ilk = parseInt(hesapKodu.charAt(0));
-  return [1, 2, 7].includes(ilk);
+  const kod    = hesapKodu || '';
+  const ilk    = parseInt(kod.charAt(0));
+  const ikinci = parseInt(kod.charAt(1));
+  if (ilk === 1 || ilk === 2 || ilk === 7) return true;
+  if (ilk === 6 && [1, 2, 3, 5, 8].includes(ikinci)) return true; // Gider hesapları
+  return false; // 3xx, 4xx, 5xx ve gelir 6xx → alacak
 }
 
 // Mizan yüklendikten sonra ters bakiyeli hesap var mı kontrol et ve paneli göster
