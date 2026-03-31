@@ -6257,125 +6257,135 @@ function _muavinParse(buf, dosyaAdi) {
     const ws   = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-    // Hesap bloklarını ayıkla: her blok bir hesap kodu satırıyla başlar
+    // ── Kolon indexleri (varsayılan, TARİH satırında dinamik güncellenir) ──
+    let tarihSut = 0, tipSut = 1, fisSut = 2, acikSut = 3, borcSut = 4, alacakSut = 5, bakiyeSut = 6;
+
     const hesaplar = {};
-    let mevcut       = null;  // o an işlenen hesap bloğu
-    let baslikGeldi  = false; // sütun başlığı satırı geçildi mi
-    let nakliBorc    = 0;
-    let nakliAlacak  = 0;
+    let mevcut = null;
 
     for (let i = 0; i < rows.length; i++) {
-      const r   = rows[i];
-      const c0  = String(r[0] || '').trim();
-      const c1  = String(r[1] || '').trim(); // TİP sütunu
-      const c2  = String(r[2] || '').trim(); // FİŞ NO sütunu
-      const c3  = String(r[3] || '').trim(); // AÇIKLAMA sütunu
+      const r  = rows[i];
+      const c0 = String(r[0] || '').trim();
 
-      // ── Hesap kodu satırı tespiti ──────────────────────────────────────────
-      // Kural: c0 rakamla başlıyor VE c1(TİP) boş VE c2(FİŞ NO) boş
-      // Bu sayede data satırları (c1="Mahsup", c2="00021") ve tarih satırları
-      // hesap başlığı olarak yanlış tanınmaz. "TL" hücresinin kolonu önemli değil.
-      if (/^\d[\d.]{2,}/.test(c0) && !c1 && !c2) {
+      // ── TARİH başlık satırı → kolon indexlerini güncelle ─────────────────
+      // Bu satır her hesap bloğunun başında tekrar gelir
+      const tarihIdx = r.findIndex(cell => /^tarih$/i.test(String(cell || '').trim()));
+      if (tarihIdx >= 0) {
+        tarihSut = tarihIdx;
+        r.forEach((cell, idx) => {
+          const h = String(cell || '').trim()
+                     .toUpperCase()
+                     .replace(/[İ]/g, 'I');
+          if (/^TIP$/.test(h))                 tipSut    = idx;
+          else if (/FIS\s*NO/.test(h))          fisSut    = idx;
+          else if (/ACIKLAMA/.test(h))          acikSut   = idx;
+          else if (/^BORC$/.test(h))            borcSut   = idx;
+          else if (/^ALACAK$/.test(h))          alacakSut = idx;
+          else if (/^BAKIYE$/.test(h))          bakiyeSut = idx;
+        });
+        // hesap bloğunun sütun başlığı: mevcut varsa baslikGeldi açık
+        continue;
+      }
+
+      // ── Hesap kodu satırı tespiti ─────────────────────────────────────────
+      // Kural: c0 rakam+nokta (hesap kodu formatı) VE TİP sütunu boş
+      const cTip = String(r[tipSut] || '').trim();
+      if (/^\d[\d.]{2,}/.test(c0) && !cTip) {
         const eslesti = c0.match(/^([\d.]+)\s*(.*)/);
         if (eslesti) {
           const kod = eslesti[1].replace(/\.$/, '');
           const ad  = eslesti[2].trim();
-          mevcut = { kod, ad, hareketler: [] };
+          // Her hesap kendi nakli yekünü saklar (global paylaşım hatası önlenir)
+          mevcut = { kod, ad, hareketler: [], nakliBorc: 0, nakliAlacak: 0 };
           hesaplar[kod] = mevcut;
-          baslikGeldi = false;
-          nakliBorc   = 0;
-          nakliAlacak = 0;
         }
         continue;
       }
 
       if (!mevcut) continue;
 
-      // ── Sütun başlığı satırı: TARİH kelimesi geçiyorsa ───────────────────
-      if (/tarih/i.test(c0) || /tarih/i.test(c1)) {
-        baslikGeldi = true;
-        continue;
-      }
-
-      if (!baslikGeldi) continue;
+      const cTarihVal = r[tarihSut];
+      const cAcik     = String(r[acikSut] || '').trim();
+      const cTarihStr = String(cTarihVal || '').trim();
 
       // ── Nakli Yekün satırı ────────────────────────────────────────────────
-      if (/nakli/i.test(c3) || /nakli/i.test(c0)) {
-        nakliBorc   = _muavinSayi(r[4]);
-        nakliAlacak = _muavinSayi(r[5]);
+      if (/nakli/i.test(cAcik) || /nakli/i.test(c0) || /nakli/i.test(cTarihStr)) {
+        mevcut.nakliBorc   = _muavinSayi(r[borcSut]);
+        mevcut.nakliAlacak = _muavinSayi(r[alacakSut]);
         continue;
       }
 
-      // ── Toplam satırı (Genel Toplam, Hesap Toplamı vb.) ──────────────────
-      if (/toplam/i.test(c0) || /toplam/i.test(c3)) continue;
+      // ── Toplam satırları ─────────────────────────────────────────────────
+      if (/toplam/i.test(c0) || /toplam/i.test(cAcik) || /toplam/i.test(cTarihStr)) continue;
 
-      // ── Tamamen boş satır ─────────────────────────────────────────────────
-      if (!c0 && !c1 && !c2 && !c3) continue;
-
-      // ── Hareket satırı: TİP (c1) veya FİŞ NO (c2) dolu olmalı ───────────
-      // Bu şekilde hesap başlığı ve anlamsız satırlar veri satırı olarak işlenmez
-      if (c1 || c2) {
-        const borc   = _muavinSayi(r[4]);
-        const alacak = _muavinSayi(r[5]);
+      // ── Hareket satırı: TARİH sütununda değer var ─────────────────────────
+      // Tarih; Excel serial number (sayı) VEYA "GG.AA.YYYY" string olabilir
+      const tarihDolu = (typeof cTarihVal === 'number' && cTarihVal > 0) ||
+                        (cTarihStr !== '' && !/^tarih$/i.test(cTarihStr));
+      if (tarihDolu) {
+        const borc   = _muavinSayi(r[borcSut]);
+        const alacak = _muavinSayi(r[alacakSut]);
         if (borc === 0 && alacak === 0) continue; // sıfır hareketi atla
+
+        // Excel serial → okunabilir tarih
+        let tarihGoster = cTarihStr;
+        if (typeof cTarihVal === 'number' && cTarihVal > 40000) {
+          const d = new Date(Math.round((cTarihVal - 25569) * 86400 * 1000));
+          tarihGoster = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+        }
+
         mevcut.hareketler.push({
-          tarih:     c0,
-          tip:       c1,
-          fisNo:     c2,
-          aciklama:  c3,
+          tarih:      tarihGoster,
+          tip:        String(r[tipSut]  || '').trim(),
+          fisNo:      String(r[fisSut]  || '').trim(),
+          aciklama:   cAcik,
           borc,
           alacak,
-          bakiyeLuca: _muavinSayi(r[6]),
+          bakiyeLuca: _muavinSayi(r[bakiyeSut]),
         });
       }
     }
 
-    // ─── ADIM 3: Her hesap için kümülatif bakiye hesapla + ters dönüş noktalarını bul
+    // ─── ADIM 3: Her hesap için kümülatif bakiye hesapla ──────────────────
     _muavinData = {};
     for (const [kod, hesap] of Object.entries(hesaplar)) {
       if (hesap.hareketler.length === 0) continue;
 
       const borcBakiyeOlmali = _borcBakiyeOlmali(kod);
-      let kumBakiye = nakliBorc - nakliAlacak; // nakli yekünden gelen başlangıç bakiyesi
+      let kumBakiye  = hesap.nakliBorc - hesap.nakliAlacak;
+      let oncekiKum  = kumBakiye;
 
       const hareketlerKum = hesap.hareketler.map(h => {
         kumBakiye += (h.borc - h.alacak);
         return { ...h, kumBakiye };
       });
 
-      // Ters dönüş noktalarını tespit et
+      // Ters dönüş noktaları
       const tersDonusler = [];
-      let oncekiKum = nakliBorc - nakliAlacak;
+      oncekiKum = hesap.nakliBorc - hesap.nakliAlacak;
       for (const h of hareketlerKum) {
-        const simdi = h.kumBakiye;
-        if (borcBakiyeOlmali && oncekiKum >= 0 && simdi < 0) {
+        if (borcBakiyeOlmali  && oncekiKum >= 0 && h.kumBakiye < 0)
           tersDonusler.push({ ...h, yon: 'alacak' });
-        } else if (!borcBakiyeOlmali && oncekiKum <= 0 && simdi > 0) {
+        else if (!borcBakiyeOlmali && oncekiKum <= 0 && h.kumBakiye > 0)
           tersDonusler.push({ ...h, yon: 'borc' });
-        }
-        oncekiKum = simdi;
+        oncekiKum = h.kumBakiye;
       }
 
       _muavinData[kod] = {
         kod, ad: hesap.ad,
         hareketler: hareketlerKum,
         tersDonusler,
-        nakliBorc,
-        nakliAlacak,
+        nakliBorc:  hesap.nakliBorc,
+        nakliAlacak: hesap.nakliAlacak,
       };
     }
 
     _muavinYuklendi = true;
-    const _dbgHesaplar = Object.keys(hesaplar).length;
-    const _dbgHareketli = Object.values(hesaplar).filter(h => h.hareketler.length > 0).length;
-    console.log('[Muavin Debug] Toplam satır:', rows.length, '| Hesap başlığı:', _dbgHesaplar, '| Hareketli hesap:', _dbgHareketli, '| _muavinData:', Object.keys(_muavinData).length);
-    console.log('[Muavin Debug] İlk 3 hesap:', Object.keys(hesaplar).slice(0, 3).map(k => `${k}(${hesaplar[k].hareketler.length} hareket)`).join(', '));
-    if (_dbgHesaplar === 0) {
-      // İlk 5 satırı göster
-      console.log('[Muavin Debug] İlk 5 satır:');
-      rows.slice(0, 5).forEach((r, i) => console.log(`  S${i}:`, JSON.stringify(r.slice(0, 5))));
-    }
-    document.getElementById('muavinDosyaAd').textContent = `✅ ${dosyaAdi} · ${Object.keys(_muavinData).length} hesap yüklendi (${_dbgHesaplar} blok, ${_dbgHareketli} hareketli)`;
+    const _dbgBlok = Object.keys(hesaplar).length;
+    const _dbgHar  = Object.values(hesaplar).filter(h => h.hareketler.length > 0).length;
+    console.log(`[Muavin] ${rows.length} satır | ${_dbgBlok} hesap bloğu | ${_dbgHar} hareketli | kolonlar: tarih=${tarihSut} borç=${borcSut} alacak=${alacakSut}`);
+    document.getElementById('muavinDosyaAd').textContent =
+      `✅ ${dosyaAdi} · ${Object.keys(_muavinData).length} hesap yüklendi`;
 
     // Ters bakiyeli tüm hesaplar için analiz göster
     const tersBakiyeliler = mizanSatirlar.filter(r => _tersBakiyeMi(r));
