@@ -6265,19 +6265,21 @@ function _muavinParse(buf, dosyaAdi) {
     let nakliAlacak  = 0;
 
     for (let i = 0; i < rows.length; i++) {
-      const r    = rows[i];
-      const c0   = String(r[0] || '').trim();
-      const c3   = String(r[3] || '').trim();
-      const c0lo = c0.toLowerCase();
+      const r   = rows[i];
+      const c0  = String(r[0] || '').trim();
+      const c1  = String(r[1] || '').trim(); // TİP sütunu
+      const c2  = String(r[2] || '').trim(); // FİŞ NO sütunu
+      const c3  = String(r[3] || '').trim(); // AÇIKLAMA sütunu
 
-      // Hesap kodu satırı tespiti:
-      // Şekil: "102.01.001 HALKBANK - TL" — sadece c0 dolu, borç/alacak sütunları boş
-      // Regex: rakamla başlayan, en az bir nokta içeren ve kısa bir sözcük dizisi
-      if (/^\d[\d.]{1,}/.test(c0) && !_muavinSayi(r[4]) && !_muavinSayi(r[5])) {
-        const eslesti = c0.match(/^([\d.]+)(.*)/);
+      // ── Hesap kodu satırı tespiti ──────────────────────────────────────────
+      // Kural: c0 rakamla başlıyor VE c1(TİP) boş VE c2(FİŞ NO) boş
+      // Bu sayede data satırları (c1="Mahsup", c2="00021") ve tarih satırları
+      // hesap başlığı olarak yanlış tanınmaz. "TL" hücresinin kolonu önemli değil.
+      if (/^\d[\d.]{2,}/.test(c0) && !c1 && !c2) {
+        const eslesti = c0.match(/^([\d.]+)\s*(.*)/);
         if (eslesti) {
-          const kod = eslesti[1].replace(/\.$/, ''); // sondaki noktayı sil
-          const ad  = (eslesti[2] + ' ' + String(r[1] || '') + ' ' + String(r[2] || '')).trim();
+          const kod = eslesti[1].replace(/\.$/, '');
+          const ad  = eslesti[2].trim();
           mevcut = { kod, ad, hareketler: [] };
           hesaplar[kod] = mevcut;
           baslikGeldi = false;
@@ -6289,41 +6291,41 @@ function _muavinParse(buf, dosyaAdi) {
 
       if (!mevcut) continue;
 
-      // Sütun başlığı satırı (TARİH, TİP …)
-      if (/tarih/i.test(c0) || /tarih/i.test(c3)) {
+      // ── Sütun başlığı satırı: TARİH kelimesi geçiyorsa ───────────────────
+      if (/tarih/i.test(c0) || /tarih/i.test(c1)) {
         baslikGeldi = true;
         continue;
       }
 
       if (!baslikGeldi) continue;
 
-      // Nakli Yekün satırı
-      if (/nakli/i.test(c3) || /nakl/i.test(c0lo)) {
+      // ── Nakli Yekün satırı ────────────────────────────────────────────────
+      if (/nakli/i.test(c3) || /nakli/i.test(c0)) {
         nakliBorc   = _muavinSayi(r[4]);
         nakliAlacak = _muavinSayi(r[5]);
         continue;
       }
 
-      // Toplam satırı — bu bloğu kapat
+      // ── Toplam satırı (Genel Toplam, Hesap Toplamı vb.) ──────────────────
       if (/toplam/i.test(c0) || /toplam/i.test(c3)) continue;
 
-      // Tamamen boş satır — sonraki bloğa geç
-      if (!c0 && !r[1] && !r[2] && !r[3] && !_muavinSayi(r[4]) && !_muavinSayi(r[5])) continue;
+      // ── Tamamen boş satır ─────────────────────────────────────────────────
+      if (!c0 && !c1 && !c2 && !c3) continue;
 
-      // Hareket satırı: c0 tarih gibi görünüyorsa
-      if (c0 && /\d/.test(c0)) {
+      // ── Hareket satırı: TİP (c1) veya FİŞ NO (c2) dolu olmalı ───────────
+      // Bu şekilde hesap başlığı ve anlamsız satırlar veri satırı olarak işlenmez
+      if (c1 || c2) {
         const borc   = _muavinSayi(r[4]);
         const alacak = _muavinSayi(r[5]);
-        const bakiye = _muavinSayi(r[6]);
-        if (borc === 0 && alacak === 0) continue;
+        if (borc === 0 && alacak === 0) continue; // sıfır hareketi atla
         mevcut.hareketler.push({
-          tarih:    c0,
-          tip:      String(r[1] || '').trim(),
-          fisNo:    String(r[2] || '').trim(),
-          aciklama: c3 || String(r[3] || '').trim(),
+          tarih:     c0,
+          tip:       c1,
+          fisNo:     c2,
+          aciklama:  c3,
           borc,
           alacak,
-          bakiyeLuca: bakiye,
+          bakiyeLuca: _muavinSayi(r[6]),
         });
       }
     }
