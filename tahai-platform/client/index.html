@@ -2893,7 +2893,7 @@ async function callClaude(prompt, imageFile, retry = true) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4096,
         messages: [{ role: 'user', content }]
       })
     });
@@ -6586,10 +6586,16 @@ async function mizanAIAnalizBaslat() {
   document.getElementById('mizanAnalizSpinner').style.display = 'inline-block';
   log('mizanLog', 'AI analiz başlıyor...', 'info');
 
-  // Mizan özetini AI'ya gönder (ilk 80 satır — token limiti)
-  const ozet = mizanSatirlar.slice(0, 80).map(r =>
-    `${r.hesap_kodu}|${r.hesap_adi}|${r.borc_bak}|${r.alacak_bak}`
-  ).join('\n');
+  // Mizan özetini AI'ya gönder — sıfır bakiyelileri atla, max 60 satır, hesap adı kısalt
+  const ozet = mizanSatirlar
+    .filter(r => r.borc_bak > 0 || r.alacak_bak > 0 || r.borc_top > 0)
+    .slice(0, 60)
+    .map(r => {
+      const ad = (r.hesap_adi || '').slice(0, 25);
+      const bb = r.borc_bak  ? r.borc_bak.toFixed(0)  : '0';
+      const ab = r.alacak_bak ? r.alacak_bak.toFixed(0) : '0';
+      return `${r.hesap_kodu}|${ad}|${bb}|${ab}`;
+    }).join('\n');
 
   const prompt = `Aşağıda bir Türk işletmesinin Luca muhasebe programından alınan mizan listesi var.
 Format: HesapKodu|HesapAdı|BorçBakiye|AlacakBakiye
