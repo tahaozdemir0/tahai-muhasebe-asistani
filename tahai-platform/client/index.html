@@ -3380,7 +3380,7 @@ async function processFaturalar() {
     setProgress('faturaProgress', 'faturaProgressFill', ((i+1)/faturaFiles.length)*100);
 
     try {
-      const prompt = `Bu bir fatura listesi (Excel/CSV çıktısı) veya fatura görselidir.
+      const prompt = `Bu bir fatura listesi veya fatura görselidir.
 Her fatura için şu bilgileri çıkar ve SADECE JSON array olarak döndür:
 [
   {
@@ -3398,7 +3398,19 @@ Her fatura için şu bilgileri çıkar ve SADECE JSON array olarak döndür:
 ]
 Mükerrer fatura no, eksik VKN, tutarsız KDV hesabı varsa UYARI veya HATA olarak işaretle.`;
 
-      const raw = await callClaude(prompt, f);
+      // Excel/CSV dosyaları SheetJS ile text'e çevrilir, görsel/PDF direkt gönderilir
+      const dosyaUzanti = f.name.split('.').pop().toLowerCase();
+      let raw;
+      if (['xlsx', 'xls', 'csv'].includes(dosyaUzanti)) {
+        if (typeof XLSX === 'undefined') throw new Error('SheetJS yüklenmemiş');
+        const buf = await f.arrayBuffer();
+        const wb  = XLSX.read(buf, { type: 'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const txt = XLSX.utils.sheet_to_csv(ws, { FS: '\t' });
+        raw = await callClaude(prompt + '\n\nFatura verileri (tablo):\n' + txt.slice(0, 8000));
+      } else {
+        raw = await callClaude(prompt, f);
+      }
       const clean = raw.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
       const rows = Array.isArray(parsed) ? parsed : [parsed];
