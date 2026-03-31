@@ -6366,7 +6366,16 @@ function _muavinParse(buf, dosyaAdi) {
     }
 
     _muavinYuklendi = true;
-    document.getElementById('muavinDosyaAd').textContent = `✅ ${dosyaAdi} · ${Object.keys(_muavinData).length} hesap yüklendi`;
+    const _dbgHesaplar = Object.keys(hesaplar).length;
+    const _dbgHareketli = Object.values(hesaplar).filter(h => h.hareketler.length > 0).length;
+    console.log('[Muavin Debug] Toplam satır:', rows.length, '| Hesap başlığı:', _dbgHesaplar, '| Hareketli hesap:', _dbgHareketli, '| _muavinData:', Object.keys(_muavinData).length);
+    console.log('[Muavin Debug] İlk 3 hesap:', Object.keys(hesaplar).slice(0, 3).map(k => `${k}(${hesaplar[k].hareketler.length} hareket)`).join(', '));
+    if (_dbgHesaplar === 0) {
+      // İlk 5 satırı göster
+      console.log('[Muavin Debug] İlk 5 satır:');
+      rows.slice(0, 5).forEach((r, i) => console.log(`  S${i}:`, JSON.stringify(r.slice(0, 5))));
+    }
+    document.getElementById('muavinDosyaAd').textContent = `✅ ${dosyaAdi} · ${Object.keys(_muavinData).length} hesap yüklendi (${_dbgHesaplar} blok, ${_dbgHareketli} hareketli)`;
 
     // Ters bakiyeli tüm hesaplar için analiz göster
     const tersBakiyeliler = mizanSatirlar.filter(r => _tersBakiyeMi(r));
