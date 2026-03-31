@@ -4513,12 +4513,24 @@ function kdvExcelYukle(files) {
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    try {
-      if (typeof XLSX === 'undefined') {
-        showNotif('❌ SheetJS kütüphanesi yüklenemedi.', 'error');
-        return;
-      }
-      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+    const buf = e.target.result;
+    if (typeof XLSX === 'undefined') {
+      document.getElementById('kdvDosyaAd').textContent = '⏳ Excel kütüphanesi yükleniyor...';
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload  = () => _kdvParse(buf, f);
+      s.onerror = () => { showNotif('❌ SheetJS yüklenemedi. İnternet bağlantısını kontrol et.', 'error'); };
+      document.head.appendChild(s);
+      return;
+    }
+    _kdvParse(buf, f);
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+function _kdvParse(buf, f) {
+  try {
+      const wb = XLSX.read(buf, { type: 'array', cellDates: false });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
@@ -4568,12 +4580,10 @@ function kdvExcelYukle(files) {
       kdvRenderTablo();
       document.getElementById('kdvOzetPanel').style.display = 'block';
       document.getElementById('kdvAIPanel').style.display = 'none';
-    } catch(err) {
-      showNotif('❌ Excel parse hatası: ' + err.message, 'error');
-      document.getElementById('kdvDosyaAd').textContent = '❌ Dosya okunamadı: ' + err.message;
-    }
-  };
-  reader.readAsArrayBuffer(f);
+  } catch(err) {
+    showNotif('❌ Excel parse hatası: ' + err.message, 'error');
+    document.getElementById('kdvDosyaAd').textContent = '❌ Dosya okunamadı: ' + err.message;
+  }
 }
 
 // ── ADIM 2 & 3: KDV ve Tevkifat Kontrol Motoru ─────────────────────────────
