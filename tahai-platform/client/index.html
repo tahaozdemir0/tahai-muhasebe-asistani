@@ -6273,24 +6273,29 @@ function _muavinParse(buf, dosyaAdi) {
       if (tarihIdx >= 0) {
         tarihSut = tarihIdx;
         r.forEach((cell, idx) => {
-          const h = String(cell || '').trim()
-                     .toUpperCase()
-                     .replace(/[İ]/g, 'I');
-          if (/^TIP$/.test(h))                 tipSut    = idx;
-          else if (/FIS\s*NO/.test(h))          fisSut    = idx;
-          else if (/ACIKLAMA/.test(h))          acikSut   = idx;
-          else if (/^BORC$/.test(h))            borcSut   = idx;
-          else if (/^ALACAK$/.test(h))          alacakSut = idx;
-          else if (/^BAKIYE$/.test(h))          bakiyeSut = idx;
+          const raw = String(cell || '').trim();
+          // Türkçe karakterleri normalize et: İ→I, Ş→S, Ç→C, Ğ→G, Ü→U, Ö→O
+          const h = raw.toUpperCase()
+                       .replace(/İ/g,'I').replace(/Ş/g,'S').replace(/Ç/g,'C')
+                       .replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ö/g,'O');
+          if (/^TIP$/.test(h))              tipSut    = idx;
+          else if (/FIS\s*NO/.test(h))      fisSut    = idx;
+          else if (/ACIKLAMA/.test(h))      acikSut   = idx;
+          else if (/^BORC$/.test(h))        borcSut   = idx;
+          else if (/^ALACAK$/.test(h))      alacakSut = idx;
+          else if (/^BAKIYE$/.test(h))      bakiyeSut = idx;
         });
         // hesap bloğunun sütun başlığı: mevcut varsa baslikGeldi açık
         continue;
       }
 
       // ── Hesap kodu satırı tespiti ─────────────────────────────────────────
-      // Kural: c0 rakam+nokta (hesap kodu formatı) VE TİP sütunu boş
+      // Kural: c0 rakam+nokta (hesap kodu formatı) VE TİP sütunu boş VE FİŞ NO boş
+      // Devir satırları: TİP boş ama FİŞ NO dolu olabilir (örn: [46023,"","00001",...])
+      // Bu kontrolün ikisi de gerekli, aksi halde devir satırları hesap başlığı sanılır.
       const cTip = String(r[tipSut] || '').trim();
-      if (/^\d[\d.]{2,}/.test(c0) && !cTip) {
+      const cFis = String(r[fisSut] || '').trim();
+      if (/^\d[\d.]{2,}/.test(c0) && !cTip && !cFis) {
         const eslesti = c0.match(/^([\d.]+)\s*(.*)/);
         if (eslesti) {
           const kod = eslesti[1].replace(/\.$/, '');
