@@ -527,37 +527,6 @@
   .dk-progress-wrap { height: 10px; background: var(--surface2); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
   .dk-progress-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width .4s; }
 
-  /* ===== BA/BS MUTABAKAT MODÜLÜ ===== */
-  .babs-ozet-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  .babs-kart { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
-  .babs-kart.yesil  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.3); }
-  .babs-kart.kirmizi{ background:rgba(224,92,92,.08);  border-color:rgba(224,92,92,.3); }
-  .babs-kart.sari   { background:rgba(240,165,0,.08);  border-color:rgba(240,165,0,.3); }
-  .babs-kart-label  { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
-  .babs-kart-deger  { font-size:20px; font-weight:700; color:var(--text); }
-
-  .babs-sekme-bar { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
-  .babs-sekme { padding:6px 14px; border-radius:8px; font-size:13px; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--text2); }
-  .babs-sekme.aktif { background:var(--accent); color:white; border-color:var(--accent); }
-
-  .babs-tablo { width:100%; border-collapse:collapse; font-size:13px; }
-  .babs-tablo th { text-align:left; padding:8px 12px; border-bottom:2px solid var(--border); color:var(--text3); font-size:11px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
-  .babs-tablo td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text2); }
-  .babs-tablo tr:last-child td { border-bottom:none; }
-  .babs-tablo tr.eslesme td { background:rgba(34,197,94,.03); }
-  .babs-tablo tr.eksik   td { background:rgba(224,92,92,.05); }
-  .babs-tablo tr.fazla   td { background:rgba(240,165,0,.05); }
-  .babs-tablo tr.fark    td { background:rgba(224,92,92,.05); }
-  .babs-rozet { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
-  .babs-rozet.eslesme { background:rgba(34,197,94,.15); color:#4ade80; }
-  .babs-rozet.eksik   { background:rgba(224,92,92,.15); color:#f87171; }
-  .babs-rozet.fazla   { background:rgba(240,165,0,.15); color:#facc15; }
-  .babs-rozet.fark    { background:rgba(224,92,92,.15); color:#f87171; }
 
   /* ===== KDV MUTABAKAT MODÜLÜ ===== */
   .kdvmut-ozet-grid {
@@ -1405,9 +1374,6 @@
     </div>
     <div class="sidebar-subitem" onclick="showKontrolPaneli('kdv-mutabakat', this)">
       <span class="sidebar-icon">🔍</span> KDV Mutabakat
-    </div>
-    <div class="sidebar-subitem" onclick="showKontrolPaneli('babs-kontrol', this)">
-      <span class="sidebar-icon">📊</span> Ba/Bs Kontrol
     </div>
     <div class="sidebar-subitem" onclick="showKontrolPaneli('donem-kapanis', this)">
       <span class="sidebar-icon">✅</span> Dönem Kapanış
@@ -2893,124 +2859,6 @@
     </div>
     <!-- ===== KDV MUTABAKAT SONU ===== -->
 
-    <!-- ===== BA/BS MUTABAKAT MODÜLÜ ===== -->
-    <div class="page" id="page-babs-kontrol">
-
-      <div style="margin-bottom:8px;">
-        <div style="font-size:20px;font-weight:700;color:var(--text);">📊 Ba/Bs Mutabakat Kontrol</div>
-        <div style="font-size:13px;color:var(--text3);margin-top:4px;">
-          Fatura listesi ile Ba/Bs formu — VKN bazlı çapraz karşılaştırma (5.000 ₺ eşiği)
-        </div>
-      </div>
-
-      <!-- Ayarlar -->
-      <div class="card">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:14px;align-items:flex-end;">
-          <div>
-            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">MÜKELLEf</label>
-            <select id="babsMukellef" class="input" style="width:100%"></select>
-          </div>
-          <div>
-            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">DÖNEM</label>
-            <input type="month" id="babsDonem" class="input" style="width:100%" />
-          </div>
-          <div>
-            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">FORM TİPİ</label>
-            <select id="babsTip" class="input" style="width:100%" onchange="babsTipDegisti()">
-              <option value="ba">Ba — Alış Bildirimi</option>
-              <option value="bs">Bs — Satış Bildirimi</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="babsKarsilastir()">🔍 Karşılaştır</button>
-        </div>
-      </div>
-
-      <!-- İki dosya yükleme alanı -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-
-        <!-- Fatura listesi -->
-        <div class="card">
-          <div class="card-title" style="margin-bottom:14px;">📄 Fatura Listesi</div>
-          <div style="border:2px dashed var(--border);border-radius:10px;padding:16px;
-                      text-align:center;cursor:pointer;background:var(--surface2);"
-               onclick="document.getElementById('babsFaturaInput').click()"
-               ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-               ondragleave="this.style.borderColor='var(--border)'"
-               ondrop="event.preventDefault();this.style.borderColor='var(--border)';babsHandleFaturaFile(event.dataTransfer.files[0])">
-            <div style="font-size:22px;margin-bottom:4px;">📋</div>
-            <div style="font-size:13px;color:var(--text2);">Uyumsoft / İşNet fatura listesi</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px;">.xlsx / .xls</div>
-          </div>
-          <input type="file" id="babsFaturaInput" accept=".xlsx,.xls" style="display:none"
-                 onchange="babsHandleFaturaFile(this.files[0])">
-          <div id="babsFaturaBilgi" style="display:none;margin-top:10px;padding:9px 12px;
-               background:var(--surface2);border-radius:8px;border:1px solid var(--border);
-               align-items:center;gap:8px;font-size:12px;">
-            <span>📄</span>
-            <span id="babsFaturaAd" style="flex:1;color:var(--text);font-weight:500;"></span>
-            <span id="babsFaturaSatir" style="color:var(--text3);"></span>
-          </div>
-        </div>
-
-        <!-- Ba/Bs formu -->
-        <div class="card">
-          <div class="card-title" style="margin-bottom:14px;" id="babsFormBaslik">📑 Ba Formu (Luca)</div>
-          <div style="border:2px dashed var(--border);border-radius:10px;padding:16px;
-                      text-align:center;cursor:pointer;background:var(--surface2);"
-               onclick="document.getElementById('babsFormInput').click()"
-               ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-               ondragleave="this.style.borderColor='var(--border)'"
-               ondrop="event.preventDefault();this.style.borderColor='var(--border)';babsHandleFormFile(event.dataTransfer.files[0])">
-            <div style="font-size:22px;margin-bottom:4px;">📑</div>
-            <div style="font-size:13px;color:var(--text2);">Luca'dan alınan Ba / Bs formu</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px;">.xlsx / .xls</div>
-          </div>
-          <input type="file" id="babsFormInput" accept=".xlsx,.xls" style="display:none"
-                 onchange="babsHandleFormFile(this.files[0])">
-          <div id="babsFormBilgi" style="display:none;margin-top:10px;padding:9px 12px;
-               background:var(--surface2);border-radius:8px;border:1px solid var(--border);
-               align-items:center;gap:8px;font-size:12px;">
-            <span>📑</span>
-            <span id="babsFormAd" style="flex:1;color:var(--text);font-weight:500;"></span>
-            <span id="babsFormSatir" style="color:var(--text3);"></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sonuç paneli -->
-      <div id="babsSonucPanel" style="display:none;">
-
-        <!-- Özet kartlar -->
-        <div class="babs-ozet-grid" id="babsOzetKartlar"></div>
-
-        <!-- Tablo kartı -->
-        <div class="card">
-          <div class="babs-sekme-bar" id="babsSekmeBar">
-            <div class="babs-sekme aktif" id="babsSekmeTumu"  onclick="babsSekme('tumu',this)">Tümü</div>
-            <div class="babs-sekme"      id="babsSekmeEksik" onclick="babsSekme('eksik',this)">⚠️ Ba/Bs'de Eksik</div>
-            <div class="babs-sekme"      id="babsSekmeFazla" onclick="babsSekme('fazla',this)">➕ Ba/Bs'de Fazla</div>
-            <div class="babs-sekme"      id="babsSekmeFark"  onclick="babsSekme('fark',this)">💰 Tutar Farklı</div>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="babs-tablo">
-              <thead>
-                <tr>
-                  <th>VKN / TC</th>
-                  <th>Firma</th>
-                  <th style="text-align:right;">Fatura Toplamı</th>
-                  <th style="text-align:right;">Ba/Bs Toplamı</th>
-                  <th style="text-align:right;">Fark</th>
-                  <th>Durum</th>
-                </tr>
-              </thead>
-              <tbody id="babsTbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-    </div>
-    <!-- ===== BA/BS MUTABAKAT SONU ===== -->
 
     <!-- ===== DÖNEM KAPANIŞ MODÜLÜ ===== -->
     <div class="page" id="page-donem-kapanis">
@@ -3469,7 +3317,6 @@ function showKontrolPaneli(id, el) {
   // Modüle özgü init
   if (id === 'kdv-mutabakat') kdvMutMukellefDoldur();
   if (id === 'beyanname-kontrol') beyMukellefDoldur();
-  if (id === 'babs-kontrol') babsMukellefDoldur();
   if (id === 'donem-kapanis') dkMukellefDoldur();
   if (id === 'risk-raporu') riskDashboardYukle();
 }
@@ -4282,309 +4129,6 @@ function beyKontrolYazdir() {
   window.print();
 }
 
-// ===================== BA/BS MUTABAKAT MODÜLÜ =====================
-
-let _babsFaturaSatirlar = [];
-let _babsFormSatirlar   = [];
-let _babsSonuclar       = null;
-let _babsAktifSekme     = 'tumu';
-
-function babsMukellefDoldur() {
-  const sel = document.getElementById('babsMukellef');
-  if (!sel) return;
-  const mevcut = sel.value;
-  sel.innerHTML = '<option value="">-- Mükellef Seç --</option>';
-  mukellefler.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.ad || m; opt.textContent = m.ad || m;
-    sel.appendChild(opt);
-  });
-  if (_gmSecili) sel.value = _gmSecili;
-  else if (mevcut) sel.value = mevcut;
-  const donemEl = document.getElementById('babsDonem');
-  if (donemEl && !donemEl.value) {
-    const now = new Date();
-    donemEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  }
-}
-
-function babsTipDegisti() {
-  const tip = document.getElementById('babsTip').value;
-  const baslik = document.getElementById('babsFormBaslik');
-  if (baslik) baslik.textContent = tip === 'ba' ? '📑 Ba Formu (Luca)' : '📑 Bs Formu (Luca)';
-}
-
-// Ortak SheetJS okuyucu
-function _babsSheetParse(file, callback) {
-  if (!file) return;
-  const doparse = () => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        const ws  = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-        callback(raw, file.name);
-      } catch(err) { showNotif('❌ Excel okunamadı: ' + err.message, 'error'); }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-  if (typeof XLSX !== 'undefined') doparse();
-  else {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = doparse; document.head.appendChild(s);
-  }
-}
-
-function babsHandleFaturaFile(file) {
-  _babsSheetParse(file, (raw, ad) => {
-    _babsFaturaSatirlar = _babsParseFatura(raw);
-    document.getElementById('babsFaturaAd').textContent = ad;
-    document.getElementById('babsFaturaSatir').textContent = _babsFaturaSatirlar.length + ' fatura';
-    document.getElementById('babsFaturaBilgi').style.display = 'flex';
-    showNotif('✅ ' + _babsFaturaSatirlar.length + ' fatura yüklendi', 'success');
-  });
-}
-
-function babsHandleFormFile(file) {
-  _babsSheetParse(file, (raw, ad) => {
-    _babsFormSatirlar = _babsParseForm(raw);
-    document.getElementById('babsFormAd').textContent = ad;
-    document.getElementById('babsFormSatir').textContent = _babsFormSatirlar.length + ' kayıt';
-    document.getElementById('babsFormBilgi').style.display = 'flex';
-    showNotif('✅ ' + _babsFormSatirlar.length + ' Ba/Bs kaydı yüklendi', 'success');
-  });
-}
-
-// Fatura Excel parse (Uyumsoft/İşNet): VKN + firma + toplam
-function _babsParseFatura(raw) {
-  const trN = s => (s+'').toUpperCase()
-    .replace(/İ/g,'I').replace(/Ş/g,'S').replace(/Ç/g,'C')
-    .replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ö/g,'O');
-
-  let baslik = -1;
-  for (let i = 0; i < Math.min(raw.length, 20); i++) {
-    const n = trN(raw[i].join(' '));
-    if ((n.includes('VKN') || n.includes('VERGI')) &&
-        (n.includes('TOPLAM') || n.includes('TUTAR') || n.includes('MATRAH') || n.includes('UNVAN'))) {
-      baslik = i; break;
-    }
-  }
-  if (baslik < 0) { showNotif('⚠️ Fatura dosyasında başlık satırı bulunamadı. VKN ve Toplam sütunları olmalı.', 'error'); return []; }
-
-  const hdr = raw[baslik].map(h => trN(h));
-  const col = fn => { const i = hdr.findIndex(fn); return i >= 0 ? i : null; };
-
-  const iVkn    = col(h => h.includes('VKN') || (h.includes('VERGI') && h.includes('KIMLIK')));
-  const iUnvan  = col(h => h.includes('UNVAN') || h.includes('FIRMA') || (h.includes('AD') && !h.includes('ADET')));
-  const iToplam = col(h => (h.includes('GENEL') && h.includes('TOPLAM')) || h === 'TOPLAM' || (h.includes('TUTAR') && !h.includes('KDV')));
-  const iMatrah = col(h => h.includes('MATRAH'));
-
-  const tutar_kol = iToplam !== null ? iToplam : (iMatrah !== null ? iMatrah : null);
-  if (iVkn === null || tutar_kol === null) {
-    showNotif('⚠️ Fatura dosyasında VKN veya Toplam sütunu bulunamadı.', 'error'); return [];
-  }
-
-  const sayi = v => parseFloat(String(v||'').replace(/\./g,'').replace(',','.').replace(/[^0-9.\-]/g,'')) || 0;
-
-  const satirlar = [];
-  for (let i = baslik + 1; i < raw.length; i++) {
-    const r   = raw[i];
-    const vkn = String(r[iVkn]||'').trim().replace(/\s/g,'');
-    if (!/^\d{10,11}$/.test(vkn)) continue;
-    const firma  = String(r[iUnvan !== null ? iUnvan : 0]||'').trim();
-    const toplam = Math.abs(sayi(r[tutar_kol]));
-    if (toplam > 0) satirlar.push({ vkn, firma, toplam });
-  }
-  return satirlar;
-}
-
-// Ba/Bs form Excel parse (Luca): VKN + firma + tutar + adet
-function _babsParseForm(raw) {
-  const trN = s => (s+'').toUpperCase()
-    .replace(/İ/g,'I').replace(/Ş/g,'S').replace(/Ç/g,'C')
-    .replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ö/g,'O');
-
-  let baslik = -1;
-  for (let i = 0; i < Math.min(raw.length, 20); i++) {
-    const n = trN(raw[i].join(' '));
-    if (n.includes('VKN') && (n.includes('TUTAR') || n.includes('MATRAH') || n.includes('ADET') || n.includes('UNVAN'))) {
-      baslik = i; break;
-    }
-  }
-  if (baslik < 0) { showNotif('⚠️ Ba/Bs dosyasında başlık satırı bulunamadı. VKN sütunu olmalı.', 'error'); return []; }
-
-  const hdr = raw[baslik].map(h => trN(h));
-  const col = fn => { const i = hdr.findIndex(fn); return i >= 0 ? i : null; };
-
-  const iVkn   = col(h => h.includes('VKN'));
-  const iUnvan = col(h => h.includes('UNVAN') || h.includes('FIRMA') || (h.includes('AD') && !h.includes('ADET')));
-  const iTutar = col(h => h.includes('TUTAR') || h.includes('MATRAH') || (h.includes('KDV') && h.includes('HARIC')));
-  const iAdet  = col(h => h.includes('ADET') || h.includes('BELGE'));
-
-  if (iVkn === null) { showNotif('⚠️ Ba/Bs dosyasında VKN sütunu bulunamadı.', 'error'); return []; }
-
-  const sayi = v => parseFloat(String(v||'').replace(/\./g,'').replace(',','.').replace(/[^0-9.\-]/g,'')) || 0;
-
-  const satirlar = [];
-  for (let i = baslik + 1; i < raw.length; i++) {
-    const r   = raw[i];
-    const vkn = String(r[iVkn]||'').trim().replace(/\s/g,'');
-    if (!/^\d{10,11}$/.test(vkn)) continue;
-    const firma = String(r[iUnvan !== null ? iUnvan : 0]||'').trim();
-    const tutar = Math.abs(sayi(r[iTutar !== null ? iTutar : 3]));
-    const adet  = parseInt(String(r[iAdet !== null ? iAdet : 2]||'').replace(/\D/g,'')) || 1;
-    satirlar.push({ vkn, firma, tutar, adet });
-  }
-  return satirlar;
-}
-
-// Ana karşılaştırma
-function babsKarsilastir() {
-  if (_babsFaturaSatirlar.length === 0) { showNotif('⚠️ Önce fatura listesi yükleyin', 'error'); return; }
-  if (_babsFormSatirlar.length === 0)   { showNotif('⚠️ Önce Ba/Bs formunu yükleyin', 'error'); return; }
-
-  const ESIK = 5000;
-
-  // VKN bazında grupla — sadece 5000 ₺ üzeri faturalar Ba/Bs kapsamında
-  const fatByVkn = {};
-  for (const r of _babsFaturaSatirlar) {
-    if (r.toplam < ESIK) continue;
-    if (!fatByVkn[r.vkn]) fatByVkn[r.vkn] = { firma: r.firma, toplam: 0, adet: 0 };
-    fatByVkn[r.vkn].toplam += r.toplam;
-    fatByVkn[r.vkn].adet++;
-  }
-
-  const formByVkn = {};
-  for (const r of _babsFormSatirlar) {
-    if (!formByVkn[r.vkn]) formByVkn[r.vkn] = { firma: r.firma, tutar: 0, adet: 0 };
-    formByVkn[r.vkn].tutar += r.tutar;
-    formByVkn[r.vkn].adet  += r.adet;
-  }
-
-  const tumVknler = new Set([...Object.keys(fatByVkn), ...Object.keys(formByVkn)]);
-  const satirlar  = [];
-
-  for (const vkn of tumVknler) {
-    const fat  = fatByVkn[vkn];
-    const form = formByVkn[vkn];
-    let durum, fatTop, formTop, fark, firma;
-
-    if (fat && form) {
-      fatTop  = fat.toplam;
-      formTop = form.tutar;
-      fark    = Math.abs(fatTop - formTop);
-      firma   = fat.firma || form.firma;
-      durum   = fark < 1 ? 'eslesme' : 'fark';
-    } else if (fat) {
-      fatTop = fat.toplam; formTop = 0; fark = fatTop;
-      firma  = fat.firma;  durum   = 'eksik';
-    } else {
-      fatTop = 0; formTop = form.tutar; fark = formTop;
-      firma  = form.firma; durum = 'fazla';
-    }
-    satirlar.push({ vkn, firma, fatTop, formTop, fark, durum });
-  }
-
-  // Sorunlular önce
-  const sira = { eksik: 0, fark: 1, fazla: 2, eslesme: 3 };
-  satirlar.sort((a, b) => sira[a.durum] - sira[b.durum]);
-
-  _babsSonuclar = {
-    tip:       document.getElementById('babsTip').value,
-    satirlar,
-    toplam:    satirlar.length,
-    eslesme:   satirlar.filter(r => r.durum === 'eslesme').length,
-    eksik:     satirlar.filter(r => r.durum === 'eksik').length,
-    fazla:     satirlar.filter(r => r.durum === 'fazla').length,
-    fark:      satirlar.filter(r => r.durum === 'fark').length,
-    topFark:   satirlar.reduce((s, r) => s + r.fark, 0),
-  };
-  // Risk raporuna Ba/Bs verisini kaydet
-  const _rrBabsMuk = document.getElementById('babsMukellef')?.value;
-  const _rrBabsDon = document.getElementById('babsDonem')?.value;
-  if (_rrBabsMuk && _rrBabsDon) _riskVeriKaydet(_rrBabsMuk, _rrBabsDon, 'babs', _babsSonuclar);
-  _babsRender(_babsSonuclar);
-}
-
-function _babsRender(s) {
-  const tipLbl = s.tip === 'ba' ? 'Ba' : 'Bs';
-  document.getElementById('babsOzetKartlar').innerHTML = `
-    <div class="babs-kart">
-      <div class="babs-kart-label">Toplam VKN</div>
-      <div class="babs-kart-deger">${s.toplam}</div>
-    </div>
-    <div class="babs-kart yesil">
-      <div class="babs-kart-label">✅ Eşleşen</div>
-      <div class="babs-kart-deger">${s.eslesme}</div>
-    </div>
-    <div class="babs-kart ${s.eksik > 0 ? 'kirmizi' : ''}">
-      <div class="babs-kart-label">⚠️ ${tipLbl}'de Eksik</div>
-      <div class="babs-kart-deger">${s.eksik}</div>
-    </div>
-    <div class="babs-kart ${s.fazla > 0 ? 'sari' : ''}">
-      <div class="babs-kart-label">➕ ${tipLbl}'de Fazla</div>
-      <div class="babs-kart-deger">${s.fazla}</div>
-    </div>
-    <div class="babs-kart ${s.fark > 0 ? 'kirmizi' : ''}">
-      <div class="babs-kart-label">💰 Tutar Farklı</div>
-      <div class="babs-kart-deger">${s.fark}</div>
-    </div>
-    <div class="babs-kart ${s.topFark > 0 ? 'sari' : 'yesil'}">
-      <div class="babs-kart-label">Toplam Fark</div>
-      <div class="babs-kart-deger">${fmt(s.topFark)} ₺</div>
-    </div>
-  `;
-
-  // Sekme sayaçlarını güncelle
-  document.getElementById('babsSekmeTumu').textContent  = 'Tümü (' + s.toplam + ')';
-  document.getElementById('babsSekmeEksik').textContent = '⚠️ ' + tipLbl + '\'de Eksik (' + s.eksik + ')';
-  document.getElementById('babsSekmeFazla').textContent = '➕ ' + tipLbl + '\'de Fazla (' + s.fazla + ')';
-  document.getElementById('babsSekmeFark').textContent  = '💰 Tutar Farklı (' + s.fark + ')';
-
-  _babsAktifSekme = 'tumu';
-  document.querySelectorAll('.babs-sekme').forEach(el => el.classList.remove('aktif'));
-  document.getElementById('babsSekmeTumu').classList.add('aktif');
-
-  document.getElementById('babsSonucPanel').style.display = 'block';
-  _babsTabloRender('tumu');
-}
-
-function babsSekme(sekme, el) {
-  _babsAktifSekme = sekme;
-  document.querySelectorAll('.babs-sekme').forEach(s => s.classList.remove('aktif'));
-  el.classList.add('aktif');
-  _babsTabloRender(sekme);
-}
-
-function _babsTabloRender(sekme) {
-  if (!_babsSonuclar) return;
-  const rows = sekme === 'tumu'
-    ? _babsSonuclar.satirlar
-    : _babsSonuclar.satirlar.filter(r => r.durum === sekme);
-
-  const durumLbl = {
-    eslesme: '✅ Eşleşiyor',
-    eksik:   '⚠️ Formda Eksik',
-    fazla:   '➕ Formda Fazla',
-    fark:    '❌ Tutar Farklı',
-  };
-
-  document.getElementById('babsTbody').innerHTML = rows.length
-    ? rows.map(r => `
-        <tr class="${r.durum}">
-          <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;">${r.vkn}</td>
-          <td>${r.firma || '—'}</td>
-          <td style="text-align:right;font-family:'IBM Plex Mono',monospace;">${r.fatTop > 0 ? fmt(r.fatTop)+' ₺' : '—'}</td>
-          <td style="text-align:right;font-family:'IBM Plex Mono',monospace;">${r.formTop > 0 ? fmt(r.formTop)+' ₺' : '—'}</td>
-          <td style="text-align:right;font-family:'IBM Plex Mono',monospace;">${r.fark > 0 ? fmt(r.fark)+' ₺' : '—'}</td>
-          <td><span class="babs-rozet ${r.durum}">${durumLbl[r.durum]}</span></td>
-        </tr>`)
-      .join('')
-    : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3);">Bu kategoride kayıt yok</td></tr>';
-}
-
 // ===================== DÖNEM KAPANIŞ MODÜLÜ =====================
 
 const _DK_MADDELER = [
@@ -4595,7 +4139,6 @@ const _DK_MADDELER = [
   { id:'personel',  ikon:'👥', baslik:'Personel Bordro Fişi (740/770)',    aciklama:'Bordro fişi kesildi mi?',             hesap:'770',  kontrol:'hareket' },
   { id:'sgk',       ikon:'🏥', baslik:'SGK Bildirgeleri (361)',            aciklama:'SGK tahakkuku kaydedildi mi?',        hesap:'361',  kontrol:'bakiye'  },
   { id:'kdvmut',    ikon:'🔍', baslik:'KDV Mutabakatı',                    aciklama:'KDV Mutabakat modülünü çalıştırın',   kaynak:'kdvmut'   },
-  { id:'babs',      ikon:'📊', baslik:'Ba/Bs Kontrolü',                    aciklama:'Ba/Bs Kontrol modülünü çalıştırın',   kaynak:'babs'     },
   { id:'beyanname', ikon:'📋', baslik:'Beyanname Öncesi Kontrol',          aciklama:'Beyanname kontrol modülünü çalıştırın',kaynak:'beyanname'},
   { id:'ters',      ikon:'⚠️', baslik:'Ters Bakiye Kontrolü',              aciklama:'Mizanda ters bakiyeli hesap var mı?', kontrol:'ters'    },
 ];
@@ -4699,12 +4242,6 @@ function _dkModulSonuc(kaynak) {
     const uyari = _kdvMutSonuc.uyarilar.some(u => u.tip === 'warn');
     return { bilgi: hata ? '❌ Hata var' : uyari ? '⚠️ Uyarı var' : '✅ Mutabık',
              renk: hata ? 'kirmizi' : uyari ? 'sari' : 'yesil' };
-  }
-  if (kaynak === 'babs') {
-    if (!_babsSonuclar) return { bilgi: 'Henüz çalıştırılmadı — Ba/Bs Kontrol sekmesine gidin', renk: 'gri' };
-    const sorun = _babsSonuclar.eksik > 0 || _babsSonuclar.fark > 0;
-    return { bilgi: sorun ? `❌ ${_babsSonuclar.eksik} eksik, ${_babsSonuclar.fark} farklı` : '✅ Mutabık',
-             renk: sorun ? 'kirmizi' : 'yesil' };
   }
   if (kaynak === 'beyanname') {
     if (!_beySonuclar) return { bilgi: 'Henüz çalıştırılmadı — Beyanname Kontrol sekmesine gidin', renk: 'gri' };
@@ -9033,7 +8570,7 @@ function logout() {
 // ===================== RİSK RAPORU MODÜLÜ =====================
 
 // Her mükellef için session boyunca tutulan risk verileri önbelleği
-// Yapı: { mukellefAd: { donem: { kdv, bey, babs, mizan } } }
+// Yapı: { mukellefAd: { donem: { kdv, bey, mizan } } }
 let _riskVerileri = {};
 
 // Şu an detayı açık olan mükellef adı
@@ -9052,7 +8589,7 @@ function _riskHesapla(mukellefAd, donem) {
   const veri = (_riskVerileri[mukellefAd]?.[donem]) || {};
   let puan = 0;
   const detaylar = []; // { tip:'hata'|'uyari'|'bilgi', mesaj }
-  let modKdv = null, modBey = null, modBabs = null, modDk = null;
+  let modKdv = null, modBey = null, modDk = null;
 
   // ─── KDV MUTABAKAT (max 30 puan) ───────────────────────────
   if (veri.kdv) {
@@ -9082,15 +8619,6 @@ function _riskHesapla(mukellefAd, donem) {
     modBey = { puan: beyPuan, durum: beyPuan === 0 ? 'ok' : beyPuan <= 10 ? 'uyari' : 'sorun' };
   }
 
-  // ─── Ba/Bs KONTROLLERİ (max 20 puan) ──────────────────────
-  if (veri.babs) {
-    const b = veri.babs;
-    let babsPuan = 0;
-    if ((b.eksik || 0) > 0) { babsPuan += 15; detaylar.push({ tip:'hata',  mesaj:(b.eksik) + ' adet eksik Ba/Bs kaydı' }); }
-    if ((b.fark  || 0) > 0) { babsPuan += 5;  detaylar.push({ tip:'uyari', mesaj:(b.fark)  + ' adet Ba/Bs tutar farkı' }); }
-    puan += babsPuan;
-    modBabs = { puan: babsPuan, durum: babsPuan === 0 ? 'ok' : babsPuan <= 5 ? 'uyari' : 'sorun' };
-  }
 
   // ─── DÖNEM KAPANIŞ (max 10 puan) ──────────────────────────
   const dkRaw = (() => { try { return localStorage.getItem(_sk('dk_' + mukellefAd + '_' + donem)); } catch(e) { return null; } })();
@@ -9121,7 +8649,7 @@ function _riskHesapla(mukellefAd, donem) {
 
   puan = Math.min(100, puan);
   const seviye = puan <= 25 ? 'dusuk' : puan <= 60 ? 'orta' : 'yuksek';
-  return { puan, seviye, detaylar, modKdv, modBey, modBabs, modDk };
+  return { puan, seviye, detaylar, modKdv, modBey, modDk };
 }
 
 // Seçili dönemi al (default: bu ay)
@@ -9192,7 +8720,7 @@ function riskDashboardRender() {
   }
 
   let html = '<div class="table-wrap"><table class="rr-tablo"><thead><tr>'
-    + '<th>Mükellef</th><th>KDV Mut.</th><th>Beyanname</th><th>Ba/Bs</th><th>Dönem Kap.</th>'
+    + '<th>Mükellef</th><th>KDV Mut.</th><th>Beyanname</th><th>Dönem Kap.</th>'
     + '<th>Risk Skoru</th><th></th>'
     + '</tr></thead><tbody>';
 
@@ -9202,13 +8730,12 @@ function riskDashboardRender() {
     const seviyeEtiket = r.seviye === 'yuksek' ? '🔴 Yüksek' : r.seviye === 'orta' ? '🟡 Orta' : '🟢 Düşük';
 
     // Veri var mı kontrolü (en az 1 modül verisi varsa)
-    const veriVar = r.modKdv || r.modBey || r.modBabs || r.modDk;
+    const veriVar = r.modKdv || r.modBey || r.modDk;
 
     html += '<tr onclick="riskMukellefDetay(\'' + r.ad.replace(/'/g, "\\'") + '\')" style="cursor:pointer;">'
       + '<td style="font-weight:500;color:var(--text);">' + r.ad + '</td>'
       + '<td>' + modIkon(r.modKdv) + '</td>'
       + '<td>' + modIkon(r.modBey) + '</td>'
-      + '<td>' + modIkon(r.modBabs) + '</td>'
       + '<td>' + modIkon(r.modDk) + '</td>'
       + '<td>'
         + (veriVar
@@ -9238,7 +8765,7 @@ function riskMukellefDetay(ad) {
   if (!panel || !icerik) return;
 
   const seviyeText = sonuc.seviye === 'yuksek' ? '🔴 YÜKSEK RİSK' : sonuc.seviye === 'orta' ? '🟡 ORTA RİSK' : '🟢 DÜŞÜK RİSK';
-  const veriVar = sonuc.modKdv || sonuc.modBey || sonuc.modBabs || sonuc.modDk;
+  const veriVar = sonuc.modKdv || sonuc.modBey || sonuc.modDk;
 
   let html = '<div style="margin-bottom:4px;font-size:19px;font-weight:700;color:var(--text);">🏢 ' + ad + '</div>'
     + '<div style="font-size:12px;color:var(--text3);margin-bottom:20px;">Dönem: ' + donem + '</div>';
@@ -9276,7 +8803,6 @@ function riskMukellefDetay(ad) {
     }
     html += modSatir('KDV Mutabakat', sonuc.modKdv, 30);
     html += modSatir('Beyanname Kontrol', sonuc.modBey, 30);
-    html += modSatir('Ba/Bs Kontrol', sonuc.modBabs, 20);
     html += modSatir('Dönem Kapanış', sonuc.modDk, 10);
     html += '</ul>';
 
@@ -9284,7 +8810,7 @@ function riskMukellefDetay(ad) {
     html += '<div style="text-align:center;padding:32px;color:var(--text3);">'
       + '<div style="font-size:32px;margin-bottom:12px;">📂</div>'
       + '<div>Bu mükellef için henüz kontrol çalıştırılmadı.</div>'
-      + '<div style="font-size:12px;margin-top:8px;">KDV Mutabakat, Beyanname Kontrol veya Ba/Bs modüllerinde bu mükellef seçilerek kontrol çalıştırın.</div>'
+      + '<div style="font-size:12px;margin-top:8px;">KDV Mutabakat veya Beyanname Kontrol modüllerinde bu mükellef seçilerek kontrol çalıştırın.</div>'
       + '</div>';
   }
 
@@ -9332,7 +8858,6 @@ async function riskAIAnalizEt() {
     sorunlar: sonuc.detaylar,
     kdv_mutabakat: sonuc.modKdv || 'veri_yok',
     beyanname_kontrol: sonuc.modBey || 'veri_yok',
-    babs_kontrol: sonuc.modBabs || 'veri_yok',
     donem_kapanis: sonuc.modDk || 'veri_yok'
   }, null, 2);
 
@@ -9374,7 +8899,6 @@ function riskExcelIndir() {
       'Risk Seviyesi':   r.seviye === 'yuksek' ? 'Yüksek' : r.seviye === 'orta' ? 'Orta' : 'Düşük',
       'KDV Mutabakat':   r.modKdv  ? (r.modKdv.durum  === 'ok' ? 'OK' : r.modKdv.durum  === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
       'Beyanname':       r.modBey  ? (r.modBey.durum  === 'ok' ? 'OK' : r.modBey.durum  === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
-      'Ba/Bs':           r.modBabs ? (r.modBabs.durum === 'ok' ? 'OK' : r.modBabs.durum === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
       'Dönem Kapanış':   r.modDk   ? (r.modDk.durum  === 'ok' ? 'OK' : r.modDk.durum  === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
       'Tespit Edilen Sorunlar': r.detaylar.map(d => d.mesaj).join('; ') || '-'
     };
