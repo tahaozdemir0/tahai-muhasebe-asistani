@@ -3052,63 +3052,160 @@ function kdvMutHandleFile(file) {
   }
 }
 
-// Mizan parse — mevcut parseMizanSatirlar mantığını kopyalamadan, ortak sayi() yardımcısını kullan
+// Mizan parse — kolon tespiti güçlendirildi + debug panel
 function _kdvMutParseSatirlar(raw, dosyaAdi) {
-  // Başlık satırını bul
+
+  // Türkçe karakterleri normalize et (büyük harf karşılaştırma için)
+  const trNorm = s => (s + '').toUpperCase()
+    .replace(/İ/g,'I').replace(/Ş/g,'S').replace(/Ç/g,'C')
+    .replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ö/g,'O');
+
+  // Başlık satırını bul — "HESAP" kelimesi + sayısal sütun adı içeren satır
   let baslikIdx = -1;
   for (let i = 0; i < raw.length; i++) {
-    const s = raw[i].join(' ').toLowerCase();
-    if (s.includes('hesap') && (s.includes('borç') || s.includes('bor'))) { baslikIdx = i; break; }
+    const norm = trNorm(raw[i].join(' '));
+    if (norm.includes('HESAP') && (norm.includes('BORC') || norm.includes('BORCLU'))) {
+      baslikIdx = i; break;
+    }
   }
   if (baslikIdx === -1) {
     showNotif('⚠️ Mizan formatı tanınamadı. Luca mizan Excel yükleyin.', 'error');
     return;
   }
 
-  // Sütun indexlerini tespit et (mevcut parseMizanSatirlar ile aynı mantık)
-  const baslik = raw[baslikIdx].map(c => (c + '').toLowerCase());
-  const col = (fn) => { const i = baslik.findIndex(fn); return i >= 0 ? i : null; };
-  const idxKod  = col(c => c.includes('hesap') && c.includes('kod')) ?? 0;
-  const idxAd   = col(c => c.includes('hesap') && (c.includes('ad') || c.includes('ün'))) ?? 1;
-  const idxBorcT = col(c => c.includes('borç') && c.includes('top')) ?? 2;
-  const idxAlcT  = col(c => c.includes('alacak') && c.includes('top')) ?? 3;
-  const idxBorcB = col(c => c.includes('borç') && c.includes('bak')) ?? 4;
-  const idxAlcB  = col(c => c.includes('alacak') && c.includes('bak')) ?? 5;
+  // Sütun adlarını normalize ederek indeks tespit et
+  const baslik = raw[baslikIdx].map(c => trNorm(c));
+  console.log('[KDV Mut] Başlık satırı (S' + baslikIdx + '):', baslik);
 
-  // Türkçe sayı parse (aynı fmt modülündeki mantık)
+  const col = (fn) => { const i = baslik.findIndex(fn); return i >= 0 ? i : null; };
+
+  // Hesap kodu: "HESAP KODU" veya "KOD" içeren
+  const idxKod = col(c => c.includes('HESAP') && c.includes('KOD')) ??
+                 col(c => c === 'KOD') ?? 0;
+
+  // Hesap adı: "HESAP ADI", "UNVAN", "AD" içeren (ama "KOD" içermeyen)
+  const idxAd  = col(c => (c.includes('HESAP') && (c.includes('ADI') || c.includes('AD '))) && !c.includes('KOD')) ??
+                 col(c => c.includes('UNVAN')) ??
+                 col(c => c === 'HESAP ADI') ?? 1;
+
+  // Borç Toplamı: "BORC" + "TOP"
+  const idxBorcT = col(c => c.includes('BORC') && c.includes('TOP')) ??
+                   col(c => c.includes('BORC') && c.includes('TUTAR')) ?? 2;
+
+  // Alacak Toplamı: "ALACAK" + "TOP"
+  const idxAlcT  = col(c => c.includes('ALACAK') && c.includes('TOP')) ??
+                   col(c => c.includes('ALACAK') && c.includes('TUTAR')) ?? 3;
+
+  // Borç Bakiyesi: "BORC" + "BAK"  (ya da son "BORC" sütunu)
+  const idxBorcB = col(c => c.includes('BORC') && c.includes('BAK')) ??
+                   col(c => c.includes('BORC') && c.includes('BAKIYE')) ??
+                   (() => { // son "BORC" içeren sütun
+                     let last = null;
+                     baslik.forEach((c,i) => { if (c.includes('BORC')) last = i; });
+                     return last;
+                   })() ?? 4;
+
+  // Alacak Bakiyesi: "ALACAK" + "BAK" (ya da son "ALACAK" sütunu)
+  const idxAlcB  = col(c => c.includes('ALACAK') && c.includes('BAK')) ??
+                   col(c => c.includes('ALACAK') && c.includes('BAKIYE')) ??
+                   (() => {
+                     let last = null;
+                     baslik.forEach((c,i) => { if (c.includes('ALACAK')) last = i; });
+                     return last;
+                   })() ?? 5;
+
+  console.log('[KDV Mut] Kolon indexleri → kod:%d ad:%d borcTop:%d alcTop:%d borcBak:%d alcBak:%d',
+    idxKod, idxAd, idxBorcT, idxAlcT, idxBorcB, idxAlcB);
+
+  // Türkçe sayı parse — hem number hem string destekle
   const sayi = v => {
     if (v === '' || v == null) return 0;
     if (typeof v === 'number') return v;
-    const s = (v + '').trim();
-    return s.includes(',')
-      ? parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0
-      : parseFloat(s.replace(/,/g, '')) || 0;
+    const s = (v + '').trim().replace(/\s/g, '');
+    if (!s) return 0;
+    // "1.234,56" → binlik nokta kaldır, virgülü noktaya çevir
+    if (s.includes(',')) return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+    // "1234.56" ya da "1,234.56"
+    return parseFloat(s.replace(/,/g,'')) || 0;
   };
+
+  // Hesap kodu normalize: trim + virgülü noktaya çevir
+  const normKod = k => (k + '').trim().replace(/,/g, '.');
 
   const satirlar = [];
   for (let i = baslikIdx + 1; i < raw.length; i++) {
     const row = raw[i];
-    const kod = (row[idxKod] + '').trim();
-    if (!kod || /toplam|genel/i.test(kod) || !/^\d/.test(kod)) continue;
+    const kod = normKod(row[idxKod]);
+    if (!kod || /TOPLAM|GENEL/i.test(trNorm(kod)) || !/^\d/.test(kod)) continue;
     satirlar.push({
       hesap_kodu : kod,
-      hesap_adi  : (row[idxAd]  + '').trim(),
+      hesap_adi  : (row[idxAd] + '').trim(),
       borc_top   : sayi(row[idxBorcT]),
       alacak_top : sayi(row[idxAlcT]),
       borc_bak   : sayi(row[idxBorcB]),
       alacak_bak : sayi(row[idxAlcB]),
+      _raw        : row.slice(0, 8),  // debug için ham değerler
     });
   }
+
+  // İlk 5 satırı logla
+  console.log('[KDV Mut] İlk 5 satır:');
+  satirlar.slice(0, 5).forEach((r, i) =>
+    console.log('  [' + i + ']', r.hesap_kodu, '| borcBak:', r.borc_bak, '| alcBak:', r.alacak_bak, '| ham:', JSON.stringify(r._raw)));
+
+  // 391 ve 191 hesaplarını logla
+  const log391 = satirlar.filter(r => r.hesap_kodu.startsWith('391'));
+  const log191 = satirlar.filter(r => r.hesap_kodu.startsWith('191'));
+  console.log('[KDV Mut] 391 hesapları (' + log391.length + '):', log391.map(r => r.hesap_kodu + '=' + r.alacak_bak));
+  console.log('[KDV Mut] 191 hesapları (' + log191.length + '):', log191.map(r => r.hesap_kodu + '=' + r.borc_bak));
+
+  if (satirlar.length === 0) { showNotif('⚠️ Mizan satırı bulunamadı.', 'error'); return; }
+
+  // Debug paneli — başlık satırı ve ilk 3 hesap ham değerleriyle
+  const debugHtml = `
+    <details style="margin-top:10px;font-size:11px;color:var(--text3);">
+      <summary style="cursor:pointer;color:var(--text2);">🔧 Parse Debug (${satirlar.length} satır okundu — tıkla)</summary>
+      <div style="margin-top:8px;overflow-x:auto;">
+        <div style="margin-bottom:6px;">
+          <b>Kolon indexleri:</b>
+          kod=${idxKod} | ad=${idxAd} | borçTop=${idxBorcT} | alcTop=${idxAlcT} |
+          <b>borçBak=${idxBorcB}</b> | <b>alcBak=${idxAlcB}</b>
+        </div>
+        <div style="margin-bottom:4px;"><b>Başlık satırı (S${baslikIdx}):</b></div>
+        <div style="font-family:monospace;background:var(--surface2);padding:6px;border-radius:6px;margin-bottom:8px;">
+          ${raw[baslikIdx].map((c,i) => `[${i}]=${JSON.stringify(c)}`).join(' ')}
+        </div>
+        <div style="margin-bottom:4px;"><b>İlk 3 satır:</b></div>
+        ${satirlar.slice(0,3).map(r =>
+          `<div style="font-family:monospace;margin-bottom:3px;">
+            ${r.hesap_kodu} | borçBak=<b>${r.borc_bak}</b> | alcBak=<b>${r.alacak_bak}</b>
+            | ham[${idxBorcB}]=${JSON.stringify(r._raw[idxBorcB])} ham[${idxAlcB}]=${JSON.stringify(r._raw[idxAlcB])}
+          </div>`
+        ).join('')}
+        <div style="margin-top:6px;"><b>391 hesapları (${log391.length}):</b>
+          ${log391.map(r=>`<span style="margin-right:10px">${r.hesap_kodu}→${r.alacak_bak}₺</span>`).join('') || 'Bulunamadı'}
+        </div>
+        <div style="margin-top:4px;"><b>191 hesapları (${log191.length}):</b>
+          ${log191.map(r=>`<span style="margin-right:10px">${r.hesap_kodu}→${r.borc_bak}₺</span>`).join('') || 'Bulunamadı'}
+        </div>
+      </div>
+    </details>`;
 
   if (satirlar.length === 0) { showNotif('⚠️ Mizan satırı bulunamadı.', 'error'); return; }
 
   _kdvMutSatirlar = satirlar;
 
-  // Dosya bilgisini göster
+  // Dosya bilgisini ve debug panelini göster
   const bilgiEl = document.getElementById('kdvMutDosyaBilgi');
-  bilgiEl.style.display = 'flex';
-  document.getElementById('kdvMutDosyaAd').textContent = dosyaAdi;
-  document.getElementById('kdvMutDosyaSatir').textContent = '— ' + satirlar.length + ' hesap satırı';
+  bilgiEl.style.display = 'block';
+  bilgiEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:18px;">📄</span>
+      <span style="color:var(--text);font-weight:500;">${dosyaAdi}</span>
+      <span style="color:var(--text3);font-size:12px;">— ${satirlar.length} hesap satırı</span>
+    </div>
+    ${debugHtml}
+  `;
 
   // Kontrol butonunu aktif et
   document.getElementById('kdvMutBtn').disabled = false;
