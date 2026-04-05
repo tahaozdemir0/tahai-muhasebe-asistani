@@ -512,6 +512,21 @@
     border: 1px solid var(--border); margin-bottom: 16px;
   }
 
+  /* ===== DÖNEM KAPANIŞ MODÜLÜ ===== */
+  .dk-madde {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2);
+    transition: all .15s; margin-bottom: 8px;
+  }
+  .dk-madde:hover { border-color: var(--accent); }
+  .dk-madde.tamam    { background: rgba(34,197,94,.07);  border-color: rgba(34,197,94,.3); }
+  .dk-madde.uyari    { background: rgba(240,165,0,.07);  border-color: rgba(240,165,0,.3); }
+  .dk-madde.sorun    { background: rgba(224,92,92,.07);  border-color: rgba(224,92,92,.3); }
+  .dk-chk { font-size: 20px; min-width: 26px; text-align: center; user-select: none; }
+  .dk-progress-wrap { height: 10px; background: var(--surface2); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  .dk-progress-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width .4s; }
+
   /* ===== BA/BS MUTABAKAT MODÜLÜ ===== */
   .babs-ozet-grid {
     display: grid;
@@ -2956,19 +2971,64 @@
     </div>
     <!-- ===== BA/BS MUTABAKAT SONU ===== -->
 
+    <!-- ===== DÖNEM KAPANIŞ MODÜLÜ ===== -->
     <div class="page" id="page-donem-kapanis">
+
+      <div style="margin-bottom:8px;">
+        <div style="font-size:20px;font-weight:700;color:var(--text);">✅ Dönem Kapanış Kontrol Listesi</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:4px;">
+          Ay sonu kapanış öncesi yapılması gereken kontroller — mizan yüklüyse bakiyeler otomatik dolar
+        </div>
+      </div>
+
+      <!-- Ayarlar -->
       <div class="card">
-        <div class="kp-placeholder">
-          <div class="kp-placeholder-icon">✅</div>
-          <div class="kp-placeholder-title">Dönem Kapanış</div>
-          <div class="kp-placeholder-desc">
-            Dönem sonu kontrol listesi, kapanış öncesi yapılması gereken
-            işlemlerin takibi ve onay akışı bu modülde yer alacak.
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;">
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">MÜKELLEf</label>
+            <select id="dkMukellef" class="input" style="width:100%"></select>
           </div>
-          <div class="kp-placeholder-badge">YAKINDA AKTİF OLACAK</div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">DÖNEM</label>
+            <input type="month" id="dkDonem" class="input" style="width:100%" />
+          </div>
+          <button class="btn btn-primary" onclick="dkYukle()">📋 Listeyi Yükle</button>
+        </div>
+        <div id="dkMizanKaynak" style="display:none;margin-top:12px;padding:9px 14px;
+             background:var(--surface2);border-radius:8px;border:1px solid var(--border);
+             font-size:12px;color:var(--text2);display:none;align-items:center;gap:8px;">
+          <span>📊</span>
+          <span id="dkMizanMetin"></span>
+        </div>
+      </div>
+
+      <!-- Kontrol listesi paneli -->
+      <div id="dkPanel" style="display:none;">
+        <div class="card">
+          <!-- İlerleme çubuğu -->
+          <div style="margin-bottom:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:13px;font-weight:600;color:var(--text);" id="dkProgressMetin">0/10 kontrol tamamlandı</span>
+              <span id="dkProgressYuzde" style="font-size:12px;color:var(--text3);">%0</span>
+            </div>
+            <div class="dk-progress-wrap">
+              <div class="dk-progress-fill" id="dkProgressFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Checklist maddeleri -->
+          <div id="dkListe"></div>
+
+          <!-- Reset butonu -->
+          <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="btn btn-outline" onclick="dkSifirla()" style="font-size:12px;">
+              🔄 Dönemi Sıfırla
+            </button>
+          </div>
         </div>
       </div>
     </div>
+    <!-- ===== DÖNEM KAPANIŞ SONU ===== -->
 
     <div class="page" id="page-risk-raporu">
       <div class="card">
@@ -3286,6 +3346,7 @@ function showKontrolPaneli(id, el) {
   if (id === 'kdv-mutabakat') kdvMutMukellefDoldur();
   if (id === 'beyanname-kontrol') beyMukellefDoldur();
   if (id === 'babs-kontrol') babsMukellefDoldur();
+  if (id === 'donem-kapanis') dkMukellefDoldur();
 }
 
 // ===================== KDV MUTABAKAT MODÜLÜ =====================
@@ -4382,6 +4443,238 @@ function _babsTabloRender(sekme) {
         </tr>`)
       .join('')
     : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3);">Bu kategoride kayıt yok</td></tr>';
+}
+
+// ===================== DÖNEM KAPANIŞ MODÜLÜ =====================
+
+const _DK_MADDELER = [
+  { id:'kasa',      ikon:'💵', baslik:'Kasa Hesabı (100)',                 aciklama:'Bakiye negatif olmamalı',             hesap:'100',  kontrol:'kasa'    },
+  { id:'banka',     ikon:'🏦', baslik:'Banka Hesabı (102)',                aciklama:'Ekstre ile karşılaştır',              hesap:'102',  kontrol:'bakiye'  },
+  { id:'amor',      ikon:'📉', baslik:'Amortisman Kayıtları (257)',        aciklama:'Bu ay amortisman kaydı kesildi mi?',  hesap:'257',  kontrol:'hareket' },
+  { id:'gelecek',   ikon:'📅', baslik:'Gelecek Aylara Ait Giderler (180)',aciklama:'Virmanlama yapıldı mı?',              hesap:'180',  kontrol:'bakiye'  },
+  { id:'personel',  ikon:'👥', baslik:'Personel Bordro Fişi (740/770)',    aciklama:'Bordro fişi kesildi mi?',             hesap:'770',  kontrol:'hareket' },
+  { id:'sgk',       ikon:'🏥', baslik:'SGK Bildirgeleri (361)',            aciklama:'SGK tahakkuku kaydedildi mi?',        hesap:'361',  kontrol:'bakiye'  },
+  { id:'kdvmut',    ikon:'🔍', baslik:'KDV Mutabakatı',                    aciklama:'KDV Mutabakat modülünü çalıştırın',   kaynak:'kdvmut'   },
+  { id:'babs',      ikon:'📊', baslik:'Ba/Bs Kontrolü',                    aciklama:'Ba/Bs Kontrol modülünü çalıştırın',   kaynak:'babs'     },
+  { id:'beyanname', ikon:'📋', baslik:'Beyanname Öncesi Kontrol',          aciklama:'Beyanname kontrol modülünü çalıştırın',kaynak:'beyanname'},
+  { id:'ters',      ikon:'⚠️', baslik:'Ters Bakiye Kontrolü',              aciklama:'Mizanda ters bakiyeli hesap var mı?', kontrol:'ters'    },
+];
+
+let _dkDurum    = {};   // { id: { checked, otoBilgi, otoRenk } }
+let _dkMukellef = '';
+let _dkDonem    = '';
+
+function dkMukellefDoldur() {
+  const sel = document.getElementById('dkMukellef');
+  if (!sel) return;
+  const mevcut = sel.value;
+  sel.innerHTML = '<option value="">-- Mükellef Seç --</option>';
+  mukellefler.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = m.ad || m;
+    sel.appendChild(opt);
+  });
+  if (_gmSecili) sel.value = _gmSecili;
+  else if (mevcut) sel.value = mevcut;
+  const donemEl = document.getElementById('dkDonem');
+  if (donemEl && !donemEl.value) {
+    const now = new Date();
+    donemEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+}
+
+function dkYukle() {
+  _dkMukellef = (document.getElementById('dkMukellef').value || '').trim();
+  _dkDonem    = (document.getElementById('dkDonem').value    || '').trim();
+  if (!_dkMukellef || !_dkDonem) { showNotif('⚠️ Mükellef ve dönem seçin', 'error'); return; }
+
+  // Kayıtlı checkbox durumlarını yükle
+  let kayitli = {};
+  try { kayitli = JSON.parse(localStorage.getItem(_sk('dk_' + _dkMukellef + '_' + _dkDonem)) || '{}'); } catch(e) {}
+
+  // Mizan kaynağı
+  const mizan = _beyGetSatirlar();
+  const kaynakEl  = document.getElementById('dkMizanKaynak');
+  const metinEl   = document.getElementById('dkMizanMetin');
+  if (mizan) {
+    kaynakEl.style.display = 'flex';
+    metinEl.textContent = mizan.kaynak + ' modülünden ' + mizan.adet + ' hesap yüklü';
+  } else {
+    kaynakEl.style.display = 'none';
+  }
+
+  // Her madde için otoStatus hesapla
+  _dkDurum = {};
+  for (const m of _DK_MADDELER) {
+    const checked = kayitli[m.id] === true;
+    let otoBilgi = m.aciklama, otoRenk = 'gri';
+
+    if (m.kaynak) {
+      const r = _dkModulSonuc(m.kaynak);
+      otoBilgi = r.bilgi; otoRenk = r.renk;
+    } else if (mizan) {
+      const s   = mizan.satirlar;
+      const inf = _dkHesapInfo(m.hesap, s);
+
+      if (m.kontrol === 'kasa') {
+        if (inf) {
+          const net = (inf.borc_bak - inf.alacak_bak);
+          otoBilgi = 'Bakiye: ' + fmt(Math.abs(net)) + ' ₺' + (net < 0 ? ' ⚠️ NEGATİF!' : '');
+          otoRenk  = net < 0 ? 'kirmizi' : 'yesil';
+        } else { otoBilgi = 'Hesap bulunamadı'; }
+      } else if (m.kontrol === 'bakiye') {
+        if (inf) {
+          const bak = inf.borc_bak > 0 ? inf.borc_bak : inf.alacak_bak;
+          otoBilgi = 'Bakiye: ' + fmt(bak) + ' ₺';
+          otoRenk  = bak > 0 ? 'yesil' : 'gri';
+        } else { otoBilgi = 'Hesap bulunamadı'; }
+      } else if (m.kontrol === 'hareket') {
+        const h770 = _dkHesapInfo('770', s);
+        const h740 = _dkHesapInfo('740', s);
+        const inf2 = inf || h770 || h740;
+        if (inf2 && (inf2.borc_top > 0 || inf2.alacak_top > 0)) {
+          otoBilgi = 'Bu dönem hareket: ' + fmt(inf2.borc_top || inf2.alacak_top) + ' ₺';
+          otoRenk  = 'yesil';
+        } else {
+          otoBilgi = 'Bu dönemde hareket bulunamadı';
+          otoRenk  = 'sari';
+        }
+      } else if (m.kontrol === 'ters') {
+        const sayac = _dkTersBakiye(s);
+        otoBilgi = sayac > 0 ? sayac + ' ters bakiyeli hesap tespit edildi' : 'Ters bakiye yok';
+        otoRenk  = sayac > 0 ? 'sari' : 'yesil';
+      }
+    }
+    _dkDurum[m.id] = { checked, otoBilgi, otoRenk };
+  }
+
+  _dkRender();
+}
+
+// Modül sonuçlarını oku
+function _dkModulSonuc(kaynak) {
+  if (kaynak === 'kdvmut') {
+    if (!_kdvMutSonuc) return { bilgi: 'Henüz çalıştırılmadı — KDV Mutabakat sekmesine gidin', renk: 'gri' };
+    const hata  = _kdvMutSonuc.uyarilar.some(u => u.tip === 'err');
+    const uyari = _kdvMutSonuc.uyarilar.some(u => u.tip === 'warn');
+    return { bilgi: hata ? '❌ Hata var' : uyari ? '⚠️ Uyarı var' : '✅ Mutabık',
+             renk: hata ? 'kirmizi' : uyari ? 'sari' : 'yesil' };
+  }
+  if (kaynak === 'babs') {
+    if (!_babsSonuclar) return { bilgi: 'Henüz çalıştırılmadı — Ba/Bs Kontrol sekmesine gidin', renk: 'gri' };
+    const sorun = _babsSonuclar.eksik > 0 || _babsSonuclar.fark > 0;
+    return { bilgi: sorun ? `❌ ${_babsSonuclar.eksik} eksik, ${_babsSonuclar.fark} farklı` : '✅ Mutabık',
+             renk: sorun ? 'kirmizi' : 'yesil' };
+  }
+  if (kaynak === 'beyanname') {
+    if (!_beySonuclar) return { bilgi: 'Henüz çalıştırılmadı — Beyanname Kontrol sekmesine gidin', renk: 'gri' };
+    const kirmizi = _beySonuclar.some(r => r.durum === 'kirmizi');
+    const sari    = _beySonuclar.some(r => r.durum === 'sari');
+    return { bilgi: kirmizi ? '❌ Sorun var' : sari ? '⚠️ Dikkat gerektiren var' : '✅ Kontroller geçti',
+             renk: kirmizi ? 'kirmizi' : sari ? 'sari' : 'yesil' };
+  }
+  return { bilgi: '—', renk: 'gri' };
+}
+
+// Hesap bilgisi — özet satır varsa onu, yoksa leaf hesapların toplamı
+function _dkHesapInfo(prefix, s) {
+  if (!prefix) return null;
+  const hesaplar = s.filter(r => r.hesap_kodu === prefix || r.hesap_kodu.startsWith(prefix + '.'));
+  if (!hesaplar.length) return null;
+  const ana = hesaplar.find(r => r.hesap_kodu === prefix);
+  if (ana) return { borc_top: ana.borc_top||0, alacak_top: ana.alacak_top||0, borc_bak: ana.borc_bak||0, alacak_bak: ana.alacak_bak||0 };
+  const yaprak = hesaplar.filter(r => _beyEnAlt(r.hesap_kodu));
+  return {
+    borc_top:   yaprak.reduce((a,r) => a+(r.borc_top||0), 0),
+    alacak_top: yaprak.reduce((a,r) => a+(r.alacak_top||0), 0),
+    borc_bak:   yaprak.reduce((a,r) => a+(r.borc_bak||0), 0),
+    alacak_bak: yaprak.reduce((a,r) => a+(r.alacak_bak||0), 0),
+  };
+}
+
+// Ters bakiyeli hesap sayısı
+function _dkTersBakiye(s) {
+  let n = 0;
+  for (const r of s) {
+    const kod = r.hesap_kodu;
+    // 1xx/2xx borç normal → alacak bakiye varsa ters
+    if (/^[12]\d{2}/.test(kod) && (r.alacak_bak||0) > 1) n++;
+    // 3xx/4xx alacak normal → borç bakiye varsa ters
+    if (/^[34]\d{2}/.test(kod) && (r.borc_bak||0) > 1) n++;
+  }
+  return n;
+}
+
+// Render
+function _dkRender() {
+  const toplam     = _DK_MADDELER.length;
+  const tamamlanan = _DK_MADDELER.filter(m => _dkDurum[m.id]?.checked).length;
+  const yuzde      = Math.round(tamamlanan / toplam * 100);
+
+  document.getElementById('dkProgressFill').style.width  = yuzde + '%';
+  document.getElementById('dkProgressFill').style.background =
+    yuzde === 100 ? '#4ade80' : yuzde >= 60 ? 'var(--accent)' : '#f0a500';
+  document.getElementById('dkProgressMetin').textContent = `${tamamlanan}/${toplam} kontrol tamamlandı`;
+  document.getElementById('dkProgressYuzde').textContent = '%' + yuzde;
+
+  const renkBg  = { yesil:'rgba(34,197,94,.07)', sari:'rgba(240,165,0,.07)', kirmizi:'rgba(224,92,92,.07)', gri:'var(--surface2)' };
+  const renkBrd = { yesil:'rgba(34,197,94,.3)',  sari:'rgba(240,165,0,.3)',  kirmizi:'rgba(224,92,92,.3)',  gri:'var(--border)' };
+  const renkRoz = {
+    yesil:   { bg:'rgba(34,197,94,.15)',  c:'#4ade80' },
+    sari:    { bg:'rgba(240,165,0,.15)',  c:'#facc15' },
+    kirmizi: { bg:'rgba(224,92,92,.15)',  c:'#f87171' },
+    gri:     { bg:'var(--surface2)',      c:'var(--text3)' },
+  };
+  const rozetLbl = { yesil:'İYİ', sari:'DİKKAT', kirmizi:'SORUN', gri:'KONTROL ET' };
+
+  document.getElementById('dkListe').innerHTML = _DK_MADDELER.map(m => {
+    const d    = _dkDurum[m.id] || {};
+    const renk = d.checked ? 'yesil' : (d.otoRenk || 'gri');
+    const rr   = renkRoz[renk];
+    return `
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:10px;
+                  cursor:pointer;border:1px solid ${renkBrd[renk]};background:${renkBg[renk]};
+                  margin-bottom:8px;transition:all .15s;"
+           onclick="dkToggle('${m.id}')">
+        <div style="font-size:22px;min-width:26px;text-align:center;user-select:none;">
+          ${d.checked ? '✅' : '☐'}
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${m.ikon} ${m.baslik}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px;">${d.otoBilgi || m.aciklama}</div>
+        </div>
+        <div>
+          <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;
+                       font-weight:600;background:${rr.bg};color:${rr.c};">
+            ${d.checked ? 'TAMAM' : rozetLbl[renk]}
+          </span>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('dkPanel').style.display = 'block';
+}
+
+function dkToggle(id) {
+  if (!_dkDurum[id]) _dkDurum[id] = { checked: false, otoBilgi: '', otoRenk: 'gri' };
+  _dkDurum[id].checked = !_dkDurum[id].checked;
+  _dkKaydet();
+  _dkRender();
+}
+
+function _dkKaydet() {
+  if (!_dkMukellef || !_dkDonem) return;
+  const data = {};
+  for (const m of _DK_MADDELER) data[m.id] = !!_dkDurum[m.id]?.checked;
+  try { localStorage.setItem(_sk('dk_' + _dkMukellef + '_' + _dkDonem), JSON.stringify(data)); } catch(e) {}
+}
+
+function dkSifirla() {
+  if (!confirm('Bu dönemin tüm onayları sıfırlanacak. Emin misiniz?')) return;
+  for (const m of _DK_MADDELER) if (_dkDurum[m.id]) _dkDurum[m.id].checked = false;
+  _dkKaydet();
+  _dkRender();
+  showNotif('🔄 Dönem sıfırlandı', 'success');
 }
 
 function showPage(id) {
