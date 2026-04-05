@@ -3079,43 +3079,37 @@ function _kdvMutParseSatirlar(raw, dosyaAdi) {
 
   const col = (fn) => { const i = baslik.findIndex(fn); return i >= 0 ? i : null; };
 
-  // Hesap kodu: "HESAP KODU" veya "KOD" içeren
-  const idxKod = col(c => c.includes('HESAP') && c.includes('KOD')) ??
-                 col(c => c === 'KOD') ?? 0;
+  // Hesap kodu
+  const idxKod  = col(c => c.includes('HESAP') && c.includes('KOD')) ?? col(c => c === 'KOD') ?? 0;
+  // Hesap adı (KOD içermeyen)
+  const idxAd   = col(c => c.includes('HESAP') && (c.includes('ADI') || c.includes('AD')) && !c.includes('KOD')) ??
+                  col(c => c.includes('UNVAN')) ?? 1;
 
-  // Hesap adı: "HESAP ADI", "UNVAN", "AD" içeren (ama "KOD" içermeyen)
-  const idxAd  = col(c => (c.includes('HESAP') && (c.includes('ADI') || c.includes('AD '))) && !c.includes('KOD')) ??
-                 col(c => c.includes('UNVAN')) ??
-                 col(c => c === 'HESAP ADI') ?? 1;
+  // Borç Toplamı: önce "BORC"+"TOP/TUTAR" ara, bulamazsan "BAK" içermeyen ilk "BORC" sütunu
+  const idxBorcT = col(c => c.includes('BORC') && (c.includes('TOP') || c.includes('TUTAR'))) ??
+                   col(c => c.includes('BORC') && !c.includes('BAK'));
 
-  // Borç Toplamı: "BORC" + "TOP"
-  const idxBorcT = col(c => c.includes('BORC') && c.includes('TOP')) ??
-                   col(c => c.includes('BORC') && c.includes('TUTAR')) ?? 2;
+  // Alacak Toplamı: aynı mantık
+  const idxAlcT  = col(c => c.includes('ALACAK') && (c.includes('TOP') || c.includes('TUTAR'))) ??
+                   col(c => c.includes('ALACAK') && !c.includes('BAK'));
 
-  // Alacak Toplamı: "ALACAK" + "TOP"
-  const idxAlcT  = col(c => c.includes('ALACAK') && c.includes('TOP')) ??
-                   col(c => c.includes('ALACAK') && c.includes('TUTAR')) ?? 3;
-
-  // Borç Bakiyesi: "BORC" + "BAK"  (ya da son "BORC" sütunu)
+  // Borç Bakiyesi: "BORC"+"BAK" içeren — yoksa son BORC sütunu
   const idxBorcB = col(c => c.includes('BORC') && c.includes('BAK')) ??
-                   col(c => c.includes('BORC') && c.includes('BAKIYE')) ??
-                   (() => { // son "BORC" içeren sütun
-                     let last = null;
-                     baslik.forEach((c,i) => { if (c.includes('BORC')) last = i; });
-                     return last;
-                   })() ?? 4;
+                   (() => { let l=null; baslik.forEach((c,i)=>{ if(c.includes('BORC')) l=i; }); return l; })();
 
-  // Alacak Bakiyesi: "ALACAK" + "BAK" (ya da son "ALACAK" sütunu)
+  // Alacak Bakiyesi: "ALACAK"+"BAK" içeren — yoksa son ALACAK sütunu
   const idxAlcB  = col(c => c.includes('ALACAK') && c.includes('BAK')) ??
-                   col(c => c.includes('ALACAK') && c.includes('BAKIYE')) ??
-                   (() => {
-                     let last = null;
-                     baslik.forEach((c,i) => { if (c.includes('ALACAK')) last = i; });
-                     return last;
-                   })() ?? 5;
+                   (() => { let l=null; baslik.forEach((c,i)=>{ if(c.includes('ALACAK')) l=i; }); return l; })();
+
+  // Null kalan indexler için güvenli fallback (sıralı tahmin)
+  const _safe = (v, def) => (v !== null && v !== undefined) ? v : def;
+  const idxBorcTF = _safe(idxBorcT, 2);
+  const idxAlcTF  = _safe(idxAlcT,  3);
+  const idxBorcBF = _safe(idxBorcB, idxBorcTF + 2);
+  const idxAlcBF  = _safe(idxAlcB,  idxAlcTF  + 2);
 
   console.log('[KDV Mut] Kolon indexleri → kod:%d ad:%d borcTop:%d alcTop:%d borcBak:%d alcBak:%d',
-    idxKod, idxAd, idxBorcT, idxAlcT, idxBorcB, idxAlcB);
+    idxKod, idxAd, idxBorcTF, idxAlcTF, idxBorcBF, idxAlcBF);
 
   // Türkçe sayı parse — hem number hem string destekle
   const sayi = v => {
@@ -3140,11 +3134,11 @@ function _kdvMutParseSatirlar(raw, dosyaAdi) {
     satirlar.push({
       hesap_kodu : kod,
       hesap_adi  : (row[idxAd] + '').trim(),
-      borc_top   : sayi(row[idxBorcT]),
-      alacak_top : sayi(row[idxAlcT]),
-      borc_bak   : sayi(row[idxBorcB]),
-      alacak_bak : sayi(row[idxAlcB]),
-      _raw        : row.slice(0, 8),  // debug için ham değerler
+      borc_top   : sayi(row[idxBorcTF]),
+      alacak_top : sayi(row[idxAlcTF]),
+      borc_bak   : sayi(row[idxBorcBF]),
+      alacak_bak : sayi(row[idxAlcBF]),
+      _raw        : row.slice(0, 8),
     });
   }
 
@@ -3168,8 +3162,8 @@ function _kdvMutParseSatirlar(raw, dosyaAdi) {
       <div style="margin-top:8px;overflow-x:auto;">
         <div style="margin-bottom:6px;">
           <b>Kolon indexleri:</b>
-          kod=${idxKod} | ad=${idxAd} | borçTop=${idxBorcT} | alcTop=${idxAlcT} |
-          <b>borçBak=${idxBorcB}</b> | <b>alcBak=${idxAlcB}</b>
+          kod=${idxKod} | ad=${idxAd} | borçTop=${idxBorcTF} | alcTop=${idxAlcTF} |
+          <b>borçBak=${idxBorcBF}</b> | <b>alcBak=${idxAlcBF}</b>
         </div>
         <div style="margin-bottom:4px;"><b>Başlık satırı (S${baslikIdx}):</b></div>
         <div style="font-family:monospace;background:var(--surface2);padding:6px;border-radius:6px;margin-bottom:8px;">
@@ -3216,37 +3210,47 @@ function _kdvMutParseSatirlar(raw, dosyaAdi) {
 function kdvMutHesapla() {
   if (_kdvMutSatirlar.length === 0) { showNotif('⚠️ Önce mizan Excel yükleyin.', 'error'); return; }
 
-  // ── 391 hesapları (Hesaplanan KDV) → alacak bakiye topla ──────────────
-  const hesap391 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('391'));
-  const toplam391 = hesap391.reduce((s, r) => s + r.alacak_bak, 0);
+  // ── Yaprak hesap tespiti: çocuğu olmayan hesaplar (çift sayımı önler) ──
+  // Örn: "391", "391.01", "391.01.020" varsa → sadece "391.01.020" yaprak
+  const yaprakMi = (kod) =>
+    !_kdvMutSatirlar.some(r => r.hesap_kodu !== kod && r.hesap_kodu.startsWith(kod + '.'));
 
-  // Oran bazlı 391 dağılımı
+  // KDV hesaplarında bakiye çoğunlukla 0 (dönem içinde kapanır).
+  // Asıl tutar TOPLAM sütununda → alacak_top (391) / borc_top (191)
+  const kdvDeger391 = r => r.alacak_top || r.alacak_bak;
+  const kdvDeger191 = r => r.borc_top   || r.borc_bak;
+
+  // ── 391 hesapları (Hesaplanan KDV) ────────────────────────────────────
+  const hesap391 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('391') && yaprakMi(r.hesap_kodu));
+  const toplam391 = hesap391.reduce((s, r) => s + kdvDeger391(r), 0);
+
+  // Oran bazlı 391 dağılımı (yaprak hesaplardan)
   const _391bul = (alt) => hesap391.filter(r => r.hesap_kodu.startsWith(alt));
   const kdv391 = {
-    yuzde1 : _391bul('391.01.010').reduce((s,r)=>s+r.alacak_bak,0),
-    yuzde10: _391bul('391.01.030').reduce((s,r)=>s+r.alacak_bak,0),
-    yuzde20: _391bul('391.01.020').reduce((s,r)=>s+r.alacak_bak,0),
+    yuzde1 : _391bul('391.01.010').reduce((s,r)=>s+kdvDeger391(r),0),
+    yuzde10: _391bul('391.01.030').reduce((s,r)=>s+kdvDeger391(r),0),
+    yuzde20: _391bul('391.01.020').reduce((s,r)=>s+kdvDeger391(r),0),
     diger  : hesap391.filter(r =>
                !r.hesap_kodu.startsWith('391.01.010') &&
                !r.hesap_kodu.startsWith('391.01.030') &&
                !r.hesap_kodu.startsWith('391.01.020')
-             ).reduce((s,r)=>s+r.alacak_bak,0),
+             ).reduce((s,r)=>s+kdvDeger391(r),0),
   };
 
-  // ── 191 hesapları (İndirilecek KDV) → borç bakiye topla ───────────────
-  const hesap191 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('191'));
-  const toplam191 = hesap191.reduce((s, r) => s + r.borc_bak, 0);
+  // ── 191 hesapları (İndirilecek KDV) ───────────────────────────────────
+  const hesap191 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('191') && yaprakMi(r.hesap_kodu));
+  const toplam191 = hesap191.reduce((s, r) => s + kdvDeger191(r), 0);
 
   const kdv191 = {
-    yuzde1 : hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.001')).reduce((s,r)=>s+r.borc_bak,0),
-    yuzde10: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.010')).reduce((s,r)=>s+r.borc_bak,0),
-    yuzde20: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.020')).reduce((s,r)=>s+r.borc_bak,0),
-    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith('191.03')).reduce((s,r)=>s+r.borc_bak,0),
+    yuzde1 : hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.001')).reduce((s,r)=>s+kdvDeger191(r),0),
+    yuzde10: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.010')).reduce((s,r)=>s+kdvDeger191(r),0),
+    yuzde20: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.020')).reduce((s,r)=>s+kdvDeger191(r),0),
+    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith('191.03')).reduce((s,r)=>s+kdvDeger191(r),0),
   };
 
   // ── KDV-2: 360.03 vs 191.03 ───────────────────────────────────────────
-  const hesap36003 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('360.03'));
-  const kdv2Sorumlu = hesap36003.reduce((s, r) => s + r.alacak_bak, 0);
+  const hesap36003 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('360.03') && yaprakMi(r.hesap_kodu));
+  const kdv2Sorumlu = hesap36003.reduce((s, r) => s + (r.alacak_top || r.alacak_bak), 0);
   const kdv2Indirim = kdv191.tevkifat;
   const kdv2Fark    = Math.abs(kdv2Sorumlu - kdv2Indirim);
 
@@ -3372,25 +3376,29 @@ function _kdvMutTabloRender(sekme) {
   } else if (sekme === 'hesaplanan') {
     html = `<table class="kdvmut-tablo">
       <thead><tr><th>Hesap Kodu</th><th>Hesap Adı</th><th class="sayi">Borç Bakiye</th><th class="sayi">Alacak Bakiye</th></tr></thead>
-      <tbody>${s.hesap391.length ? s.hesap391.map(r=>`<tr>
-        <td style="font-family:'IBM Plex Mono',monospace">${r.hesap_kodu}</td>
-        <td>${r.hesap_adi}</td>
-        <td class="sayi">${r.borc_bak ? fmt(r.borc_bak)+' ₺' : '—'}</td>
-        <td class="sayi" style="color:var(--accent2);font-weight:600">${fmt(r.alacak_bak)} ₺</td>
-      </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">391 hesabı bulunamadı</td></tr>'}
+      <tbody>${s.hesap391.length ? s.hesap391.map(r=>{
+        const deger = r.alacak_top || r.alacak_bak;
+        return `<tr>
+          <td style="font-family:'IBM Plex Mono',monospace">${r.hesap_kodu}</td>
+          <td>${r.hesap_adi}</td>
+          <td class="sayi">${r.borc_top ? fmt(r.borc_top)+' ₺' : '—'}</td>
+          <td class="sayi" style="color:var(--accent2);font-weight:600">${fmt(deger)} ₺</td>
+        </tr>`;}).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">391 hesabı bulunamadı</td></tr>'}
       <tr style="border-top:2px solid var(--border)">
         <td colspan="3" style="font-weight:700">TOPLAM</td>
         <td class="sayi" style="font-weight:700;color:var(--accent2)">${fmt(s.toplam391)} ₺</td>
       </tr></tbody></table>`;
   } else if (sekme === 'indirilecek') {
     html = `<table class="kdvmut-tablo">
-      <thead><tr><th>Hesap Kodu</th><th>Hesap Adı</th><th class="sayi">Borç Bakiye</th><th class="sayi">Alacak Bakiye</th></tr></thead>
-      <tbody>${s.hesap191.length ? s.hesap191.map(r=>`<tr>
-        <td style="font-family:'IBM Plex Mono',monospace">${r.hesap_kodu}</td>
-        <td>${r.hesap_adi}</td>
-        <td class="sayi" style="color:var(--accent2);font-weight:600">${fmt(r.borc_bak)} ₺</td>
-        <td class="sayi">${r.alacak_bak ? fmt(r.alacak_bak)+' ₺' : '—'}</td>
-      </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">191 hesabı bulunamadı</td></tr>'}
+      <thead><tr><th>Hesap Kodu</th><th>Hesap Adı</th><th class="sayi">Borç (KDV Tutarı)</th><th class="sayi">Alacak</th></tr></thead>
+      <tbody>${s.hesap191.length ? s.hesap191.map(r=>{
+        const deger = r.borc_top || r.borc_bak;
+        return `<tr>
+          <td style="font-family:'IBM Plex Mono',monospace">${r.hesap_kodu}</td>
+          <td>${r.hesap_adi}</td>
+          <td class="sayi" style="color:var(--accent2);font-weight:600">${fmt(deger)} ₺</td>
+          <td class="sayi">${r.alacak_top ? fmt(r.alacak_top)+' ₺' : '—'}</td>
+        </tr>`;}).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">191 hesabı bulunamadı</td></tr>'}
       <tr style="border-top:2px solid var(--border)">
         <td colspan="2" style="font-weight:700">TOPLAM</td>
         <td class="sayi" style="font-weight:700;color:var(--accent2)">${fmt(s.toplam191)} ₺</td>
