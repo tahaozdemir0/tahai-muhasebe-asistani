@@ -3323,10 +3323,12 @@ function _kdvMutParseSatirlar(raw, dosyaAdi) {
 function kdvMutHesapla() {
   if (_kdvMutSatirlar.length === 0) { showNotif('⚠️ Önce mizan Excel yükleyin.', 'error'); return; }
 
-  // ── Yaprak hesap tespiti: çocuğu olmayan hesaplar (çift sayımı önler) ──
-  // Örn: "391", "391.01", "391.01.020" varsa → sadece "391.01.020" yaprak
-  const yaprakMi = (kod) =>
-    !_kdvMutSatirlar.some(r => r.hesap_kodu !== kod && r.hesap_kodu.startsWith(kod + '.'));
+  // ── En alt seviye tespiti: nokta sayısı >= 2 olan hesaplar ──
+  // "391"       → 0 nokta → ANA HESAP  (atla)
+  // "391.01"    → 1 nokta → ALT GRUP   (atla)
+  // "391.01.020"→ 2 nokta → EN ALT     (topla)
+  const dotSay = kod => (String(kod).match(/\./g) || []).length;
+  const enAlt  = kod => dotSay(kod) >= 2;
 
   // KDV hesaplarında bakiye çoğunlukla 0 (dönem içinde kapanır).
   // Asıl tutar TOPLAM sütununda → alacak_top (391) / borc_top (191)
@@ -3334,10 +3336,10 @@ function kdvMutHesapla() {
   const kdvDeger191 = r => r.borc_top   || r.borc_bak;
 
   // ── 391 hesapları (Hesaplanan KDV) ────────────────────────────────────
-  const hesap391 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('391') && yaprakMi(r.hesap_kodu));
+  const hesap391 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('391.') && enAlt(r.hesap_kodu));
   const toplam391 = hesap391.reduce((s, r) => s + kdvDeger391(r), 0);
 
-  // Oran bazlı 391 dağılımı (yaprak hesaplardan)
+  // Oran bazlı 391 dağılımı
   const _391bul = (alt) => hesap391.filter(r => r.hesap_kodu.startsWith(alt));
   const kdv391 = {
     yuzde1 : _391bul('391.01.010').reduce((s,r)=>s+kdvDeger391(r),0),
@@ -3351,18 +3353,29 @@ function kdvMutHesapla() {
   };
 
   // ── 191 hesapları (İndirilecek KDV) ───────────────────────────────────
-  const hesap191 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('191') && yaprakMi(r.hesap_kodu));
+  const hesap191 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('191.') && enAlt(r.hesap_kodu));
   const toplam191 = hesap191.reduce((s, r) => s + kdvDeger191(r), 0);
 
   const kdv191 = {
     yuzde1 : hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.001')).reduce((s,r)=>s+kdvDeger191(r),0),
     yuzde10: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.010')).reduce((s,r)=>s+kdvDeger191(r),0),
     yuzde20: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.020')).reduce((s,r)=>s+kdvDeger191(r),0),
-    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith('191.03')).reduce((s,r)=>s+kdvDeger191(r),0),
+    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith('191.03.')).reduce((s,r)=>s+kdvDeger191(r),0),
   };
 
-  // ── KDV-2: 360.03 vs 191.03 ───────────────────────────────────────────
-  const hesap36003 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('360.03') && yaprakMi(r.hesap_kodu));
+  // ── Debug: tarayıcı konsoluna ham değerleri yaz ──
+  console.group('%c KDV MUTABAKAT DEBUG', 'color:#6fa8ff;font-weight:bold;');
+  console.log('391 hesapları (en alt, 2+ nokta):',
+    hesap391.map(r => ({ kod: r.hesap_kodu, ad: r.hesap_adi, alacak_top: r.alacak_top, alacak_bak: r.alacak_bak })));
+  console.log('391 TOPLAM:', toplam391);
+  console.log('191 hesapları (en alt, 2+ nokta):',
+    hesap191.map(r => ({ kod: r.hesap_kodu, ad: r.hesap_adi, borc_top: r.borc_top, borc_bak: r.borc_bak })));
+  console.log('191 TOPLAM:', toplam191);
+  console.groupEnd();
+
+  // ── KDV-2: 360.03.xxx vs 191.03.xxx ───────────────────────────────────
+  // 360.03 zaten 1 noktalı; alt hesapları 360.03.xxx = 2 noktalı
+  const hesap36003 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('360.03.'));
   const kdv2Sorumlu = hesap36003.reduce((s, r) => s + (r.alacak_top || r.alacak_bak), 0);
   const kdv2Indirim = kdv191.tevkifat;
   const kdv2Fark    = Math.abs(kdv2Sorumlu - kdv2Indirim);
@@ -3603,35 +3616,38 @@ function _beyGetSatirlar() {
   return null;
 }
 
-// Yaprak hesap mı? (alt hesabı yok mu)
-function _beyYaprakMi(kod, s) {
-  return !s.some(r => r.hesap_kodu !== kod && r.hesap_kodu.startsWith(kod + '.'));
+// En alt seviye mi? nokta sayısı >= 2 (KDV modülüyle aynı kural)
+// "391"        → 0 nokta → atla
+// "391.01"     → 1 nokta → atla
+// "391.01.020" → 2 nokta → topla
+function _beyEnAlt(kod) {
+  return (String(kod).match(/\./g) || []).length >= 2;
 }
 
-// Prefix ile başlayan yaprak hesapların bir alanını topla
+// Prefix ile başlayan en alt seviye hesapların bir alanını topla
 function _beyTopla(prefix, alan, s) {
-  return s.filter(r => r.hesap_kodu.startsWith(prefix) && _beyYaprakMi(r.hesap_kodu, s))
+  return s.filter(r => r.hesap_kodu.startsWith(prefix + '.') && _beyEnAlt(r.hesap_kodu))
           .reduce((acc, r) => acc + (r[alan] || 0), 0);
 }
 
 // KDV-1 Beyannamesi kontrolü
 function _beyKdv1(s) {
-  const yaprak = k => _beyYaprakMi(k, s);
-
-  const h391 = s.filter(r => r.hesap_kodu.startsWith('391') && yaprak(r.hesap_kodu));
+  // En alt seviye: nokta sayısı >= 2
+  const h391 = s.filter(r => r.hesap_kodu.startsWith('391.') && _beyEnAlt(r.hesap_kodu));
   const t391 = h391.reduce((a, r) => a + (r.alacak_top || r.alacak_bak || 0), 0);
 
-  const h191 = s.filter(r => r.hesap_kodu.startsWith('191') && yaprak(r.hesap_kodu));
+  const h191 = s.filter(r => r.hesap_kodu.startsWith('191.') && _beyEnAlt(r.hesap_kodu));
   const t191 = h191.reduce((a, r) => a + (r.borc_top || r.borc_bak || 0), 0);
 
   const odenecek = t391 - t191;
 
-  // 360.03 KDV beyan borcu
-  const h36003 = s.find(r => r.hesap_kodu === '360.03' || r.hesap_kodu === '36003');
-  const t36003 = h36003 ? Math.max(
-    (h36003.alacak_bak || 0) - (h36003.borc_bak || 0),
-    h36003.alacak_top || 0
-  ) : 0;
+  // 360.03 KDV beyan borcu — 360.03.xxx (2 nokta) varsa onları al, yoksa 360.03'ü dene
+  const h36003list = s.filter(r => r.hesap_kodu.startsWith('360.03.'));
+  const h36003tek  = s.find(r => r.hesap_kodu === '360.03');
+  const h36003 = h36003list.length > 0 ? null : h36003tek;
+  const t36003 = h36003list.length > 0
+    ? h36003list.reduce((a, r) => a + (r.alacak_top || r.alacak_bak || 0), 0)
+    : h36003tek ? Math.max((h36003tek.alacak_bak||0)-(h36003tek.borc_bak||0), h36003tek.alacak_top||0) : 0;
 
   const fark = Math.abs(odenecek - t36003);
   const farkOrani = t391 > 0 ? fark / t391 : 0;
@@ -3654,9 +3670,9 @@ function _beyKdv1(s) {
   ];
   if (odenecek < 0)
     detay.push({ etiket: 'KDV İadesi', deger: fmt(Math.abs(odenecek)) + ' ₺', vurgu: false });
-  if (h36003) {
+  if (t36003 > 0 || h36003list.length > 0 || h36003tek) {
     detay.push({ etiket: '360.03 Beyan Borcu', deger: fmt(t36003) + ' ₺', vurgu: false });
-    detay.push({ etiket: 'Fark', deger: fmt(fark) + ' ₺', vurgu: fark > 1 });
+    detay.push({ etiket: 'Fark (360.03 ↔ Ödenecek)', deger: fmt(fark) + ' ₺', vurgu: fark > 1 });
   }
   if (h391.length > 1) {
     detay.push({ baslik: true, etiket: '── 391 Alt Hesaplar' });
