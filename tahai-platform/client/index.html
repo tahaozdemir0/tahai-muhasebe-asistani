@@ -642,6 +642,48 @@
     letter-spacing: 0.5px;
   }
 
+  /* ===== RİSK RAPORU MODÜLÜ CSS ===== */
+  .rr-ozet-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; }
+  .rr-ozet-kart { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .rr-ozet-kart.yuksek { background:rgba(224,92,92,.08); border-color:rgba(224,92,92,.3); }
+  .rr-ozet-kart.orta   { background:rgba(240,165,0,.08);  border-color:rgba(240,165,0,.3); }
+  .rr-ozet-kart.dusuk  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.3); }
+  .rr-ozet-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+  .rr-ozet-deger { font-size:28px; font-weight:700; color:var(--text); }
+  .rr-ozet-kart.yuksek .rr-ozet-deger { color:#f87171; }
+  .rr-ozet-kart.orta   .rr-ozet-deger { color:#facc15; }
+  .rr-ozet-kart.dusuk  .rr-ozet-deger { color:#4ade80; }
+
+  .rr-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .rr-badge.yuksek { background:rgba(224,92,92,.15); color:#f87171; }
+  .rr-badge.orta   { background:rgba(240,165,0,.15);  color:#facc15; }
+  .rr-badge.dusuk  { background:rgba(34,197,94,.15);  color:#4ade80; }
+
+  .rr-pbar-wrap { width:55px; height:5px; background:var(--surface2); border-radius:3px; overflow:hidden; display:inline-block; margin-right:5px; vertical-align:middle; }
+  .rr-pbar-fill { height:100%; border-radius:3px; transition:width .3s; }
+  .rr-pbar-fill.yuksek { background:#f87171; }
+  .rr-pbar-fill.orta   { background:#facc15; }
+  .rr-pbar-fill.dusuk  { background:#4ade80; }
+
+  .rr-tablo { width:100%; border-collapse:collapse; font-size:13px; }
+  .rr-tablo th { background:var(--surface2); color:var(--text3); font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:9px 12px; text-align:left; border-bottom:2px solid var(--border); font-weight:600; }
+  .rr-tablo td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:middle; }
+  .rr-tablo tr:last-child td { border-bottom:none; }
+  .rr-tablo tr:hover td { background:rgba(255,255,255,.02); }
+  .rr-tablo .rr-detay-btn { font-size:14px; cursor:pointer; padding:4px 10px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text3); transition:all .15s; }
+  .rr-tablo .rr-detay-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  .rr-mod-ikon { font-size:16px; cursor:default; }
+
+  .rr-detay-risk-box { display:flex; align-items:center; gap:20px; padding:16px; background:var(--surface2); border-radius:10px; margin-bottom:20px; }
+  .rr-detay-skor-num { font-size:44px; font-weight:800; line-height:1; }
+  .rr-detay-skor-num.yuksek { color:#f87171; }
+  .rr-detay-skor-num.orta   { color:#facc15; }
+  .rr-detay-skor-num.dusuk  { color:#4ade80; }
+  .rr-detay-liste { list-style:none; padding:0; margin:0; }
+  .rr-detay-satir { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .rr-detay-satir:last-child { border-bottom:none; }
+
   /* CONTENT */
   .content {
     flex: 1;
@@ -3029,19 +3071,102 @@
     </div>
     <!-- ===== DÖNEM KAPANIŞ SONU ===== -->
 
+    <!-- ===== RİSK RAPORU MODÜLÜ ===== -->
     <div class="page" id="page-risk-raporu">
-      <div class="card">
-        <div class="kp-placeholder">
-          <div class="kp-placeholder-icon">⚠️</div>
-          <div class="kp-placeholder-title">Risk Raporu</div>
-          <div class="kp-placeholder-desc">
-            Mükellef bazlı risk skorlaması, anormal hareketlerin tespiti
-            ve AI destekli risk analizi bu modülde yer alacak.
-          </div>
-          <div class="kp-placeholder-badge">YAKINDA AKTİF OLACAK</div>
+
+      <!-- Başlık -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:20px;font-weight:700;color:var(--text);">⚠️ Risk Raporu</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:4px;">
+          Tüm mükelleflerin kontrol sonuçlarından otomatik risk skoru ve öncelik sıralaması
         </div>
       </div>
+
+      <!-- Özet kartlar (4 adet) -->
+      <div class="rr-ozet-grid">
+        <div class="rr-ozet-kart">
+          <div class="rr-ozet-label">Toplam Mükellef</div>
+          <div class="rr-ozet-deger" id="rrToplamSayi">—</div>
+        </div>
+        <div class="rr-ozet-kart yuksek">
+          <div class="rr-ozet-label">🔴 Yüksek Risk</div>
+          <div class="rr-ozet-deger" id="rrYuksekSayi">—</div>
+        </div>
+        <div class="rr-ozet-kart orta">
+          <div class="rr-ozet-label">🟡 Orta Risk</div>
+          <div class="rr-ozet-deger" id="rrOrtaSayi">—</div>
+        </div>
+        <div class="rr-ozet-kart dusuk">
+          <div class="rr-ozet-label">🟢 Düşük Risk</div>
+          <div class="rr-ozet-deger" id="rrDusukSayi">—</div>
+        </div>
+      </div>
+
+      <!-- Filtre barı -->
+      <div class="card">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;letter-spacing:.5px;">DÖNEM</label>
+            <input type="month" id="rrDonem" class="input" style="width:150px;" onchange="riskDashboardRender()" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;letter-spacing:.5px;">RİSK SEVİYESİ</label>
+            <select id="rrRiskFiltre" class="input" style="width:160px;" onchange="riskDashboardRender()">
+              <option value="">Tümü</option>
+              <option value="yuksek">🔴 Yüksek Risk</option>
+              <option value="orta">🟡 Orta Risk</option>
+              <option value="dusuk">🟢 Düşük Risk</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;letter-spacing:.5px;">MÜKELLEf ARA</label>
+            <input type="text" id="rrArama" class="input" placeholder="Mükellef adı..." oninput="riskDashboardRender()" />
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" onclick="riskDashboardYukle()">↺ Verileri Yenile</button>
+            <button class="btn btn-outline" onclick="riskExcelIndir()">⬇️ Excel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mükellef tablosu -->
+      <div class="card">
+        <div id="rrTabloIcerik">
+          <div style="text-align:center;padding:40px;color:var(--text3);">
+            ⬆️ "Verileri Yenile"ye basarak risk skorlarını hesaplayın
+          </div>
+        </div>
+      </div>
+
+      <!-- Mükellef detay paneli (başta gizli) -->
+      <div id="rrDetayPanel" style="display:none;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <span style="font-size:16px;font-weight:700;color:var(--text);">📋 Mükellef Risk Detayı</span>
+            <button onclick="rrDetayKapat()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 14px;cursor:pointer;color:var(--text3);font-size:12px;">✕ Kapat</button>
+          </div>
+          <div id="rrDetayIcerik"></div>
+        </div>
+
+        <!-- AI Analiz paneli -->
+        <div class="card" id="rrAIPanel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-weight:600;font-size:15px;">🤖 AI Detaylı Risk Analizi</span>
+            <button id="rrAIBtn" onclick="riskAIAnalizEt()"
+              style="background:var(--accent);color:white;border:none;padding:8px 18px;
+                     border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+              🤖 Analiz Et
+            </button>
+          </div>
+          <div id="rrAIMetin" class="card"
+            style="font-size:14px;line-height:1.7;white-space:pre-wrap;display:none;
+                   color:var(--text);padding:18px;margin-top:0;">
+          </div>
+        </div>
+      </div>
+
     </div>
+    <!-- ===== RİSK RAPORU SONU ===== -->
     <!-- ===== KONTROL PANELİ SONU ===== -->
 
     <div class="page" id="page-mukellef-ws">
@@ -3346,6 +3471,7 @@ function showKontrolPaneli(id, el) {
   if (id === 'beyanname-kontrol') beyMukellefDoldur();
   if (id === 'babs-kontrol') babsMukellefDoldur();
   if (id === 'donem-kapanis') dkMukellefDoldur();
+  if (id === 'risk-raporu') riskDashboardYukle();
 }
 
 // ===================== KDV MUTABAKAT MODÜLÜ =====================
@@ -3659,6 +3785,10 @@ function kdvMutHesapla() {
   if (uyarilar.length === 0) uyarilar.push({ tip:'ok',   mesaj: 'KDV mutabakatı kontrol edildi, kritik uyarı bulunmadı.' });
 
   _kdvMutSonuc = { toplam391, toplam191, netKdv, kdv2Sorumlu, kdv2Indirim, kdv2Fark, kontroller, uyarilar, hesap391, hesap191 };
+  // Risk raporuna KDV verisini kaydet
+  const _rrKdvMuk = document.getElementById('kdvMutMukellef')?.value;
+  const _rrKdvDon = document.getElementById('kdvMutDonem')?.value;
+  if (_rrKdvMuk && _rrKdvDon) _riskVeriKaydet(_rrKdvMuk, _rrKdvDon, 'kdv', _kdvMutSonuc);
   _kdvMutRenderSonuc(_kdvMutSonuc);
 }
 
@@ -4071,6 +4201,13 @@ function beyKontrolHesapla() {
     _beySgk(veri.satirlar),
     _beyGeciciVergi(veri.satirlar),
   ];
+  // Risk raporuna beyanname verisini kaydet
+  const _rrBeyMuk = document.getElementById('beyMukellef')?.value;
+  const _rrBeyDon = document.getElementById('beyDonem')?.value;
+  if (_rrBeyMuk && _rrBeyDon) {
+    _riskVeriKaydet(_rrBeyMuk, _rrBeyDon, 'bey', _beySonuclar);
+    _riskVeriKaydet(_rrBeyMuk, _rrBeyDon, 'mizan', veri.satirlar);
+  }
 
   _beyRenderKartlar(_beySonuclar);
 }
@@ -4364,6 +4501,10 @@ function babsKarsilastir() {
     fark:      satirlar.filter(r => r.durum === 'fark').length,
     topFark:   satirlar.reduce((s, r) => s + r.fark, 0),
   };
+  // Risk raporuna Ba/Bs verisini kaydet
+  const _rrBabsMuk = document.getElementById('babsMukellef')?.value;
+  const _rrBabsDon = document.getElementById('babsDonem')?.value;
+  if (_rrBabsMuk && _rrBabsDon) _riskVeriKaydet(_rrBabsMuk, _rrBabsDon, 'babs', _babsSonuclar);
   _babsRender(_babsSonuclar);
 }
 
@@ -8887,6 +9028,362 @@ function logout() {
   document.getElementById('appMain').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'none';
   document.getElementById('wsBanner').style.display = 'none';
+}
+
+// ===================== RİSK RAPORU MODÜLÜ =====================
+
+// Her mükellef için session boyunca tutulan risk verileri önbelleği
+// Yapı: { mukellefAd: { donem: { kdv, bey, babs, mizan } } }
+let _riskVerileri = {};
+
+// Şu an detayı açık olan mükellef adı
+let _rrAktifMukellef = null;
+
+// Diğer modüllerden çağrılan: veri türünü önbelleğe kaydet
+function _riskVeriKaydet(mukellefAd, donem, tip, sonuc) {
+  if (!mukellefAd || !donem || !sonuc) return;
+  if (!_riskVerileri[mukellefAd]) _riskVerileri[mukellefAd] = {};
+  if (!_riskVerileri[mukellefAd][donem]) _riskVerileri[mukellefAd][donem] = {};
+  _riskVerileri[mukellefAd][donem][tip] = sonuc;
+}
+
+// Bir mükellef için risk puanı hesapla (0-100 arası)
+function _riskHesapla(mukellefAd, donem) {
+  const veri = (_riskVerileri[mukellefAd]?.[donem]) || {};
+  let puan = 0;
+  const detaylar = []; // { tip:'hata'|'uyari'|'bilgi', mesaj }
+  let modKdv = null, modBey = null, modBabs = null, modDk = null;
+
+  // ─── KDV MUTABAKAT (max 30 puan) ───────────────────────────
+  if (veri.kdv) {
+    const k = veri.kdv;
+    let kdvPuan = 0;
+    const fark391 = Math.abs((k.hesap391 || 0) - (k.toplam391 || 0));
+    const fark191 = Math.abs((k.hesap191 || 0) - (k.toplam191 || 0));
+    if (fark391 > 1)       { kdvPuan += 15; detaylar.push({ tip:'hata',  mesaj:'391 hesabında ' + fmt(fark391) + ' TL fark' }); }
+    if (fark191 > 1)       { kdvPuan += 10; detaylar.push({ tip:'hata',  mesaj:'191 hesabında ' + fmt(fark191) + ' TL fark' }); }
+    if ((k.kdv2Fark||0) > 1) { kdvPuan += 5; detaylar.push({ tip:'uyari', mesaj:'Devreden KDV tutarsızlığı' }); }
+    puan += kdvPuan;
+    modKdv = { puan: kdvPuan, durum: kdvPuan === 0 ? 'ok' : kdvPuan <= 10 ? 'uyari' : 'sorun' };
+  }
+
+  // ─── BEYANNAME KONTROLLERİ (max 30 puan) ──────────────────
+  if (veri.bey && Array.isArray(veri.bey)) {
+    // Sıra: 0=kdv1(15pt), 1=muhtasar(10pt), 2=sgk(5pt), 3=gecici
+    const beyPuanlar = [15, 10, 5, 0];
+    let beyPuan = 0;
+    veri.bey.forEach((k, i) => {
+      if (!k) return;
+      const maxPt = beyPuanlar[i] || 0;
+      if (k.durum === 'sorun')  { beyPuan += maxPt;                detaylar.push({ tip:'hata',  mesaj:(k.baslik||'Beyanname') + ' beyannamesi sorunlu' }); }
+      else if (k.durum === 'uyari') { beyPuan += Math.floor(maxPt/2); detaylar.push({ tip:'uyari', mesaj:(k.baslik||'Beyanname') + ' beyannamesi uyarı'   }); }
+    });
+    puan += beyPuan;
+    modBey = { puan: beyPuan, durum: beyPuan === 0 ? 'ok' : beyPuan <= 10 ? 'uyari' : 'sorun' };
+  }
+
+  // ─── Ba/Bs KONTROLLERİ (max 20 puan) ──────────────────────
+  if (veri.babs) {
+    const b = veri.babs;
+    let babsPuan = 0;
+    if ((b.eksik || 0) > 0) { babsPuan += 15; detaylar.push({ tip:'hata',  mesaj:(b.eksik) + ' adet eksik Ba/Bs kaydı' }); }
+    if ((b.fark  || 0) > 0) { babsPuan += 5;  detaylar.push({ tip:'uyari', mesaj:(b.fark)  + ' adet Ba/Bs tutar farkı' }); }
+    puan += babsPuan;
+    modBabs = { puan: babsPuan, durum: babsPuan === 0 ? 'ok' : babsPuan <= 5 ? 'uyari' : 'sorun' };
+  }
+
+  // ─── DÖNEM KAPANIŞ (max 10 puan) ──────────────────────────
+  const dkRaw = (() => { try { return localStorage.getItem(_sk('dk_' + mukellefAd + '_' + donem)); } catch(e) { return null; } })();
+  if (dkRaw) {
+    try {
+      const dkData = JSON.parse(dkRaw);
+      const total  = _DK_MADDELER.length;
+      const tamam  = Object.values(dkData).filter(Boolean).length;
+      const pct    = total > 0 ? tamam / total : 0;
+      let dkPuan = 0;
+      if (pct < 0.5)  { dkPuan = 10; detaylar.push({ tip:'hata',  mesaj:'Dönem kapanış %' + Math.round(pct*100) + ' tamamlandı' }); }
+      else if (pct < 0.8) { dkPuan = 5; detaylar.push({ tip:'uyari', mesaj:'Dönem kapanış %' + Math.round(pct*100) + ' tamamlandı' }); }
+      puan += dkPuan;
+      modDk = { puan: dkPuan, durum: dkPuan === 0 ? 'ok' : dkPuan <= 5 ? 'uyari' : 'sorun', pct };
+    } catch(e) {}
+  }
+
+  // ─── TERS BAKİYE (max 10 puan) ────────────────────────────
+  if (veri.mizan && Array.isArray(veri.mizan)) {
+    const tersList = veri.mizan.filter(_tersBakiyeMi);
+    const t1 = tersList.filter(r => String(r.hesap_kodu||'').startsWith('1')).length;
+    const t2 = tersList.filter(r => String(r.hesap_kodu||'').startsWith('2')).length;
+    const tD = tersList.length - t1 - t2;
+    if (t1 > 0) { puan += 5; detaylar.push({ tip:'hata',  mesaj:'1xx grubunda ' + t1 + ' ters bakiye (kasa/alacak)' }); }
+    if (t2 > 0) { puan += 3; detaylar.push({ tip:'uyari', mesaj:'2xx grubunda ' + t2 + ' ters bakiye' }); }
+    if (tD > 0) { puan += 2; detaylar.push({ tip:'bilgi', mesaj:'Diğer hesaplarda ' + tD + ' ters bakiye' }); }
+  }
+
+  puan = Math.min(100, puan);
+  const seviye = puan <= 25 ? 'dusuk' : puan <= 60 ? 'orta' : 'yuksek';
+  return { puan, seviye, detaylar, modKdv, modBey, modBabs, modDk };
+}
+
+// Seçili dönemi al (default: bu ay)
+function _rrDonem() {
+  const el = document.getElementById('rrDonem');
+  if (el && el.value) return el.value;
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+}
+
+// Dashboard'u yükle ve tüm mükellefleri hesapla
+function riskDashboardYukle() {
+  // Dönem default ata
+  const rrD = document.getElementById('rrDonem');
+  if (rrD && !rrD.value) rrD.value = _rrDonem();
+
+  riskDashboardRender();
+}
+
+// Tabloyu render et (filtre + arama uygulanmış)
+function riskDashboardRender() {
+  const donem       = _rrDonem();
+  const riskFiltre  = document.getElementById('rrRiskFiltre')?.value || '';
+  const aramaVal    = (document.getElementById('rrArama')?.value || '').toLowerCase().trim();
+
+  // Tüm mükelleflerin risk skorlarını hesapla
+  const liste = (mukellefler || []).map(m => {
+    const ad = (m.ad || m || '');
+    const sonuc = _riskHesapla(ad, donem);
+    return { ad, ...sonuc };
+  });
+
+  // Risk seviyesine göre sırala: yüksek > orta > düşük, eşitlerde puana göre
+  const seviyeSira = { yuksek:0, orta:1, dusuk:2 };
+  liste.sort((a, b) => {
+    const s = seviyeSira[a.seviye] - seviyeSira[b.seviye];
+    return s !== 0 ? s : b.puan - a.puan;
+  });
+
+  // Özet sayıları güncelle
+  document.getElementById('rrToplamSayi').textContent = liste.length;
+  document.getElementById('rrYuksekSayi').textContent = liste.filter(r => r.seviye === 'yuksek').length;
+  document.getElementById('rrOrtaSayi').textContent   = liste.filter(r => r.seviye === 'orta').length;
+  document.getElementById('rrDusukSayi').textContent  = liste.filter(r => r.seviye === 'dusuk').length;
+
+  // Filtre uygula
+  const filtreli = liste.filter(r => {
+    if (riskFiltre && r.seviye !== riskFiltre) return false;
+    if (aramaVal && !r.ad.toLowerCase().includes(aramaVal)) return false;
+    return true;
+  });
+
+  // Tablo HTML
+  const ic = document.getElementById('rrTabloIcerik');
+  if (!ic) return;
+
+  if (filtreli.length === 0) {
+    ic.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);">Kayıt bulunamadı.</div>';
+    return;
+  }
+
+  // Modül ikonu yardımcı fonksiyonu
+  function modIkon(mod) {
+    if (!mod) return '<span title="Veri yok">—</span>';
+    if (mod.durum === 'ok')    return '<span class="rr-mod-ikon" title="Sorun yok">✅</span>';
+    if (mod.durum === 'uyari') return '<span class="rr-mod-ikon" title="Uyarı">🟡</span>';
+    return                            '<span class="rr-mod-ikon" title="Sorun">❌</span>';
+  }
+
+  let html = '<div class="table-wrap"><table class="rr-tablo"><thead><tr>'
+    + '<th>Mükellef</th><th>KDV Mut.</th><th>Beyanname</th><th>Ba/Bs</th><th>Dönem Kap.</th>'
+    + '<th>Risk Skoru</th><th></th>'
+    + '</tr></thead><tbody>';
+
+  filtreli.forEach(r => {
+    // Progress bar rengi
+    const pbRenk = r.seviye === 'yuksek' ? '#f87171' : r.seviye === 'orta' ? '#facc15' : '#4ade80';
+    const seviyeEtiket = r.seviye === 'yuksek' ? '🔴 Yüksek' : r.seviye === 'orta' ? '🟡 Orta' : '🟢 Düşük';
+
+    // Veri var mı kontrolü (en az 1 modül verisi varsa)
+    const veriVar = r.modKdv || r.modBey || r.modBabs || r.modDk;
+
+    html += '<tr onclick="riskMukellefDetay(\'' + r.ad.replace(/'/g, "\\'") + '\')" style="cursor:pointer;">'
+      + '<td style="font-weight:500;color:var(--text);">' + r.ad + '</td>'
+      + '<td>' + modIkon(r.modKdv) + '</td>'
+      + '<td>' + modIkon(r.modBey) + '</td>'
+      + '<td>' + modIkon(r.modBabs) + '</td>'
+      + '<td>' + modIkon(r.modDk) + '</td>'
+      + '<td>'
+        + (veriVar
+          ? '<div style="display:flex;align-items:center;gap:6px;">'
+            + '<div class="rr-pbar-wrap"><div class="rr-pbar-fill" style="width:' + r.puan + '%;background:' + pbRenk + ';"></div></div>'
+            + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;">' + r.puan + '</span>'
+            + ' <span class="rr-badge ' + r.seviye + '">' + seviyeEtiket + '</span>'
+            + '</div>'
+          : '<span style="color:var(--text3);font-size:12px;">Kontrol çalıştırılmadı</span>')
+      + '</td>'
+      + '<td><button class="rr-detay-btn" onclick="event.stopPropagation();riskMukellefDetay(\'' + r.ad.replace(/'/g, "\\'") + '\')">→</button></td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  ic.innerHTML = html;
+}
+
+// Mükellef detay panelini aç
+function riskMukellefDetay(ad) {
+  const donem  = _rrDonem();
+  const sonuc  = _riskHesapla(ad, donem);
+  _rrAktifMukellef = ad;
+
+  const panel  = document.getElementById('rrDetayPanel');
+  const icerik = document.getElementById('rrDetayIcerik');
+  if (!panel || !icerik) return;
+
+  const seviyeText = sonuc.seviye === 'yuksek' ? '🔴 YÜKSEK RİSK' : sonuc.seviye === 'orta' ? '🟡 ORTA RİSK' : '🟢 DÜŞÜK RİSK';
+  const veriVar = sonuc.modKdv || sonuc.modBey || sonuc.modBabs || sonuc.modDk;
+
+  let html = '<div style="margin-bottom:4px;font-size:19px;font-weight:700;color:var(--text);">🏢 ' + ad + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:20px;">Dönem: ' + donem + '</div>';
+
+  // Risk skoru kutusu
+  if (veriVar) {
+    html += '<div class="rr-detay-risk-box">'
+      + '<div class="rr-detay-skor-num ' + sonuc.seviye + '">' + sonuc.puan + '</div>'
+      + '<div>'
+        + '<div style="font-size:14px;font-weight:600;color:var(--text);">' + seviyeText + '</div>'
+        + '<div style="font-size:12px;color:var(--text3);margin-top:2px;">100 puan üzerinden</div>'
+      + '</div>'
+    + '</div>';
+
+    // Kritik riskler
+    if (sonuc.detaylar.length > 0) {
+      html += '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Tespit Edilen Sorunlar</div>';
+      html += '<ul class="rr-detay-liste">';
+      sonuc.detaylar.forEach(d => {
+        const ikon = d.tip === 'hata' ? '❌' : d.tip === 'uyari' ? '⚠️' : 'ℹ️';
+        html += '<li class="rr-detay-satir"><span>' + ikon + '</span><span>' + d.mesaj + '</span></li>';
+      });
+      html += '</ul>';
+    }
+
+    // Modül bazlı özet
+    html += '<div style="margin-top:20px;font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Kontrol Modülleri</div>';
+    html += '<ul class="rr-detay-liste">';
+    function modSatir(baslik, mod, maxPuan) {
+      if (!mod) return '<li class="rr-detay-satir"><span>—</span><span style="color:var(--text3);">' + baslik + ': veri yok</span></li>';
+      const ikon = mod.durum === 'ok' ? '✅' : mod.durum === 'uyari' ? '🟡' : '❌';
+      const renk = mod.durum === 'ok' ? 'var(--accent2)' : mod.durum === 'uyari' ? '#facc15' : '#f87171';
+      return '<li class="rr-detay-satir"><span>' + ikon + '</span><span>' + baslik + '</span>'
+        + '<span style="margin-left:auto;font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:' + renk + ';">+' + mod.puan + '/' + maxPuan + ' pt</span></li>';
+    }
+    html += modSatir('KDV Mutabakat', sonuc.modKdv, 30);
+    html += modSatir('Beyanname Kontrol', sonuc.modBey, 30);
+    html += modSatir('Ba/Bs Kontrol', sonuc.modBabs, 20);
+    html += modSatir('Dönem Kapanış', sonuc.modDk, 10);
+    html += '</ul>';
+
+  } else {
+    html += '<div style="text-align:center;padding:32px;color:var(--text3);">'
+      + '<div style="font-size:32px;margin-bottom:12px;">📂</div>'
+      + '<div>Bu mükellef için henüz kontrol çalıştırılmadı.</div>'
+      + '<div style="font-size:12px;margin-top:8px;">KDV Mutabakat, Beyanname Kontrol veya Ba/Bs modüllerinde bu mükellef seçilerek kontrol çalıştırın.</div>'
+      + '</div>';
+  }
+
+  icerik.innerHTML = html;
+  panel.style.display = 'block';
+
+  // AI analiz panelini sıfırla
+  const aiMetin = document.getElementById('rrAIMetin');
+  if (aiMetin) { aiMetin.style.display = 'none'; aiMetin.textContent = ''; }
+
+  // Panele scroll et
+  setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+// Detay panelini kapat
+function rrDetayKapat() {
+  const panel = document.getElementById('rrDetayPanel');
+  if (panel) panel.style.display = 'none';
+  _rrAktifMukellef = null;
+}
+
+// AI ile detaylı risk analizi
+async function riskAIAnalizEt() {
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
+  if (!_rrAktifMukellef) { showNotif('⚠️ Önce bir mükellef seçin.', 'error'); return; }
+
+  const btn   = document.getElementById('rrAIBtn');
+  const panel = document.getElementById('rrAIMetin');
+  if (!btn || !panel) return;
+
+  const donem = _rrDonem();
+  const sonuc = _riskHesapla(_rrAktifMukellef, donem);
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Analiz ediliyor...';
+  panel.style.display = 'block';
+  panel.textContent = 'Claude analizi hazırlanıyor...';
+
+  // AI için JSON rapor oluştur
+  const raporJSON = JSON.stringify({
+    mukellef: _rrAktifMukellef,
+    donem,
+    risk_puani: sonuc.puan,
+    risk_seviyesi: sonuc.seviye,
+    sorunlar: sonuc.detaylar,
+    kdv_mutabakat: sonuc.modKdv || 'veri_yok',
+    beyanname_kontrol: sonuc.modBey || 'veri_yok',
+    babs_kontrol: sonuc.modBabs || 'veri_yok',
+    donem_kapanis: sonuc.modDk || 'veri_yok'
+  }, null, 2);
+
+  const prompt = `Sen deneyimli bir Türk muhasebeci ve vergi danışmanısın.
+Aşağıda bir mükellefin risk değerlendirmesi var:
+
+${raporJSON}
+
+Lütfen şu başlıklar altında Türkçe yanıt ver:
+1) BU MÜKELLEFİN EN KRİTİK 3 RİSKİ NEDİR?
+2) ACİLEN YAPILMASI GEREKENLER
+3) BEYANNAME VERMEDEN ÖNCE KONTROL EDİLECEKLER
+4) UZUN VADELİ İYİLEŞTİRME ÖNERİLERİ
+
+Düz metin, kısa ve uygulanabilir öneriler ver. Teknik terimler Türkçe olsun.`;
+
+  try {
+    const yanit = await callClaude(prompt, null, true);
+    panel.textContent = yanit;
+  } catch(e) {
+    panel.textContent = '⚠️ AI analizi alınamadı: ' + (e.message || e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 Analiz Et';
+  }
+}
+
+// Risk raporunu Excel olarak indir
+function riskExcelIndir() {
+  if (typeof XLSX === 'undefined') { showNotif('⚠️ Excel kütüphanesi yüklenmedi.', 'error'); return; }
+  const donem = _rrDonem();
+  const liste = (mukellefler || []).map(m => {
+    const ad = m.ad || m || '';
+    const r  = _riskHesapla(ad, donem);
+    return {
+      'Mükellef':        ad,
+      'Dönem':           donem,
+      'Risk Puanı':      r.puan,
+      'Risk Seviyesi':   r.seviye === 'yuksek' ? 'Yüksek' : r.seviye === 'orta' ? 'Orta' : 'Düşük',
+      'KDV Mutabakat':   r.modKdv  ? (r.modKdv.durum  === 'ok' ? 'OK' : r.modKdv.durum  === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
+      'Beyanname':       r.modBey  ? (r.modBey.durum  === 'ok' ? 'OK' : r.modBey.durum  === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
+      'Ba/Bs':           r.modBabs ? (r.modBabs.durum === 'ok' ? 'OK' : r.modBabs.durum === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
+      'Dönem Kapanış':   r.modDk   ? (r.modDk.durum  === 'ok' ? 'OK' : r.modDk.durum  === 'uyari' ? 'Uyarı' : 'Sorun') : '-',
+      'Tespit Edilen Sorunlar': r.detaylar.map(d => d.mesaj).join('; ') || '-'
+    };
+  });
+  const ws  = XLSX.utils.json_to_sheet(liste);
+  const wb  = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Risk Raporu');
+  XLSX.writeFile(wb, 'risk-raporu-' + donem + '.xlsx');
+  showNotif('✅ Risk raporu indirildi!', 'success');
 }
 
 // ===================== MÜKELLEF WORKSPACE =====================
