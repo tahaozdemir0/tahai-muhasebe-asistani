@@ -451,6 +451,64 @@
     color: var(--text);
   }
 
+  /* ===== KDV MUTABAKAT MODÜLÜ ===== */
+  .kdvmut-ozet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .kdvmut-kart {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .kdvmut-kart-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .kdvmut-kart-deger { font-size: 22px; font-weight: 700; color: var(--text); }
+  .kdvmut-kart-deger.pozitif { color: #e05c5c; }
+  .kdvmut-kart-deger.negatif { color: var(--accent2); }
+  .kdvmut-kart-deger.ok      { color: var(--accent2); }
+  .kdvmut-kart-deger.warn    { color: #f0a500; }
+  .kdvmut-kart-deger.error   { color: #e05c5c; }
+
+  .kdvmut-tablo { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .kdvmut-tablo th {
+    background: var(--surface2);
+    color: var(--text3);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  .kdvmut-tablo td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .kdvmut-tablo tr:last-child td { border-bottom: none; }
+  .kdvmut-tablo tr:hover td { background: var(--surface2); }
+  .kdvmut-tablo .sayi { text-align: right; font-family: 'IBM Plex Mono', monospace; }
+  .kdvmut-tablo .fark-sifir { color: var(--accent2); }
+  .kdvmut-tablo .fark-kucuk { color: #f0a500; }
+  .kdvmut-tablo .fark-buyuk { color: #e05c5c; font-weight: 600; }
+  .kdvmut-tablo .durum-ok   { color: var(--accent2); font-size: 15px; }
+  .kdvmut-tablo .durum-warn { color: #f0a500; font-size: 15px; }
+  .kdvmut-tablo .durum-err  { color: #e05c5c; font-size: 15px; }
+  .kdvmut-tablo .durum-info { color: var(--text3); font-size: 15px; }
+
+  .kdvmut-uyari-panel { border-radius: 10px; padding: 16px 18px; border: 1px solid var(--border); }
+  .kdvmut-uyari-panel.ok   { background: rgba(34,197,94,.07); border-color: rgba(34,197,94,.3); }
+  .kdvmut-uyari-panel.warn { background: rgba(240,165,0,.07); border-color: rgba(240,165,0,.3); }
+  .kdvmut-uyari-panel.err  { background: rgba(224,92,92,.07);  border-color: rgba(224,92,92,.3); }
+  .kdvmut-uyari-satir { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; font-size: 13px; }
+
+  .kdvmut-sekme-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+  .kdvmut-sekme-btn {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: none; cursor: pointer; font-size: 12px; color: var(--text2);
+    transition: all .15s;
+  }
+  .kdvmut-sekme-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
   /* Kontrol Paneli placeholder sayfası */
   .kp-placeholder {
     display: flex;
@@ -2510,19 +2568,93 @@
       </div>
     </div>
 
+    <!-- ===== KDV MUTABAKAT MODÜLÜ ===== -->
     <div class="page" id="page-kdv-mutabakat">
-      <div class="card">
-        <div class="kp-placeholder">
-          <div class="kp-placeholder-icon">🔍</div>
-          <div class="kp-placeholder-title">KDV Mutabakat</div>
-          <div class="kp-placeholder-desc">
-            KDV beyannamesi ile defter kayıtlarının karşılaştırılması,
-            fark analizi ve uyarı sistemi bu modülde yer alacak.
-          </div>
-          <div class="kp-placeholder-badge">YAKINDA AKTİF OLACAK</div>
+
+      <!-- Başlık -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:20px;font-weight:700;color:var(--text);">🔍 KDV Mutabakat Kontrol</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:4px;">
+          Beyanname öncesi 191 / 391 / 360.03 hesaplarının mizanla mutabakatı
         </div>
       </div>
+
+      <!-- Yükleme paneli -->
+      <div class="card" id="kdvMutYuklemePanel">
+        <div class="card-title" style="margin-bottom:16px;">📂 Mizan Excel'i Yükle</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <!-- Mükellef seçici -->
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">MÜKELLEf</label>
+            <select id="kdvMutMukellef" class="input" onchange="kdvMutMukellefDegisti()">
+              <option value="">-- Mükellef Seç --</option>
+            </select>
+          </div>
+          <!-- Dönem seçici -->
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">DÖNEM (AY/YIL)</label>
+            <input type="month" id="kdvMutDonem" class="input" />
+          </div>
+        </div>
+
+        <!-- Dosya yükleme alanı -->
+        <div class="upload-zone" onclick="document.getElementById('kdvMutFileInput').click()"
+             ondragover="event.preventDefault()" ondrop="event.preventDefault();kdvMutHandleFile(event.dataTransfer.files[0])">
+          <input type="file" id="kdvMutFileInput" accept=".xlsx,.xls"
+                 style="display:none" onchange="kdvMutHandleFile(this.files[0])">
+          <div style="font-size:28px;margin-bottom:8px;">📊</div>
+          <div style="font-size:14px;color:var(--text2);">Luca Mizan Excel'ini buraya sürükle veya tıkla</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px;">.xlsx / .xls — Hesap Kodu, Borç/Alacak Toplamı ve Bakiyesi olan format</div>
+        </div>
+
+        <!-- Yüklenen dosya bilgisi -->
+        <div id="kdvMutDosyaBilgi" style="display:none;margin-top:12px;padding:10px 14px;
+             background:var(--surface2);border-radius:8px;border:1px solid var(--border);
+             font-size:13px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">📄</span>
+          <span id="kdvMutDosyaAd" style="color:var(--text);font-weight:500;"></span>
+          <span id="kdvMutDosyaSatir" style="color:var(--text3);font-size:12px;"></span>
+        </div>
+
+        <!-- Kontrol butonu -->
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" id="kdvMutBtn" onclick="kdvMutHesapla()" disabled>
+            🔍 KDV Kontrol Et
+          </button>
+          <button class="btn btn-outline" onclick="kdvMutSifirla()" style="opacity:.7;">↺ Sıfırla</button>
+        </div>
+      </div>
+
+      <!-- Sonuç paneli (başta gizli) -->
+      <div id="kdvMutSonucPanel" style="display:none;">
+
+        <!-- 4 özet kart -->
+        <div class="kdvmut-ozet-grid" id="kdvMutKartlar"></div>
+
+        <!-- Detay tablosu -->
+        <div class="card">
+          <!-- Sekme seçici: Kontrol / Hesaplanan / İndirilecek -->
+          <div class="kdvmut-sekme-bar">
+            <button class="kdvmut-sekme-btn active" onclick="kdvMutSekme('kontrol',this)">📋 Kontrol Özeti</button>
+            <button class="kdvmut-sekme-btn" onclick="kdvMutSekme('hesaplanan',this)">391 Hesaplanan</button>
+            <button class="kdvmut-sekme-btn" onclick="kdvMutSekme('indirilecek',this)">191 İndirilecek</button>
+          </div>
+          <div id="kdvMutTablo"></div>
+        </div>
+
+        <!-- Uyarılar / Sonuç paneli -->
+        <div id="kdvMutUyarilar"></div>
+
+        <!-- Export butonları -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="kdvMutExcelIndir()">⬇️ Excel İndir</button>
+          <button class="btn btn-outline" onclick="kdvMutYazdir()">🖨️ Yazdır / PDF</button>
+        </div>
+
+      </div>
     </div>
+    <!-- ===== KDV MUTABAKAT SONU ===== -->
 
     <div class="page" id="page-babs-kontrol">
       <div class="card">
@@ -2864,6 +2996,359 @@ function showKontrolPaneli(id, el) {
   document.getElementById('page-' + id).classList.add('active');
   // Tıklanan alt sekmeyi aktif yap
   if (el) el.classList.add('active');
+  // KDV Mutabakat sayfası açılınca mükellef listesini doldur
+  if (id === 'kdv-mutabakat') kdvMutMukellefDoldur();
+}
+
+// ===================== KDV MUTABAKAT MODÜLÜ =====================
+
+let _kdvMutSatirlar = [];   // Bu modüle ait parse edilmiş mizan satırları
+let _kdvMutSonuc    = null; // Son hesaplama sonucu (export için saklanır)
+
+// Mükellef seçiciyi doldur
+function kdvMutMukellefDoldur() {
+  const sel = document.getElementById('kdvMutMukellef');
+  if (!sel) return;
+  const mevcut = sel.value;
+  sel.innerHTML = '<option value="">-- Mükellef Seç --</option>';
+  mukellefler.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.ad || m;
+    opt.textContent = m.ad || m;
+    sel.appendChild(opt);
+  });
+  // Global mükellef seçiliyse otomatik seç
+  if (_gmSecili) sel.value = _gmSecili;
+  else if (mevcut) sel.value = mevcut;
+}
+
+function kdvMutMukellefDegisti() { /* ileride dönem arşivi eklenebilir */ }
+
+// Excel dosyası yükleme — mevcut SheetJS pattern'ini kullan
+function kdvMutHandleFile(file) {
+  if (!file) return;
+
+  function doparse() {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        _kdvMutParseSatirlar(raw, file.name);
+      } catch(err) {
+        showNotif('❌ Excel okunamadı: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  if (typeof XLSX !== 'undefined') { doparse(); }
+  else {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = doparse;
+    document.head.appendChild(s);
+  }
+}
+
+// Mizan parse — mevcut parseMizanSatirlar mantığını kopyalamadan, ortak sayi() yardımcısını kullan
+function _kdvMutParseSatirlar(raw, dosyaAdi) {
+  // Başlık satırını bul
+  let baslikIdx = -1;
+  for (let i = 0; i < raw.length; i++) {
+    const s = raw[i].join(' ').toLowerCase();
+    if (s.includes('hesap') && (s.includes('borç') || s.includes('bor'))) { baslikIdx = i; break; }
+  }
+  if (baslikIdx === -1) {
+    showNotif('⚠️ Mizan formatı tanınamadı. Luca mizan Excel yükleyin.', 'error');
+    return;
+  }
+
+  // Sütun indexlerini tespit et (mevcut parseMizanSatirlar ile aynı mantık)
+  const baslik = raw[baslikIdx].map(c => (c + '').toLowerCase());
+  const col = (fn) => { const i = baslik.findIndex(fn); return i >= 0 ? i : null; };
+  const idxKod  = col(c => c.includes('hesap') && c.includes('kod')) ?? 0;
+  const idxAd   = col(c => c.includes('hesap') && (c.includes('ad') || c.includes('ün'))) ?? 1;
+  const idxBorcT = col(c => c.includes('borç') && c.includes('top')) ?? 2;
+  const idxAlcT  = col(c => c.includes('alacak') && c.includes('top')) ?? 3;
+  const idxBorcB = col(c => c.includes('borç') && c.includes('bak')) ?? 4;
+  const idxAlcB  = col(c => c.includes('alacak') && c.includes('bak')) ?? 5;
+
+  // Türkçe sayı parse (aynı fmt modülündeki mantık)
+  const sayi = v => {
+    if (v === '' || v == null) return 0;
+    if (typeof v === 'number') return v;
+    const s = (v + '').trim();
+    return s.includes(',')
+      ? parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0
+      : parseFloat(s.replace(/,/g, '')) || 0;
+  };
+
+  const satirlar = [];
+  for (let i = baslikIdx + 1; i < raw.length; i++) {
+    const row = raw[i];
+    const kod = (row[idxKod] + '').trim();
+    if (!kod || /toplam|genel/i.test(kod) || !/^\d/.test(kod)) continue;
+    satirlar.push({
+      hesap_kodu : kod,
+      hesap_adi  : (row[idxAd]  + '').trim(),
+      borc_top   : sayi(row[idxBorcT]),
+      alacak_top : sayi(row[idxAlcT]),
+      borc_bak   : sayi(row[idxBorcB]),
+      alacak_bak : sayi(row[idxAlcB]),
+    });
+  }
+
+  if (satirlar.length === 0) { showNotif('⚠️ Mizan satırı bulunamadı.', 'error'); return; }
+
+  _kdvMutSatirlar = satirlar;
+
+  // Dosya bilgisini göster
+  const bilgiEl = document.getElementById('kdvMutDosyaBilgi');
+  bilgiEl.style.display = 'flex';
+  document.getElementById('kdvMutDosyaAd').textContent = dosyaAdi;
+  document.getElementById('kdvMutDosyaSatir').textContent = '— ' + satirlar.length + ' hesap satırı';
+
+  // Kontrol butonunu aktif et
+  document.getElementById('kdvMutBtn').disabled = false;
+  showNotif('✅ ' + satirlar.length + ' hesap satırı yüklendi', 'success');
+}
+
+// Ana KDV analiz fonksiyonu
+function kdvMutHesapla() {
+  if (_kdvMutSatirlar.length === 0) { showNotif('⚠️ Önce mizan Excel yükleyin.', 'error'); return; }
+
+  // ── 391 hesapları (Hesaplanan KDV) → alacak bakiye topla ──────────────
+  const hesap391 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('391'));
+  const toplam391 = hesap391.reduce((s, r) => s + r.alacak_bak, 0);
+
+  // Oran bazlı 391 dağılımı
+  const _391bul = (alt) => hesap391.filter(r => r.hesap_kodu.startsWith(alt));
+  const kdv391 = {
+    yuzde1 : _391bul('391.01.010').reduce((s,r)=>s+r.alacak_bak,0),
+    yuzde10: _391bul('391.01.030').reduce((s,r)=>s+r.alacak_bak,0),
+    yuzde20: _391bul('391.01.020').reduce((s,r)=>s+r.alacak_bak,0),
+    diger  : hesap391.filter(r =>
+               !r.hesap_kodu.startsWith('391.01.010') &&
+               !r.hesap_kodu.startsWith('391.01.030') &&
+               !r.hesap_kodu.startsWith('391.01.020')
+             ).reduce((s,r)=>s+r.alacak_bak,0),
+  };
+
+  // ── 191 hesapları (İndirilecek KDV) → borç bakiye topla ───────────────
+  const hesap191 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('191'));
+  const toplam191 = hesap191.reduce((s, r) => s + r.borc_bak, 0);
+
+  const kdv191 = {
+    yuzde1 : hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.001')).reduce((s,r)=>s+r.borc_bak,0),
+    yuzde10: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.010')).reduce((s,r)=>s+r.borc_bak,0),
+    yuzde20: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.020')).reduce((s,r)=>s+r.borc_bak,0),
+    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith('191.03')).reduce((s,r)=>s+r.borc_bak,0),
+  };
+
+  // ── KDV-2: 360.03 vs 191.03 ───────────────────────────────────────────
+  const hesap36003 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('360.03'));
+  const kdv2Sorumlu = hesap36003.reduce((s, r) => s + r.alacak_bak, 0);
+  const kdv2Indirim = kdv191.tevkifat;
+  const kdv2Fark    = Math.abs(kdv2Sorumlu - kdv2Indirim);
+
+  // ── Net KDV ───────────────────────────────────────────────────────────
+  const netKdv = toplam391 - toplam191;  // pozitif = ödenecek, negatif = devreden
+
+  // ── Kontrol satırları oluştur ─────────────────────────────────────────
+  const _durumHesapla = (fark) => {
+    if (Math.abs(fark) < 0.01)  return { ikon: '✅', cls: 'ok' };
+    if (Math.abs(fark) <= 1)    return { ikon: '⚠️', cls: 'warn' };
+    return                              { ikon: '❌', cls: 'err' };
+  };
+
+  const kontroller = [
+    {
+      ad: '391 Toplam Hesaplanan KDV',
+      beklenen: toplam391, bulunan: toplam391, fark: 0,
+      durum: _durumHesapla(0), bilgi: hesap391.length + ' hesap'
+    },
+    {
+      ad: '191 Toplam İndirilecek KDV',
+      beklenen: toplam191, bulunan: toplam191, fark: 0,
+      durum: _durumHesapla(0), bilgi: hesap191.length + ' hesap'
+    },
+    ...(kdv2Sorumlu > 0 || kdv2Indirim > 0 ? [{
+      ad: 'KDV-2 (360.03 Sorumlu = 191.03 Tevkifat)',
+      beklenen: kdv2Sorumlu, bulunan: kdv2Indirim, fark: kdv2Fark,
+      durum: _durumHesapla(kdv2Fark), bilgi: ''
+    }] : []),
+    { ad: '%1 Hesaplanan (391.01.010)', beklenen: null, bulunan: kdv391.yuzde1,  fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%10 Hesaplanan (391.01.030)', beklenen: null, bulunan: kdv391.yuzde10, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%20 Hesaplanan (391.01.020)', beklenen: null, bulunan: kdv391.yuzde20, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%1 İndirilecek (191.01.001)',  beklenen: null, bulunan: kdv191.yuzde1,  fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%10 İndirilecek (191.01.010)', beklenen: null, bulunan: kdv191.yuzde10, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%20 İndirilecek (191.01.020)', beklenen: null, bulunan: kdv191.yuzde20, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+  ];
+
+  // ── Uyarılar ──────────────────────────────────────────────────────────
+  const uyarilar = [];
+  if (hesap391.length === 0) uyarilar.push({ tip:'warn', mesaj: '391 hesabı bulunamadı. Hesaplanan KDV kaydı yok mu?' });
+  if (hesap191.length === 0) uyarilar.push({ tip:'warn', mesaj: '191 hesabı bulunamadı. İndirilecek KDV kaydı yok mu?' });
+  if (kdv2Fark > 1)          uyarilar.push({ tip:'err',  mesaj: 'KDV-2: 360.03 (' + fmt(kdv2Sorumlu) + ' ₺) ile 191.03 (' + fmt(kdv2Indirim) + ' ₺) arasında ' + fmt(kdv2Fark) + ' ₺ fark var.' });
+  if (netKdv > 0)            uyarilar.push({ tip:'info', mesaj: fmt(netKdv) + ' ₺ ödenecek KDV tespit edildi.' });
+  else if (netKdv < 0)       uyarilar.push({ tip:'info', mesaj: fmt(Math.abs(netKdv)) + ' ₺ sonraki aya devreden KDV.' });
+  if (uyarilar.length === 0) uyarilar.push({ tip:'ok',   mesaj: 'KDV mutabakatı kontrol edildi, kritik uyarı bulunmadı.' });
+
+  _kdvMutSonuc = { toplam391, toplam191, netKdv, kdv2Sorumlu, kdv2Indirim, kdv2Fark, kontroller, uyarilar, hesap391, hesap191 };
+  _kdvMutRenderSonuc(_kdvMutSonuc);
+}
+
+// Sonuçları ekrana yansıt
+function _kdvMutRenderSonuc(s) {
+  // ── 4 Özet Kart ───────────────────────────────────────────────────────
+  const netCls = s.netKdv > 0 ? 'pozitif' : (s.netKdv < 0 ? 'negatif' : 'ok');
+  const netLbl = s.netKdv >= 0 ? '💸 Ödenecek KDV' : '↩️ Devreden KDV';
+  const genelDurum = s.uyarilar.some(u=>u.tip==='err') ? {ikon:'❌',cls:'error',lbl:'Kontrol Hatası'}
+                   : s.uyarilar.some(u=>u.tip==='warn') ? {ikon:'⚠️',cls:'warn',lbl:'Uyarı Var'}
+                   : {ikon:'✅',cls:'ok',lbl:'Mutabık'};
+  document.getElementById('kdvMutKartlar').innerHTML = `
+    <div class="kdvmut-kart">
+      <div class="kdvmut-kart-label">📈 Hesaplanan KDV (391)</div>
+      <div class="kdvmut-kart-deger">${fmt(s.toplam391)} ₺</div>
+    </div>
+    <div class="kdvmut-kart">
+      <div class="kdvmut-kart-label">📉 İndirilecek KDV (191)</div>
+      <div class="kdvmut-kart-deger">${fmt(s.toplam191)} ₺</div>
+    </div>
+    <div class="kdvmut-kart">
+      <div class="kdvmut-kart-label">${netLbl}</div>
+      <div class="kdvmut-kart-deger ${netCls}">${fmt(Math.abs(s.netKdv))} ₺</div>
+    </div>
+    <div class="kdvmut-kart">
+      <div class="kdvmut-kart-label">🔎 Kontrol Durumu</div>
+      <div class="kdvmut-kart-deger ${genelDurum.cls}">${genelDurum.ikon} ${genelDurum.lbl}</div>
+    </div>
+  `;
+
+  // ── Tablo (kontrol özeti sekmesi varsayılan) ──────────────────────────
+  _kdvMutTabloRender('kontrol');
+
+  // ── Uyarılar paneli ───────────────────────────────────────────────────
+  const anaUyari = s.uyarilar.find(u=>u.tip==='err') || s.uyarilar.find(u=>u.tip==='warn') || s.uyarilar[0];
+  const panelCls = anaUyari.tip === 'err' ? 'err' : anaUyari.tip === 'warn' ? 'warn' : 'ok';
+  document.getElementById('kdvMutUyarilar').innerHTML = `
+    <div class="kdvmut-uyari-panel ${panelCls}">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--text);">📋 Kontrol Sonuçları</div>
+      ${s.uyarilar.map(u => {
+        const ikon = u.tip==='err'?'❌':u.tip==='warn'?'⚠️':u.tip==='ok'?'✅':'ℹ️';
+        return `<div class="kdvmut-uyari-satir"><span>${ikon}</span><span>${u.mesaj}</span></div>`;
+      }).join('')}
+    </div>
+  `;
+
+  // Paneli göster
+  document.getElementById('kdvMutSonucPanel').style.display = 'block';
+}
+
+// Tablo içeriğini sekmeye göre render et
+function _kdvMutTabloRender(sekme) {
+  if (!_kdvMutSonuc) return;
+  const s = _kdvMutSonuc;
+  let html = '';
+
+  if (sekme === 'kontrol') {
+    html = `<table class="kdvmut-tablo">
+      <thead><tr>
+        <th>Kontrol</th><th class="sayi">Beklenen</th>
+        <th class="sayi">Bulunan</th><th class="sayi">Fark</th><th>Durum</th>
+      </tr></thead><tbody>
+      ${s.kontroller.map(k => {
+        const farkCls = k.fark === null ? '' : Math.abs(k.fark) < 0.01 ? 'fark-sifir' : Math.abs(k.fark) <= 1 ? 'fark-kucuk' : 'fark-buyuk';
+        const beklenenStr = k.beklenen === null ? '<span style="color:var(--text3)">—</span>' : fmt(k.beklenen) + ' ₺';
+        const farkStr     = k.fark === null     ? '<span style="color:var(--text3)">—</span>' : fmt(Math.abs(k.fark)) + ' ₺';
+        return `<tr>
+          <td>${k.ad}${k.bilgi?'<br><span style="font-size:11px;color:var(--text3)">'+k.bilgi+'</span>':''}</td>
+          <td class="sayi">${beklenenStr}</td>
+          <td class="sayi">${fmt(k.bulunan)} ₺</td>
+          <td class="sayi ${farkCls}">${farkStr}</td>
+          <td class="durum-${k.durum.cls}">${k.durum.ikon}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+  } else if (sekme === 'hesaplanan') {
+    html = `<table class="kdvmut-tablo">
+      <thead><tr><th>Hesap Kodu</th><th>Hesap Adı</th><th class="sayi">Borç Bakiye</th><th class="sayi">Alacak Bakiye</th></tr></thead>
+      <tbody>${s.hesap391.length ? s.hesap391.map(r=>`<tr>
+        <td style="font-family:'IBM Plex Mono',monospace">${r.hesap_kodu}</td>
+        <td>${r.hesap_adi}</td>
+        <td class="sayi">${r.borc_bak ? fmt(r.borc_bak)+' ₺' : '—'}</td>
+        <td class="sayi" style="color:var(--accent2);font-weight:600">${fmt(r.alacak_bak)} ₺</td>
+      </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">391 hesabı bulunamadı</td></tr>'}
+      <tr style="border-top:2px solid var(--border)">
+        <td colspan="3" style="font-weight:700">TOPLAM</td>
+        <td class="sayi" style="font-weight:700;color:var(--accent2)">${fmt(s.toplam391)} ₺</td>
+      </tr></tbody></table>`;
+  } else if (sekme === 'indirilecek') {
+    html = `<table class="kdvmut-tablo">
+      <thead><tr><th>Hesap Kodu</th><th>Hesap Adı</th><th class="sayi">Borç Bakiye</th><th class="sayi">Alacak Bakiye</th></tr></thead>
+      <tbody>${s.hesap191.length ? s.hesap191.map(r=>`<tr>
+        <td style="font-family:'IBM Plex Mono',monospace">${r.hesap_kodu}</td>
+        <td>${r.hesap_adi}</td>
+        <td class="sayi" style="color:var(--accent2);font-weight:600">${fmt(r.borc_bak)} ₺</td>
+        <td class="sayi">${r.alacak_bak ? fmt(r.alacak_bak)+' ₺' : '—'}</td>
+      </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">191 hesabı bulunamadı</td></tr>'}
+      <tr style="border-top:2px solid var(--border)">
+        <td colspan="2" style="font-weight:700">TOPLAM</td>
+        <td class="sayi" style="font-weight:700;color:var(--accent2)">${fmt(s.toplam191)} ₺</td>
+        <td></td>
+      </tr></tbody></table>`;
+  }
+  document.getElementById('kdvMutTablo').innerHTML = html;
+}
+
+// Sekme değiştirince tabloyu yenile
+function kdvMutSekme(sekme, el) {
+  document.querySelectorAll('.kdvmut-sekme-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  _kdvMutTabloRender(sekme);
+}
+
+// Modülü sıfırla
+function kdvMutSifirla() {
+  _kdvMutSatirlar = [];
+  _kdvMutSonuc    = null;
+  document.getElementById('kdvMutFileInput').value = '';
+  document.getElementById('kdvMutDosyaBilgi').style.display = 'none';
+  document.getElementById('kdvMutBtn').disabled = true;
+  document.getElementById('kdvMutSonucPanel').style.display = 'none';
+}
+
+// CSV export
+function kdvMutExcelIndir() {
+  if (!_kdvMutSonuc) return;
+  const s = _kdvMutSonuc;
+  const donem = document.getElementById('kdvMutDonem').value || 'donem';
+  const mukellef = document.getElementById('kdvMutMukellef').value || 'mukellef';
+
+  let csv = 'KDV Mutabakat Raporu\n';
+  csv += 'Mükellef:,' + mukellef + '\n';
+  csv += 'Dönem:,' + donem + '\n\n';
+  csv += 'Hesaplanan KDV (391):,' + fmt(s.toplam391) + ' ₺\n';
+  csv += 'İndirilecek KDV (191):,' + fmt(s.toplam191) + ' ₺\n';
+  csv += (s.netKdv >= 0 ? 'Ödenecek KDV:,' : 'Devreden KDV:,') + fmt(Math.abs(s.netKdv)) + ' ₺\n\n';
+  csv += 'Kontrol;Beklenen;Bulunan;Fark;Durum\n';
+  s.kontroller.forEach(k => {
+    csv += `${k.ad};${k.beklenen===null?'':fmt(k.beklenen)+' ₺'};${fmt(k.bulunan)} ₺;${k.fark===null?'':fmt(Math.abs(k.fark))+' ₺'};${k.durum.ikon}\n`;
+  });
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kdv_mutabakat_${mukellef}_${donem}.csv`;
+  a.click();
+}
+
+// Yazdır / PDF
+function kdvMutYazdir() {
+  if (!_kdvMutSonuc) return;
+  window.print();
 }
 
 function showPage(id) {
