@@ -2661,7 +2661,7 @@
           <!-- Yüklenen dosya bilgisi -->
           <div id="beyDosyaBilgi" style="display:none;margin-top:10px;padding:10px 14px;
                background:var(--surface2);border-radius:8px;border:1px solid var(--border);
-               display:none;align-items:center;gap:10px;font-size:13px;">
+               align-items:center;gap:10px;font-size:13px;">
             <span>📄</span>
             <span id="beyDosyaAd" style="color:var(--text);font-weight:500;flex:1;"></span>
             <span id="beyDosyaSatir" style="color:var(--text3);font-size:12px;"></span>
@@ -3832,18 +3832,16 @@ function _beyGeciciVergi(s) {
 // Ana kontrol fonksiyonu
 function beyKontrolHesapla() {
   const veri = _beyGetSatirlar();
-  const uyariEl  = document.getElementById('beyMizanUyari');
   const kaynakEl = document.getElementById('beyMizanKaynak');
   const sonucEl  = document.getElementById('beyKontrolSonucPanel');
 
   if (!veri) {
-    uyariEl.style.display  = 'block';
+    showNotif('⚠️ Önce mizan Excel yükleyin.', 'error');
     kaynakEl.style.display = 'none';
     sonucEl.style.display  = 'none';
     return;
   }
 
-  uyariEl.style.display = 'none';
   kaynakEl.style.display = 'flex';
   document.getElementById('beyMizanKaynakIkon').textContent  = veri.kaynak === 'KDV Mutabakat' ? '📊' : '📋';
   document.getElementById('beyMizanKaynakMetin').textContent = veri.kaynak + ' modülünden yüklendi';
