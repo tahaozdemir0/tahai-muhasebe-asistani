@@ -599,10 +599,12 @@
   .content {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 32px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+    min-width: 0;
   }
 
   .page { display: none; }
@@ -2628,7 +2630,7 @@
 
       <!-- Ayarlar kartı -->
       <div class="card" id="beyAyarPanel">
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;flex-wrap:wrap;">
           <div>
             <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">MÜKELLEf</label>
             <select id="beyMukellef" class="input" style="width:100%"></select>
@@ -2640,23 +2642,38 @@
           <button class="btn btn-primary" onclick="beyKontrolHesapla()">🔍 Kontrol Et</button>
         </div>
 
+        <!-- Mizan yükleme alanı -->
+        <div style="margin-top:16px;">
+          <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:8px;">📂 MİZAN EXCEL (Luca formatı)</label>
+          <div id="beyDropZone"
+               style="border:2px dashed var(--border);border-radius:10px;padding:18px 20px;
+                      text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);"
+               onclick="document.getElementById('beyDosyaInput').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+               ondragleave="this.style.borderColor='var(--border)'"
+               ondrop="event.preventDefault();this.style.borderColor='var(--border)';beyHandleFile(event.dataTransfer.files[0])">
+            <div style="font-size:22px;margin-bottom:4px;">📊</div>
+            <div style="font-size:13px;color:var(--text2);">Luca Mizan Excel'ini buraya sürükle veya tıkla</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px;">.xlsx / .xls — Hesap Kodu, Borç/Alacak Toplam ve Bakiyesi olan format</div>
+          </div>
+          <input type="file" id="beyDosyaInput" accept=".xlsx,.xls" style="display:none"
+                 onchange="beyHandleFile(this.files[0])">
+          <!-- Yüklenen dosya bilgisi -->
+          <div id="beyDosyaBilgi" style="display:none;margin-top:10px;padding:10px 14px;
+               background:var(--surface2);border-radius:8px;border:1px solid var(--border);
+               display:none;align-items:center;gap:10px;font-size:13px;">
+            <span>📄</span>
+            <span id="beyDosyaAd" style="color:var(--text);font-weight:500;flex:1;"></span>
+            <span id="beyDosyaSatir" style="color:var(--text3);font-size:12px;"></span>
+          </div>
+        </div>
+
         <!-- Mizan kaynak göstergesi -->
-        <div id="beyMizanKaynak" class="bey-mizan-kaynak" style="margin-top:14px;display:none;">
+        <div id="beyMizanKaynak" class="bey-mizan-kaynak" style="margin-top:12px;display:none;">
           <span id="beyMizanKaynakIkon">📊</span>
           <span id="beyMizanKaynakMetin" style="color:var(--text2);"></span>
           <span style="flex:1"></span>
           <span id="beyMizanKaynakSatir" style="color:var(--text3);"></span>
-        </div>
-
-        <!-- Mizan yüklü değilse uyarı -->
-        <div id="beyMizanUyari" style="display:none;margin-top:14px;padding:12px 16px;
-             background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.3);
-             border-radius:8px;font-size:13px;color:#f0a500;">
-          ⚠️ Mizan verisi bulunamadı.
-          <a onclick="showKontrolPaneli('kdv-mutabakat', document.querySelector('[onclick*=kdv-mutabakat]'))"
-             style="color:var(--accent);cursor:pointer;margin-left:6px;">
-            KDV Mutabakat'ta mizan yükle →
-          </a>
         </div>
       </div>
 
@@ -3586,6 +3603,24 @@ function kdvMutYazdir() {
 
 let _beySonuclar = null;
 
+// Excel yükleme — KDV Mutabakat parse fonksiyonunu paylaşır (_kdvMutSatirlar doldurur)
+function beyHandleFile(file) {
+  if (!file) return;
+  // KDV Mutabakat'ın parse fonksiyonunu çağır (aynı veri deposu)
+  kdvMutHandleFile(file);
+  // Beyanname sayfasındaki dosya bilgi alanını da güncelle
+  const bilgi = document.getElementById('beyDosyaBilgi');
+  if (bilgi) {
+    document.getElementById('beyDosyaAd').textContent = file.name;
+    // Satır sayısı için _kdvMutSatirlar kısa süre sonra dolar → 300ms bekle
+    setTimeout(() => {
+      document.getElementById('beyDosyaSatir').textContent =
+        _kdvMutSatirlar.length + ' hesap';
+      bilgi.style.display = 'flex';
+    }, 400);
+  }
+}
+
 function beyMukellefDoldur() {
   const sel = document.getElementById('beyMukellef');
   if (!sel) return;
@@ -3724,7 +3759,7 @@ function _beyMuhtasar(s) {
 
 // SGK Bildirimi kontrolü
 function _beySgk(s) {
-  const h361 = s.filter(r => r.hesap_kodu.startsWith('361') && _beyYaprakMi(r.hesap_kodu, s));
+  const h361 = s.filter(r => r.hesap_kodu.startsWith('361.') && _beyEnAlt(r.hesap_kodu));
   const t361 = h361.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
 
   const t760 = _beyTopla('760', 'borc_top', s);
