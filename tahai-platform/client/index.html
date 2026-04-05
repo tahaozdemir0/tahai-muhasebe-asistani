@@ -2683,6 +2683,22 @@
         <!-- Trafik lambası özet kartları -->
         <div class="bey-trafik-grid" id="beyTrafikKartlar"></div>
 
+        <!-- AI Analiz paneli -->
+        <div id="beyAIPanel" style="display:none;margin-top:4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-weight:600;font-size:15px;">🤖 AI Analiz</span>
+            <button id="beyAIBtn" onclick="beyAIAnalizEt()"
+              style="background:var(--accent);color:white;border:none;padding:8px 18px;
+                     border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+              🤖 AI ile Analiz Et
+            </button>
+          </div>
+          <div id="beyAIMetin" class="card"
+            style="font-size:14px;line-height:1.7;white-space:pre-wrap;display:none;
+                   color:var(--text);padding:18px;">
+          </div>
+        </div>
+
         <!-- Detay panelleri — her biri ayrı, tıklayınca açılır -->
         <div class="card" id="beyDetayKart" style="display:none;">
           <div id="beyDetayIcerik"></div>
@@ -3874,6 +3890,10 @@ function _beyRenderKartlar(sonuclar) {
   `).join('');
 
   document.getElementById('beyKontrolSonucPanel').style.display = 'block';
+  document.getElementById('beyAIPanel').style.display = 'block';
+  document.getElementById('beyAIMetin').style.display = 'none';
+  const btn = document.getElementById('beyAIBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '🤖 AI ile Analiz Et'; }
   document.getElementById('beyDetayKart').style.display = 'none';
 }
 

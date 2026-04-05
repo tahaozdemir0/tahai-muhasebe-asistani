@@ -158,6 +158,75 @@ async function callClaude(prompt, imageFile, retry) {
   return data.content.map(c => c.text || '').join('');
 }
 
+// ─── Beyanname Kontrol AI Analiz ─────────────────────────────────────────────
+async function beyAIAnalizEt() {
+  if (!_checkSession()) { showNotif('❌ Önce giriş yapın!', 'error'); return; }
+
+  const btn   = document.getElementById('beyAIBtn');
+  const panel = document.getElementById('beyAIMetin');
+  const veri  = _beyGetSatirlar();
+  if (!veri) { showNotif('⚠️ Önce mizan Excel yükleyin.', 'error'); return; }
+
+  const s      = veri.satirlar;
+  const kdv1   = _beyKdv1(s);
+  const muht   = _beyMuhtasar(s);
+  const sgk    = _beySgk(s);
+  const gecici = _beyGeciciVergi(s);
+
+  const detayMetni = (kontrol) =>
+    kontrol.detay
+      .filter(d => !d.baslik)
+      .map(d => `  - ${d.etiket}: ${d.deger || ''}`)
+      .join('\n');
+
+  const rapor = [
+    `KDV-1 Beyannamesi [${kdv1.durum.toUpperCase()}]`,
+    `Özet: ${kdv1.ozet}`,
+    detayMetni(kdv1),
+    '',
+    `Muhtasar Beyanname [${muht.durum.toUpperCase()}]`,
+    `Özet: ${muht.ozet}`,
+    detayMetni(muht),
+    '',
+    `SGK Bildirimi [${sgk.durum.toUpperCase()}]`,
+    `Özet: ${sgk.ozet}`,
+    detayMetni(sgk),
+    '',
+    `Geçici Vergi [${gecici.durum.toUpperCase()}]`,
+    `Özet: ${gecici.ozet}`,
+    detayMetni(gecici),
+  ].join('\n').trim();
+
+  const prompt = `Sen deneyimli bir Türk muhasebeci ve vergi danışmanısın. Aşağıda bir şirkete ait beyanname öncesi mizan kontrol raporu var. Bu raporu analiz et ve mali müşavire yönelik kısa ve net bir değerlendirme yap.
+
+KONTROL RAPORU:
+${rapor}
+
+Lütfen şu başlıklar altında Türkçe yanıt ver:
+
+1) GENEL DURUM ÖZETİ (2-3 cümle)
+2) KRİTİK RİSKLER (varsa)
+3) UYARILAR VE ÖNERİLER
+4) BEYANNAME ÖNCESİ KONTROL EDİLMESİ GEREKENLER
+
+Yanıtın düz metin olsun, JSON veya markdown kullanma. Kısa, net ve uygulanabilir öneriler ver. Muhasebe terminolojisi kullan ama anlaşılır ol.`;
+
+  btn.disabled    = true;
+  btn.textContent = '⏳ Analiz ediliyor...';
+  panel.style.display = 'block';
+  panel.textContent   = 'AI analiz ediyor, lütfen bekleyin...';
+
+  try {
+    const yanit = await callClaude(prompt, null, true);
+    panel.textContent = yanit;
+  } catch (e) {
+    panel.textContent = '❌ AI analiz yapılırken hata oluştu: ' + (e.message || 'Bilinmeyen hata') + '\n\nLütfen tekrar deneyin.';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '🔄 Yeniden Analiz Et';
+  }
+}
+
 // ─── 2. doLogin — JWT Auth + Fallback ────────────────────────────────────────
 // Backend açıksa → JWT token al
 // Backend kapalıysa → eski hash-based auth (değişiklik yok)
