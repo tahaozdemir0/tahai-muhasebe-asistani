@@ -15,6 +15,7 @@ const faturaRoutes   = require('./routes/fatura');
 const claudeRoutes   = require('./routes/claude');
 const syncRoutes     = require('./routes/sync');
 const adminRoutes    = require('./routes/admin');
+const hesapPlaniRoutes = require('./routes/hesap-plani');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -88,7 +89,8 @@ app.use('/api/mizan',    mizanRoutes);
 app.use('/api/fatura',   faturaRoutes);
 app.use('/api/claude',   claudeRoutes);
 app.use('/api/sync',     syncRoutes);
-app.use('/api/admin',    adminRoutes);
+app.use('/api/admin',       adminRoutes);
+app.use('/api/hesap-plani', hesapPlaniRoutes);
 
 // Giriş/Kayıt sayfası
 app.get('/giris', (req, res) => {

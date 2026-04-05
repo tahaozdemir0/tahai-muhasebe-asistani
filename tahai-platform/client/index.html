@@ -653,6 +653,55 @@
   .rr-detay-satir { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
   .rr-detay-satir:last-child { border-bottom:none; }
 
+  /* ===== HESAP PLANI EŞLEŞTİRME MODALI CSS ===== */
+  .hp-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.65);
+    z-index: 9000; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .hp-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    width: 100%; max-width: 780px; max-height: 85vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .hp-modal-baslik {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    font-size: 16px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hp-modal-govde { overflow-y: auto; padding: 20px 24px; flex: 1; }
+  .hp-modal-footer {
+    padding: 14px 24px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .hp-satir {
+    display: grid; grid-template-columns: 130px 1fr 200px 36px;
+    gap: 10px; align-items: center; padding: 8px 0;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .hp-satir:last-child { border-bottom: none; }
+  .hp-satir-baslik {
+    display: grid; grid-template-columns: 130px 1fr 200px 36px;
+    gap: 10px; padding: 6px 0 10px; border-bottom: 2px solid var(--border);
+    font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px;
+    font-weight: 600;
+  }
+  .hp-kod  { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent); }
+  .hp-ad   { color: var(--text2); }
+  .hp-sel  { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+             padding: 5px 8px; color: var(--text); font-size: 12px; width: 100%; }
+  .hp-onay { font-size: 16px; cursor: pointer; background: none; border: none; padding: 2px 6px; border-radius: 4px; }
+  .hp-onay.onaylandi { color: #4ade80; }
+  .hp-onay.onaysiz   { color: var(--text3); }
+  .hp-grup-baslik {
+    font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase;
+    letter-spacing: .8px; margin: 16px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
+  .hp-bilgi-banner {
+    background: rgba(96,165,250,.1); border: 1px solid rgba(96,165,250,.3); border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; color: var(--text2); margin-bottom: 16px;
+  }
+
   /* CONTENT */
   .content {
     flex: 1;
@@ -3096,6 +3145,29 @@
   </div>
 </main>
 
+<!-- ===== HESAP PLANI EŞLEŞTİRME MODALI ===== -->
+<div id="hpModalOverlay" class="hp-modal-overlay" style="display:none;" onclick="if(event.target===this)hpModalKapat()">
+  <div class="hp-modal">
+    <div class="hp-modal-baslik">
+      <span>🗂️</span>
+      <div>
+        <div>Hesap Planı Eşleştirme</div>
+        <div style="font-size:12px;font-weight:400;color:var(--text3);margin-top:2px;" id="hpModalAlt">Mizan hesaplarını beyanname kategorileriyle eşleştirin</div>
+      </div>
+    </div>
+    <div class="hp-modal-govde">
+      <div class="hp-bilgi-banner" id="hpBilgiBanner">
+        Bu mükellef için ilk kez mizan yükleniyor. Tespit edilen hesapları kontrol edip onaylayın — bir sonraki yüklemede bu ekran atlanır.
+      </div>
+      <div id="hpModalIcerik">Yükleniyor...</div>
+    </div>
+    <div class="hp-modal-footer">
+      <button class="btn btn-outline" onclick="hpModalKapat()">Atla</button>
+      <button class="btn btn-primary" onclick="hpModalKaydet()">✅ Tümünü Onayla ve Kaydet</button>
+    </div>
+  </div>
+</div>
+
 <div class="notif" id="notif"></div>
 
 <script>
@@ -3525,6 +3597,10 @@ function _kdvMutParseSatirlar(raw, dosyaAdi) {
   // Kontrol butonunu aktif et
   document.getElementById('kdvMutBtn').disabled = false;
   showNotif('✅ ' + satirlar.length + ' hesap satırı yüklendi', 'success');
+
+  // Hesap planı eşleştirme kontrolü — yeni hesap varsa modal aç
+  const _hpMuk = document.getElementById('kdvMutMukellef')?.value;
+  if (_hpMuk) setTimeout(() => hpKontrolVeAc(_hpMuk, satirlar), 400);
 }
 
 // Ana KDV analiz fonksiyonu
@@ -3547,28 +3623,36 @@ function kdvMutHesapla() {
   const hesap391 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('391.') && enAlt(r.hesap_kodu));
   const toplam391 = hesap391.reduce((s, r) => s + kdvDeger391(r), 0);
 
-  // Oran bazlı 391 dağılımı
+  // Oran bazlı 391 dağılımı — hesap planı eşlemesinden al, yoksa standart prefix
+  const _rrMukKdv = document.getElementById('kdvMutMukellef')?.value || '';
+  const _hp391_1  = hpGetKod(_rrMukKdv, 'kdv_hesaplanan_1')  || '391.01.010';
+  const _hp391_10 = hpGetKod(_rrMukKdv, 'kdv_hesaplanan_10') || '391.01.030';
+  const _hp391_20 = hpGetKod(_rrMukKdv, 'kdv_hesaplanan_20') || '391.01.020';
   const _391bul = (alt) => hesap391.filter(r => r.hesap_kodu.startsWith(alt));
   const kdv391 = {
-    yuzde1 : _391bul('391.01.010').reduce((s,r)=>s+kdvDeger391(r),0),
-    yuzde10: _391bul('391.01.030').reduce((s,r)=>s+kdvDeger391(r),0),
-    yuzde20: _391bul('391.01.020').reduce((s,r)=>s+kdvDeger391(r),0),
+    yuzde1 : _391bul(_hp391_1).reduce((s,r)=>s+kdvDeger391(r),0),
+    yuzde10: _391bul(_hp391_10).reduce((s,r)=>s+kdvDeger391(r),0),
+    yuzde20: _391bul(_hp391_20).reduce((s,r)=>s+kdvDeger391(r),0),
     diger  : hesap391.filter(r =>
-               !r.hesap_kodu.startsWith('391.01.010') &&
-               !r.hesap_kodu.startsWith('391.01.030') &&
-               !r.hesap_kodu.startsWith('391.01.020')
+               !r.hesap_kodu.startsWith(_hp391_1) &&
+               !r.hesap_kodu.startsWith(_hp391_10) &&
+               !r.hesap_kodu.startsWith(_hp391_20)
              ).reduce((s,r)=>s+kdvDeger391(r),0),
   };
 
   // ── 191 hesapları (İndirilecek KDV) ───────────────────────────────────
+  const _hp191_1   = hpGetKod(_rrMukKdv, 'kdv_indirilecek_1')  || '191.01.001';
+  const _hp191_10  = hpGetKod(_rrMukKdv, 'kdv_indirilecek_10') || '191.01.010';
+  const _hp191_20  = hpGetKod(_rrMukKdv, 'kdv_indirilecek_20') || '191.01.020';
+  const _hp191_tev = hpGetKod(_rrMukKdv, 'kdv_tevkifatli')     || '191.03.';
   const hesap191 = _kdvMutSatirlar.filter(r => r.hesap_kodu.startsWith('191.') && enAlt(r.hesap_kodu));
   const toplam191 = hesap191.reduce((s, r) => s + kdvDeger191(r), 0);
 
   const kdv191 = {
-    yuzde1 : hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.001')).reduce((s,r)=>s+kdvDeger191(r),0),
-    yuzde10: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.010')).reduce((s,r)=>s+kdvDeger191(r),0),
-    yuzde20: hesap191.filter(r=>r.hesap_kodu.startsWith('191.01.020')).reduce((s,r)=>s+kdvDeger191(r),0),
-    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith('191.03.')).reduce((s,r)=>s+kdvDeger191(r),0),
+    yuzde1 : hesap191.filter(r=>r.hesap_kodu.startsWith(_hp191_1)).reduce((s,r)=>s+kdvDeger191(r),0),
+    yuzde10: hesap191.filter(r=>r.hesap_kodu.startsWith(_hp191_10)).reduce((s,r)=>s+kdvDeger191(r),0),
+    yuzde20: hesap191.filter(r=>r.hesap_kodu.startsWith(_hp191_20)).reduce((s,r)=>s+kdvDeger191(r),0),
+    tevkifat:hesap191.filter(r=>r.hesap_kodu.startsWith(_hp191_tev)).reduce((s,r)=>s+kdvDeger191(r),0),
   };
 
   // ── Debug: tarayıcı konsoluna ham değerleri yaz ──
@@ -3614,12 +3698,12 @@ function kdvMutHesapla() {
       beklenen: kdv2Sorumlu, bulunan: kdv2Indirim, fark: kdv2Fark,
       durum: _durumHesapla(kdv2Fark), bilgi: ''
     }] : []),
-    { ad: '%1 Hesaplanan (391.01.010)', beklenen: null, bulunan: kdv391.yuzde1,  fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
-    { ad: '%10 Hesaplanan (391.01.030)', beklenen: null, bulunan: kdv391.yuzde10, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
-    { ad: '%20 Hesaplanan (391.01.020)', beklenen: null, bulunan: kdv391.yuzde20, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
-    { ad: '%1 İndirilecek (191.01.001)',  beklenen: null, bulunan: kdv191.yuzde1,  fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
-    { ad: '%10 İndirilecek (191.01.010)', beklenen: null, bulunan: kdv191.yuzde10, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
-    { ad: '%20 İndirilecek (191.01.020)', beklenen: null, bulunan: kdv191.yuzde20, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%1 Hesaplanan ('  + _hp391_1  + ')', beklenen: null, bulunan: kdv391.yuzde1,  fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%10 Hesaplanan (' + _hp391_10 + ')', beklenen: null, bulunan: kdv391.yuzde10, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%20 Hesaplanan (' + _hp391_20 + ')', beklenen: null, bulunan: kdv391.yuzde20, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%1 İndirilecek ('  + _hp191_1  + ')', beklenen: null, bulunan: kdv191.yuzde1,  fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%10 İndirilecek (' + _hp191_10 + ')', beklenen: null, bulunan: kdv191.yuzde10, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
+    { ad: '%20 İndirilecek (' + _hp191_20 + ')', beklenen: null, bulunan: kdv191.yuzde20, fark: null, durum: {ikon:'ℹ️',cls:'info'}, bilgi: '' },
   ];
 
   // ── Uyarılar ──────────────────────────────────────────────────────────
@@ -3917,12 +4001,16 @@ function _beyKdv1(s) {
 }
 
 // Muhtasar Beyanname kontrolü
-function _beyMuhtasar(s) {
-  const h36001 = s.find(r => r.hesap_kodu === '360.01' || r.hesap_kodu === '36001');
-  const t36001 = h36001 ? Math.max((h36001.alacak_bak||0) - (h36001.borc_bak||0), 0) : 0;
+function _beyMuhtasar(s, mukAd) {
+  // Hesap kodlarını hesap planı eşlemesinden al; yoksa standart prefix kullan
+  const _pref36001 = hpGetKod(mukAd, 'muhtasar_ucret') || '360.01';
+  const _pref36002 = hpGetKod(mukAd, 'damga_vergisi')  || '360.02';
 
-  const h36002 = s.find(r => r.hesap_kodu === '360.02' || r.hesap_kodu === '36002');
-  const t36002 = h36002 ? Math.max((h36002.alacak_bak||0) - (h36002.borc_bak||0), 0) : 0;
+  const h36001 = s.filter(r => r.hesap_kodu === _pref36001 || r.hesap_kodu.startsWith(_pref36001 + '.'));
+  const t36001 = h36001.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
+
+  const h36002 = s.filter(r => r.hesap_kodu === _pref36002 || r.hesap_kodu.startsWith(_pref36002 + '.'));
+  const t36002 = h36002.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
 
   const h335 = s.filter(r => r.hesap_kodu.startsWith('335'));
   const t335 = h335.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
@@ -3935,16 +4023,16 @@ function _beyMuhtasar(s) {
   if (t36001 === 0 && t36002 === 0) {
     durum = tGiderPersonel > 0 ? 'sari' : 'gri';
     ozet = tGiderPersonel > 0
-      ? 'Personel gideri var ama 360.01 stopaj kaydı bulunamadı'
-      : '360.01/360.02 hesabı bulunamadı';
+      ? ('Personel gideri var ama ' + _pref36001 + ' stopaj kaydı bulunamadı')
+      : (_pref36001 + '/' + _pref36002 + ' hesabı bulunamadı');
   } else {
     durum = 'yesil';
     ozet = 'GV Stopaj: ' + fmt(t36001) + ' ₺  |  Damga: ' + fmt(t36002) + ' ₺';
   }
 
   const detay = [
-    { etiket: '360.01 GV Stopaj Borcu', deger: fmt(t36001) + ' ₺', vurgu: t36001 > 0 },
-    { etiket: '360.02 Damga Vergisi Borcu', deger: fmt(t36002) + ' ₺', vurgu: t36002 > 0 },
+    { etiket: _pref36001 + ' GV Stopaj Borcu', deger: fmt(t36001) + ' ₺', vurgu: t36001 > 0 },
+    { etiket: _pref36002 + ' Damga Vergisi Borcu', deger: fmt(t36002) + ' ₺', vurgu: t36002 > 0 },
     { etiket: '335 Personele Borçlar', deger: fmt(t335) + ' ₺', vurgu: false },
     { etiket: 'Personel Gider Hesapları (7xx)', deger: fmt(tGiderPersonel) + ' ₺', vurgu: false },
   ];
@@ -3953,8 +4041,10 @@ function _beyMuhtasar(s) {
 }
 
 // SGK Bildirimi kontrolü
-function _beySgk(s) {
-  const h361 = s.filter(r => r.hesap_kodu.startsWith('361.') && _beyEnAlt(r.hesap_kodu));
+function _beySgk(s, mukAd) {
+  const _pref361 = hpGetKod(mukAd, 'sgk_prim') || '361.';
+  const _361prefix = _pref361.endsWith('.') ? _pref361 : _pref361 + '.';
+  const h361 = s.filter(r => r.hesap_kodu.startsWith(_361prefix) && _beyEnAlt(r.hesap_kodu));
   const t361 = h361.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
 
   const t760 = _beyTopla('760', 'borc_top', s);
@@ -3965,14 +4055,14 @@ function _beySgk(s) {
   let durum, ozet;
   if (t361 === 0) {
     durum = t760 > 0 ? 'sari' : 'gri';
-    ozet = t760 > 0 ? 'SGK gideri var ama 361 hesabı bulunamadı' : '361 SGK hesabı bulunamadı';
+    ozet = t760 > 0 ? ('SGK gideri var ama ' + _pref361.replace(/\.$/, '') + ' hesabı bulunamadı') : (_pref361.replace(/\.$/, '') + ' SGK hesabı bulunamadı');
   } else {
     durum = 'yesil';
     ozet = 'SGK Borcu: ' + fmt(t361) + ' ₺';
   }
 
   const detay = [
-    { etiket: '361 SGK Prim Borçları', deger: fmt(t361) + ' ₺', vurgu: t361 > 0 },
+    { etiket: _pref361.replace(/\.$/, '') + ' SGK Prim Borçları', deger: fmt(t361) + ' ₺', vurgu: t361 > 0 },
     { etiket: '760 SGK İşveren Gideri', deger: fmt(t760) + ' ₺', vurgu: false },
   ];
   if (t33502 > 0) detay.push({ etiket: '335.02 SSK Personel Kesintisi', deger: fmt(t33502) + ' ₺', vurgu: false });
@@ -4042,10 +4132,11 @@ function beyKontrolHesapla() {
   document.getElementById('beyMizanKaynakMetin').textContent = veri.kaynak + ' modülünden yüklendi';
   document.getElementById('beyMizanKaynakSatir').textContent = veri.adet + ' hesap';
 
+  const _beyMukAd = document.getElementById('beyMukellef')?.value || '';
   _beySonuclar = [
     _beyKdv1(veri.satirlar),
-    _beyMuhtasar(veri.satirlar),
-    _beySgk(veri.satirlar),
+    _beyMuhtasar(veri.satirlar, _beyMukAd),
+    _beySgk(veri.satirlar, _beyMukAd),
     _beyGeciciVergi(veri.satirlar),
   ];
   // Risk raporuna beyanname verisini kaydet
@@ -8565,6 +8656,261 @@ function logout() {
   document.getElementById('appMain').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'none';
   document.getElementById('wsBanner').style.display = 'none';
+}
+
+// ===================== HESAP PLANI EŞLEŞTİRME SİSTEMİ =====================
+
+// Oturum boyunca önbelleklenen eşlemeler: { mukellefAd: { hesap_kodu: {kategori, beyanname_turu} } }
+let _hpOnbellek = {};
+
+// Modal için geçici durum
+let _hpModalMukellef   = '';
+let _hpModalSatirlar   = []; // { hesap_kodu, hesap_adi, kategori, beyanname_turu, onaylandi }
+
+// Tüm kategori seçenekleri (dropdown için)
+const _HP_KATEGORILER = [
+  // KDV-1
+  { id: 'kdv_hesaplanan_1',   label: 'KDV Hesaplanan %1',       grup: 'KDV-1 Hesaplanan',  beyanname: 'kdv1'      },
+  { id: 'kdv_hesaplanan_10',  label: 'KDV Hesaplanan %10',      grup: 'KDV-1 Hesaplanan',  beyanname: 'kdv1'      },
+  { id: 'kdv_hesaplanan_20',  label: 'KDV Hesaplanan %20',      grup: 'KDV-1 Hesaplanan',  beyanname: 'kdv1'      },
+  { id: 'kdv_indirilecek_1',  label: 'KDV İndirilecek %1',      grup: 'KDV-1 İndirilecek', beyanname: 'kdv1'      },
+  { id: 'kdv_indirilecek_10', label: 'KDV İndirilecek %10',     grup: 'KDV-1 İndirilecek', beyanname: 'kdv1'      },
+  { id: 'kdv_indirilecek_20', label: 'KDV İndirilecek %20',     grup: 'KDV-1 İndirilecek', beyanname: 'kdv1'      },
+  { id: 'kdv_tevkifatli',     label: 'Tevkifatlı İndirilecek',  grup: 'KDV-1 İndirilecek', beyanname: 'kdv1'      },
+  { id: 'kdv_odenecek_1',     label: 'Ödenecek KDV',            grup: 'KDV-1 Sonuç',       beyanname: 'kdv1'      },
+  // Muhtasar
+  { id: 'muhtasar_ucret',     label: 'Personel Gelir Vergisi',  grup: 'Muhtasar',          beyanname: 'muhtasar'  },
+  { id: 'muhtasar_kira',      label: 'Kira Stopajı',            grup: 'Muhtasar',          beyanname: 'muhtasar'  },
+  { id: 'muhtasar_serbest',   label: 'Serbest Meslek Stopajı',  grup: 'Muhtasar',          beyanname: 'muhtasar'  },
+  { id: 'muhtasar_yurtdisi',  label: 'Yurt Dışı Hizmet',        grup: 'Muhtasar',          beyanname: 'muhtasar'  },
+  { id: 'damga_vergisi',      label: 'Damga Vergisi',           grup: 'Muhtasar',          beyanname: 'muhtasar'  },
+  // SGK
+  { id: 'sgk_prim',           label: 'SGK Primi',               grup: 'SGK',               beyanname: 'sgk'       },
+  { id: 'sgk_issizlik',       label: 'İşsizlik Sigortası',      grup: 'SGK',               beyanname: 'sgk'       },
+  // Diğer
+  { id: 'bilinmeyen',         label: '— Bilinmeyen / Yoksay',  grup: 'Diğer',             beyanname: ''          },
+];
+
+// Hesap kodu + adından otomatik kategori tahmini
+function _hpKategoriTahmin(kod, ad) {
+  const a  = (ad || '').toLowerCase();
+  const k  = (kod || '');
+
+  // 391.xx → Hesaplanan KDV
+  if (k.startsWith('391.')) {
+    if (a.includes('%20') || a.includes('20') || k.includes('.020')) return 'kdv_hesaplanan_20';
+    if (a.includes('%10') || a.includes('10') || k.includes('.030')) return 'kdv_hesaplanan_10';
+    if (a.includes('%1')  || a.includes('1')  || k.includes('.010')) return 'kdv_hesaplanan_1';
+    return 'kdv_hesaplanan_20';
+  }
+  // 191.xx → İndirilecek KDV
+  if (k.startsWith('191.')) {
+    if (a.includes('tevkifat') || k.startsWith('191.03')) return 'kdv_tevkifatli';
+    if (a.includes('%20') || a.includes('20') || k.includes('.020')) return 'kdv_indirilecek_20';
+    if (a.includes('%10') || a.includes('10') || k.includes('.010')) return 'kdv_indirilecek_10';
+    if (a.includes('%1')  || a.includes('1')  || k.includes('.001')) return 'kdv_indirilecek_1';
+    return 'kdv_indirilecek_20';
+  }
+  // 360.xx → Vergi borcu
+  if (k.startsWith('360.')) {
+    if (a.includes('kdv') || a.includes('katma değer') || k.startsWith('360.03')) return 'kdv_odenecek_1';
+    if (a.includes('kira'))                                                         return 'muhtasar_kira';
+    if (a.includes('serbest') || a.includes('meslek'))                              return 'muhtasar_serbest';
+    if (a.includes('yurt dışı') || a.includes('yurtdışı') || a.includes('dar mükellefi')) return 'muhtasar_yurtdisi';
+    if (a.includes('damga'))                                                        return 'damga_vergisi';
+    if (a.includes('personel') || a.includes('ücret') || a.includes('ucret') || a.includes('gelir vergisi')) return 'muhtasar_ucret';
+    return 'muhtasar_ucret'; // varsayılan
+  }
+  // 361.xx → SGK
+  if (k.startsWith('361.')) {
+    if (a.includes('işsizlik') || a.includes('issizlik')) return 'sgk_issizlik';
+    return 'sgk_prim';
+  }
+  return 'bilinmeyen';
+}
+
+// Sadece kontrol edilecek alt hesapları filtrele (nokta >= 1, ilgili prefixler)
+function _hpIlgiliHesaplar(satirlar) {
+  const PREFIX = ['391.', '191.', '360.', '361.'];
+  return satirlar.filter(r => {
+    const kod = r.hesap_kodu || '';
+    const noktaSayisi = (kod.match(/\./g) || []).length;
+    return noktaSayisi >= 1 && PREFIX.some(p => kod.startsWith(p));
+  });
+}
+
+// Hesap planı kontrolü: önce backend'den yükle, yeni kod varsa modal aç
+async function hpKontrolVeAc(mukellefAd, satirlar) {
+  if (!_checkSession()) return; // giriş yoksa atla
+
+  const ilgili = _hpIlgiliHesaplar(satirlar);
+  if (ilgili.length === 0) return; // kontrol edilecek hesap yok
+
+  // Backend'den mevcut onaylı eşlemeleri çek
+  let mevcutMap = {};
+  try {
+    const res = await _tFetch('/api/hesap-plani/' + encodeURIComponent(mukellefAd));
+    (res.eslesmeler || []).forEach(e => { mevcutMap[e.hesap_kodu] = e; });
+    // Önbelleğe al
+    _hpOnbellek[mukellefAd] = mevcutMap;
+  } catch(e) {
+    // Backend hatası — sessizce atla, modal açmaya devam et
+  }
+
+  // Yeni (henüz eşlenmemiş) hesapları bul
+  const yeniHesaplar = ilgili.filter(r => !mevcutMap[r.hesap_kodu]);
+
+  if (yeniHesaplar.length === 0) {
+    // Tüm hesaplar tanınıyor — modal açma
+    return;
+  }
+
+  // Yeni hesaplar için otomatik tahmin yap
+  _hpModalSatirlar = yeniHesaplar.map(r => ({
+    hesap_kodu:     r.hesap_kodu,
+    hesap_adi:      r.hesap_adi || r.hesap_ad || '',
+    kategori:       _hpKategoriTahmin(r.hesap_kodu, r.hesap_adi || r.hesap_ad || ''),
+    beyanname_turu: '', // kategoriyi atarken doldurulacak
+    onaylandi:      true
+  }));
+
+  // beyanname_turu ata
+  _hpModalSatirlar.forEach(s => {
+    const kat = _HP_KATEGORILER.find(k => k.id === s.kategori);
+    s.beyanname_turu = kat ? kat.beyanname : '';
+  });
+
+  _hpModalMukellef = mukellefAd;
+  _hpModalAc(mukellefAd, yeniHesaplar.length, Object.keys(mevcutMap).length);
+}
+
+// Modal aç ve render et
+function _hpModalAc(mukellefAd, yeniSayi, mevcutSayi) {
+  const overlay = document.getElementById('hpModalOverlay');
+  if (!overlay) return;
+
+  // Banner metni güncelle
+  const banner = document.getElementById('hpBilgiBanner');
+  if (banner) {
+    if (mevcutSayi === 0) {
+      banner.textContent = mukellefAd + ' için ilk kez mizan yükleniyor. ' + yeniSayi + ' hesabı kontrol edip onaylayın — sonraki yüklemelerde bu ekran atlanır.';
+    } else {
+      banner.textContent = yeniSayi + ' yeni hesap kodu bulundu. Kategorilerini onaylayın.';
+    }
+  }
+
+  const altEl = document.getElementById('hpModalAlt');
+  if (altEl) altEl.textContent = mukellefAd + ' — ' + yeniSayi + ' hesap';
+
+  // İçeriği render et
+  _hpModalRender();
+  overlay.style.display = 'flex';
+}
+
+// Modal içeriğini çiz
+function _hpModalRender() {
+  const ic = document.getElementById('hpModalIcerik');
+  if (!ic) return;
+
+  if (_hpModalSatirlar.length === 0) {
+    ic.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);">Tüm hesaplar zaten eşleştirilmiş.</div>';
+    return;
+  }
+
+  // Dropdown seçenekleri
+  let optsHtml = '<option value="">— Kategori Seç —</option>';
+  let suanGrup = '';
+  _HP_KATEGORILER.forEach(k => {
+    if (k.grup !== suanGrup) {
+      if (suanGrup) optsHtml += '</optgroup>';
+      optsHtml += '<optgroup label="' + k.grup + '">';
+      suanGrup = k.grup;
+    }
+    optsHtml += '<option value="' + k.id + '">' + k.label + '</option>';
+  });
+  if (suanGrup) optsHtml += '</optgroup>';
+
+  let html = '<div class="hp-satir-baslik"><span>Hesap Kodu</span><span>Hesap Adı</span><span>Kategori</span><span></span></div>';
+
+  _hpModalSatirlar.forEach((s, i) => {
+    const onayIkon = s.onaylandi ? '✅' : '⬜';
+    html += '<div class="hp-satir" id="hpSatir_' + i + '">'
+      + '<span class="hp-kod">' + s.hesap_kodu + '</span>'
+      + '<span class="hp-ad">' + (s.hesap_adi || '—') + '</span>'
+      + '<select class="hp-sel" onchange="hpKategoriDegis(' + i + ',this.value)">'
+      + optsHtml.replace('value="' + s.kategori + '"', 'value="' + s.kategori + '" selected')
+      + '</select>'
+      + '<button class="hp-onay ' + (s.onaylandi ? 'onaylandi' : 'onaysiz') + '" onclick="hpOnayToggle(' + i + ')" title="Onayla/Kaldır">' + onayIkon + '</button>'
+      + '</div>';
+  });
+
+  ic.innerHTML = html;
+}
+
+// Kategori değiştirildi
+function hpKategoriDegis(idx, yeniKategori) {
+  if (!_hpModalSatirlar[idx]) return;
+  _hpModalSatirlar[idx].kategori = yeniKategori;
+  const kat = _HP_KATEGORILER.find(k => k.id === yeniKategori);
+  _hpModalSatirlar[idx].beyanname_turu = kat ? kat.beyanname : '';
+}
+
+// Onay toggle
+function hpOnayToggle(idx) {
+  if (!_hpModalSatirlar[idx]) return;
+  _hpModalSatirlar[idx].onaylandi = !_hpModalSatirlar[idx].onaylandi;
+  _hpModalRender();
+}
+
+// Modalı kapat (kaydetmeden)
+function hpModalKapat() {
+  const overlay = document.getElementById('hpModalOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// Onay ver ve Supabase'e kaydet
+async function hpModalKaydet() {
+  if (!_hpModalMukellef || _hpModalSatirlar.length === 0) { hpModalKapat(); return; }
+
+  const kaydetBtn = document.querySelector('#hpModalOverlay .btn-primary');
+  if (kaydetBtn) { kaydetBtn.disabled = true; kaydetBtn.textContent = '⏳ Kaydediliyor...'; }
+
+  try {
+    await _tFetch('/api/hesap-plani', {
+      method: 'POST',
+      body: JSON.stringify({
+        mukellef_ad: _hpModalMukellef,
+        eslesmeler:  _hpModalSatirlar
+      })
+    });
+
+    // Önbelleği güncelle
+    if (!_hpOnbellek[_hpModalMukellef]) _hpOnbellek[_hpModalMukellef] = {};
+    _hpModalSatirlar.forEach(s => {
+      _hpOnbellek[_hpModalMukellef][s.hesap_kodu] = s;
+    });
+
+    showNotif('✅ ' + _hpModalSatirlar.length + ' hesap eşlemesi kaydedildi', 'success');
+    hpModalKapat();
+  } catch(e) {
+    showNotif('⚠️ Kayıt hatası: ' + (e.message || e), 'error');
+  } finally {
+    if (kaydetBtn) { kaydetBtn.disabled = false; kaydetBtn.textContent = '✅ Tümünü Onayla ve Kaydet'; }
+  }
+}
+
+// Mükellef için kategori → hesap_kodu haritası al (beyanname modüllerinde kullanır)
+// Önce önbellekten, yoksa null döndür (fallback: hardcoded prefix)
+function hpGetKod(mukellefAd, kategori) {
+  const map = _hpOnbellek[mukellefAd];
+  if (!map) return null;
+  const eslesme = Object.values(map).find(e => e.kategori === kategori && e.onaylandi !== false);
+  return eslesme ? eslesme.hesap_kodu : null;
+}
+
+// Mükellef için tüm onaylı eşlemeleri döndür (KDV/Beyanname modüllerinde kullanır)
+function hpGetTumMap(mukellefAd) {
+  return _hpOnbellek[mukellefAd] || {};
 }
 
 // ===================== RİSK RAPORU MODÜLÜ =====================
