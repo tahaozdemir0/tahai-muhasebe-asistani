@@ -451,6 +451,67 @@
     color: var(--text);
   }
 
+  /* ===== BEYANNAME KONTROL MODÜLÜ ===== */
+  .bey-trafik-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .bey-trafik-kart {
+    border-radius: 10px;
+    padding: 16px 18px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all .15s;
+    position: relative;
+  }
+  .bey-trafik-kart:hover { transform: translateY(-2px); }
+  .bey-trafik-kart.yesil  { background: rgba(34,197,94,.1);  border-color: rgba(34,197,94,.35); }
+  .bey-trafik-kart.sari   { background: rgba(240,165,0,.1);  border-color: rgba(240,165,0,.35); }
+  .bey-trafik-kart.kirmizi{ background: rgba(224,92,92,.1);  border-color: rgba(224,92,92,.35); }
+  .bey-trafik-kart.gri    { background: var(--surface2);     border-color: var(--border); }
+  .bey-trafik-kart.aktif  { border-width: 2px; box-shadow: 0 0 0 3px rgba(96,165,250,.25); }
+  .bey-trafik-ikon  { font-size: 26px; margin-bottom: 6px; }
+  .bey-trafik-baslik{ font-size: 13px; font-weight: 700; color: var(--text); }
+  .bey-trafik-durum { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .bey-trafik-rozet {
+    position: absolute; top: 10px; right: 12px;
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 20px; font-family: 'IBM Plex Mono', monospace;
+  }
+  .bey-trafik-kart.yesil  .bey-trafik-rozet { background: rgba(34,197,94,.2);  color: #4ade80; }
+  .bey-trafik-kart.sari   .bey-trafik-rozet { background: rgba(240,165,0,.2);  color: #facc15; }
+  .bey-trafik-kart.kirmizi .bey-trafik-rozet{ background: rgba(224,92,92,.2);  color: #f87171; }
+  .bey-trafik-kart.gri    .bey-trafik-rozet { background: var(--surface2);     color: var(--text3); }
+
+  .bey-detay-panel { display: none; }
+  .bey-detay-panel.aktif { display: block; }
+
+  .bey-kontrol-satir {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .bey-kontrol-satir:last-child { border-bottom: none; }
+  .bey-kontrol-satir .bey-ad { flex: 1; color: var(--text2); }
+  .bey-kontrol-satir .bey-deger { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text); min-width: 110px; text-align: right; }
+  .bey-kontrol-satir .bey-ikon { font-size: 15px; min-width: 20px; }
+
+  .bey-ozet-satir {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 6px;
+  }
+  .bey-ozet-satir.yesil  { background: rgba(34,197,94,.08); }
+  .bey-ozet-satir.sari   { background: rgba(240,165,0,.08); }
+  .bey-ozet-satir.kirmizi{ background: rgba(224,92,92,.08); }
+  .bey-ozet-satir.bilgi  { background: var(--surface2); }
+
+  .bey-mizan-kaynak {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    background: var(--surface2); border-radius: 8px; font-size: 12px;
+    border: 1px solid var(--border); margin-bottom: 16px;
+  }
+
   /* ===== KDV MUTABAKAT MODÜLÜ ===== */
   .kdvmut-ozet-grid {
     display: grid;
@@ -2554,18 +2615,69 @@
 
     <!-- MÜKELLEF WORKSPACE SAYFASI -->
     <!-- ===== KONTROL PANELİ PLACEHOLDER SAYFALARI ===== -->
+    <!-- ===== BEYANNAME KONTROL MODÜLÜ ===== -->
     <div class="page" id="page-beyanname-kontrol">
-      <div class="card">
-        <div class="kp-placeholder">
-          <div class="kp-placeholder-icon">📋</div>
-          <div class="kp-placeholder-title">Beyanname Kontrol</div>
-          <div class="kp-placeholder-desc">
-            Dönemsel beyanname takibi, eksik beyanname tespiti ve
-            otomatik hatırlatma sistemi bu modülde yer alacak.
-          </div>
-          <div class="kp-placeholder-badge">YAKINDA AKTİF OLACAK</div>
+
+      <!-- Başlık -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:20px;font-weight:700;color:var(--text);">📋 Beyanname Öncesi Kontrol</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:4px;">
+          Beyanname göndermeden önce mizan verilerinden otomatik tutarlılık kontrolü
         </div>
       </div>
+
+      <!-- Ayarlar kartı -->
+      <div class="card" id="beyAyarPanel">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;">
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">MÜKELLEf</label>
+            <select id="beyMukellef" class="input" style="width:100%"></select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">DÖNEM</label>
+            <input type="month" id="beyDonem" class="input" style="width:100%" />
+          </div>
+          <button class="btn btn-primary" onclick="beyKontrolHesapla()">🔍 Kontrol Et</button>
+        </div>
+
+        <!-- Mizan kaynak göstergesi -->
+        <div id="beyMizanKaynak" class="bey-mizan-kaynak" style="margin-top:14px;display:none;">
+          <span id="beyMizanKaynakIkon">📊</span>
+          <span id="beyMizanKaynakMetin" style="color:var(--text2);"></span>
+          <span style="flex:1"></span>
+          <span id="beyMizanKaynakSatir" style="color:var(--text3);"></span>
+        </div>
+
+        <!-- Mizan yüklü değilse uyarı -->
+        <div id="beyMizanUyari" style="display:none;margin-top:14px;padding:12px 16px;
+             background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.3);
+             border-radius:8px;font-size:13px;color:#f0a500;">
+          ⚠️ Mizan verisi bulunamadı.
+          <a onclick="showKontrolPaneli('kdv-mutabakat', document.querySelector('[onclick*=kdv-mutabakat]'))"
+             style="color:var(--accent);cursor:pointer;margin-left:6px;">
+            KDV Mutabakat'ta mizan yükle →
+          </a>
+        </div>
+      </div>
+
+      <!-- Sonuç paneli (başta gizli) -->
+      <div id="beyKontrolSonucPanel" style="display:none;">
+
+        <!-- Trafik lambası özet kartları -->
+        <div class="bey-trafik-grid" id="beyTrafikKartlar"></div>
+
+        <!-- Detay panelleri — her biri ayrı, tıklayınca açılır -->
+        <div class="card" id="beyDetayKart" style="display:none;">
+          <div id="beyDetayIcerik"></div>
+        </div>
+
+        <!-- Export butonu -->
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-outline" onclick="beyKontrolYazdir()">🖨️ Tüm Kontrolleri Yazdır / PDF</button>
+        </div>
+      </div>
+    </div>
+    <!-- ===== BEYANNAME KONTROL SONU ===== -->
     </div>
 
     <!-- ===== KDV MUTABAKAT MODÜLÜ ===== -->
@@ -2996,8 +3108,9 @@ function showKontrolPaneli(id, el) {
   document.getElementById('page-' + id).classList.add('active');
   // Tıklanan alt sekmeyi aktif yap
   if (el) el.classList.add('active');
-  // KDV Mutabakat sayfası açılınca mükellef listesini doldur
+  // Modüle özgü init
   if (id === 'kdv-mutabakat') kdvMutMukellefDoldur();
+  if (id === 'beyanname-kontrol') beyMukellefDoldur();
 }
 
 // ===================== KDV MUTABAKAT MODÜLÜ =====================
@@ -3453,6 +3566,309 @@ function kdvMutExcelIndir() {
 // Yazdır / PDF
 function kdvMutYazdir() {
   if (!_kdvMutSonuc) return;
+  window.print();
+}
+
+// ===================== BEYANNAME KONTROL MODÜLÜ =====================
+
+let _beySonuclar = null;
+
+function beyMukellefDoldur() {
+  const sel = document.getElementById('beyMukellef');
+  if (!sel) return;
+  const mevcut = sel.value;
+  sel.innerHTML = '<option value="">-- Mükellef Seç --</option>';
+  mukellefler.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.ad || m;
+    opt.textContent = m.ad || m;
+    sel.appendChild(opt);
+  });
+  if (_gmSecili) sel.value = _gmSecili;
+  else if (mevcut) sel.value = mevcut;
+  // Dönem: mevcut ay varsayılan
+  const donemEl = document.getElementById('beyDonem');
+  if (donemEl && !donemEl.value) {
+    const now = new Date();
+    donemEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+}
+
+// Mizan satırlarını bul — önce KDV modülü, sonra ana mizan
+function _beyGetSatirlar() {
+  if (typeof _kdvMutSatirlar !== 'undefined' && _kdvMutSatirlar.length > 0)
+    return { satirlar: _kdvMutSatirlar, kaynak: 'KDV Mutabakat', adet: _kdvMutSatirlar.length };
+  if (typeof mizanSatirlar !== 'undefined' && mizanSatirlar.length > 0)
+    return { satirlar: mizanSatirlar, kaynak: 'Ana Mizan', adet: mizanSatirlar.length };
+  return null;
+}
+
+// Yaprak hesap mı? (alt hesabı yok mu)
+function _beyYaprakMi(kod, s) {
+  return !s.some(r => r.hesap_kodu !== kod && r.hesap_kodu.startsWith(kod + '.'));
+}
+
+// Prefix ile başlayan yaprak hesapların bir alanını topla
+function _beyTopla(prefix, alan, s) {
+  return s.filter(r => r.hesap_kodu.startsWith(prefix) && _beyYaprakMi(r.hesap_kodu, s))
+          .reduce((acc, r) => acc + (r[alan] || 0), 0);
+}
+
+// KDV-1 Beyannamesi kontrolü
+function _beyKdv1(s) {
+  const yaprak = k => _beyYaprakMi(k, s);
+
+  const h391 = s.filter(r => r.hesap_kodu.startsWith('391') && yaprak(r.hesap_kodu));
+  const t391 = h391.reduce((a, r) => a + (r.alacak_top || r.alacak_bak || 0), 0);
+
+  const h191 = s.filter(r => r.hesap_kodu.startsWith('191') && yaprak(r.hesap_kodu));
+  const t191 = h191.reduce((a, r) => a + (r.borc_top || r.borc_bak || 0), 0);
+
+  const odenecek = t391 - t191;
+
+  // 360.03 KDV beyan borcu
+  const h36003 = s.find(r => r.hesap_kodu === '360.03' || r.hesap_kodu === '36003');
+  const t36003 = h36003 ? Math.max(
+    (h36003.alacak_bak || 0) - (h36003.borc_bak || 0),
+    h36003.alacak_top || 0
+  ) : 0;
+
+  const fark = Math.abs(odenecek - t36003);
+  const farkOrani = t391 > 0 ? fark / t391 : 0;
+
+  let durum, ozet;
+  if (t391 === 0 && t191 === 0) {
+    durum = 'gri'; ozet = 'Mizanda 191/391 hesabı bulunamadı';
+  } else if (fark < 1) {
+    durum = 'yesil'; ozet = '191/391 ve 360.03 birbiriyle uyumlu';
+  } else if (farkOrani < 0.01 || fark < 100) {
+    durum = 'sari'; ozet = fmt(fark) + ' ₺ küçük fark — yuvarlama olabilir';
+  } else {
+    durum = 'kirmizi'; ozet = fmt(fark) + ' ₺ fark var — kontrol gerekli';
+  }
+
+  const detay = [
+    { etiket: '391 Hesaplanan KDV', deger: fmt(t391) + ' ₺', vurgu: false },
+    { etiket: '191 İndirilecek KDV', deger: fmt(t191) + ' ₺', vurgu: false },
+    { etiket: 'Ödenecek KDV (391−191)', deger: fmt(Math.max(odenecek,0)) + ' ₺', vurgu: true },
+  ];
+  if (odenecek < 0)
+    detay.push({ etiket: 'KDV İadesi', deger: fmt(Math.abs(odenecek)) + ' ₺', vurgu: false });
+  if (h36003) {
+    detay.push({ etiket: '360.03 Beyan Borcu', deger: fmt(t36003) + ' ₺', vurgu: false });
+    detay.push({ etiket: 'Fark', deger: fmt(fark) + ' ₺', vurgu: fark > 1 });
+  }
+  if (h391.length > 1) {
+    detay.push({ baslik: true, etiket: '── 391 Alt Hesaplar' });
+    h391.forEach(r => detay.push({ etiket: r.hesap_kodu + ' ' + (r.hesap_adi||''), deger: fmt(r.alacak_top||r.alacak_bak||0) + ' ₺', alt: true }));
+  }
+  if (h191.length > 1) {
+    detay.push({ baslik: true, etiket: '── 191 Alt Hesaplar' });
+    h191.forEach(r => detay.push({ etiket: r.hesap_kodu + ' ' + (r.hesap_adi||''), deger: fmt(r.borc_top||r.borc_bak||0) + ' ₺', alt: true }));
+  }
+
+  return { id: 'kdv1', baslik: 'KDV-1 Beyannamesi', ikon: '💰', durum, ozet, detay };
+}
+
+// Muhtasar Beyanname kontrolü
+function _beyMuhtasar(s) {
+  const h36001 = s.find(r => r.hesap_kodu === '360.01' || r.hesap_kodu === '36001');
+  const t36001 = h36001 ? Math.max((h36001.alacak_bak||0) - (h36001.borc_bak||0), 0) : 0;
+
+  const h36002 = s.find(r => r.hesap_kodu === '360.02' || r.hesap_kodu === '36002');
+  const t36002 = h36002 ? Math.max((h36002.alacak_bak||0) - (h36002.borc_bak||0), 0) : 0;
+
+  const h335 = s.filter(r => r.hesap_kodu.startsWith('335'));
+  const t335 = h335.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
+
+  // Personel gider hesapları
+  const tGiderPersonel = ['770','730','740','750','760']
+    .reduce((a, p) => a + _beyTopla(p, 'borc_top', s), 0);
+
+  let durum, ozet;
+  if (t36001 === 0 && t36002 === 0) {
+    durum = tGiderPersonel > 0 ? 'sari' : 'gri';
+    ozet = tGiderPersonel > 0
+      ? 'Personel gideri var ama 360.01 stopaj kaydı bulunamadı'
+      : '360.01/360.02 hesabı bulunamadı';
+  } else {
+    durum = 'yesil';
+    ozet = 'GV Stopaj: ' + fmt(t36001) + ' ₺  |  Damga: ' + fmt(t36002) + ' ₺';
+  }
+
+  const detay = [
+    { etiket: '360.01 GV Stopaj Borcu', deger: fmt(t36001) + ' ₺', vurgu: t36001 > 0 },
+    { etiket: '360.02 Damga Vergisi Borcu', deger: fmt(t36002) + ' ₺', vurgu: t36002 > 0 },
+    { etiket: '335 Personele Borçlar', deger: fmt(t335) + ' ₺', vurgu: false },
+    { etiket: 'Personel Gider Hesapları (7xx)', deger: fmt(tGiderPersonel) + ' ₺', vurgu: false },
+  ];
+
+  return { id: 'muhtasar', baslik: 'Muhtasar Beyanname', ikon: '👥', durum, ozet, detay };
+}
+
+// SGK Bildirimi kontrolü
+function _beySgk(s) {
+  const h361 = s.filter(r => r.hesap_kodu.startsWith('361') && _beyYaprakMi(r.hesap_kodu, s));
+  const t361 = h361.reduce((a, r) => a + Math.max((r.alacak_bak||0) - (r.borc_bak||0), 0), 0);
+
+  const t760 = _beyTopla('760', 'borc_top', s);
+
+  const h33502 = s.find(r => r.hesap_kodu === '335.02' || r.hesap_kodu === '33502');
+  const t33502 = h33502 ? Math.max((h33502.alacak_bak||0) - (h33502.borc_bak||0), 0) : 0;
+
+  let durum, ozet;
+  if (t361 === 0) {
+    durum = t760 > 0 ? 'sari' : 'gri';
+    ozet = t760 > 0 ? 'SGK gideri var ama 361 hesabı bulunamadı' : '361 SGK hesabı bulunamadı';
+  } else {
+    durum = 'yesil';
+    ozet = 'SGK Borcu: ' + fmt(t361) + ' ₺';
+  }
+
+  const detay = [
+    { etiket: '361 SGK Prim Borçları', deger: fmt(t361) + ' ₺', vurgu: t361 > 0 },
+    { etiket: '760 SGK İşveren Gideri', deger: fmt(t760) + ' ₺', vurgu: false },
+  ];
+  if (t33502 > 0) detay.push({ etiket: '335.02 SSK Personel Kesintisi', deger: fmt(t33502) + ' ₺', vurgu: false });
+
+  return { id: 'sgk', baslik: 'SGK Bildirimi', ikon: '🏥', durum, ozet, detay };
+}
+
+// Geçici Vergi kontrolü
+function _beyGeciciVergi(s) {
+  // 6xx gelir hesapları — alacak toplam
+  const gelirPrefiksleri = ['600','601','602','603','604','605','610','611','612',
+    '620','621','622','630','640','641','642','643','644','645','646','647','648','649','671','679'];
+  const tGelir = gelirPrefiksleri.reduce((a, p) => a + _beyTopla(p, 'alacak_top', s), 0);
+  const t600   = _beyTopla('600', 'alacak_top', s);
+
+  // 7xx gider hesapları — borç toplam
+  const tGider = '0123456789'.split('').reduce((a, d) => a + _beyTopla('7'+d, 'borc_top', s), 0);
+
+  const karZarar = tGelir - tGider;
+
+  // 371 vergi karşılığı
+  const h371 = s.find(r => r.hesap_kodu.startsWith('371'));
+  const t371 = h371 ? Math.max((h371.alacak_bak||0) - (h371.borc_bak||0), 0) : 0;
+
+  // 193 peşin ödenen vergi
+  const h193 = s.find(r => r.hesap_kodu.startsWith('193'));
+  const t193 = h193 ? (h193.borc_bak||0) : 0;
+
+  let durum, ozet;
+  if (tGelir === 0) {
+    durum = 'gri'; ozet = 'Gelir hesapları (6xx) bulunamadı';
+  } else if (karZarar > 0 && t371 === 0) {
+    durum = 'sari'; ozet = 'Kar ' + fmt(karZarar) + ' ₺ — 371 vergi karşılığı kaydedilmemiş';
+  } else if (karZarar <= 0) {
+    durum = 'yesil'; ozet = 'Dönem zararı: ' + fmt(Math.abs(karZarar)) + ' ₺ — Geçici vergi yok';
+  } else {
+    durum = 'yesil'; ozet = 'Kar: ' + fmt(karZarar) + ' ₺  |  Karşılık: ' + fmt(t371) + ' ₺';
+  }
+
+  const detay = [
+    { etiket: 'Toplam Gelirler (6xx)', deger: fmt(tGelir) + ' ₺', vurgu: false },
+    { etiket: '600 Net Satışlar', deger: fmt(t600) + ' ₺', alt: true },
+    { etiket: 'Toplam Giderler (7xx)', deger: fmt(tGider) + ' ₺', vurgu: false },
+    { etiket: 'Dönem Kar / (Zarar)', deger: (karZarar >= 0 ? '+' : '') + fmt(karZarar) + ' ₺', vurgu: true },
+    { etiket: '371 Vergi Karşılığı', deger: fmt(t371) + ' ₺', vurgu: t371 > 0 },
+  ];
+  if (t193 > 0) detay.push({ etiket: '193 Peşin Ödenen Vergi', deger: fmt(t193) + ' ₺', vurgu: false });
+
+  return { id: 'gecici', baslik: 'Geçici Vergi', ikon: '📊', durum, ozet, detay };
+}
+
+// Ana kontrol fonksiyonu
+function beyKontrolHesapla() {
+  const veri = _beyGetSatirlar();
+  const uyariEl  = document.getElementById('beyMizanUyari');
+  const kaynakEl = document.getElementById('beyMizanKaynak');
+  const sonucEl  = document.getElementById('beyKontrolSonucPanel');
+
+  if (!veri) {
+    uyariEl.style.display  = 'block';
+    kaynakEl.style.display = 'none';
+    sonucEl.style.display  = 'none';
+    return;
+  }
+
+  uyariEl.style.display = 'none';
+  kaynakEl.style.display = 'flex';
+  document.getElementById('beyMizanKaynakIkon').textContent  = veri.kaynak === 'KDV Mutabakat' ? '📊' : '📋';
+  document.getElementById('beyMizanKaynakMetin').textContent = veri.kaynak + ' modülünden yüklendi';
+  document.getElementById('beyMizanKaynakSatir').textContent = veri.adet + ' hesap';
+
+  _beySonuclar = [
+    _beyKdv1(veri.satirlar),
+    _beyMuhtasar(veri.satirlar),
+    _beySgk(veri.satirlar),
+    _beyGeciciVergi(veri.satirlar),
+  ];
+
+  _beyRenderKartlar(_beySonuclar);
+}
+
+// Trafik lambası kartları
+function _beyRenderKartlar(sonuclar) {
+  const rozetMap = { yesil: 'UYGUN', sari: 'DİKKAT', kirmizi: 'SORUN', gri: 'VERİ YOK' };
+  const emojiMap = { yesil: '✅', sari: '⚠️', kirmizi: '❌', gri: '➖' };
+
+  document.getElementById('beyTrafikKartlar').innerHTML = sonuclar.map((s, i) => `
+    <div class="bey-trafik-kart ${s.durum}" onclick="beyDetayAc(${i})">
+      <span class="bey-trafik-rozet">${rozetMap[s.durum]}</span>
+      <div class="bey-trafik-ikon">${s.ikon}</div>
+      <div class="bey-trafik-baslik">${s.baslik}</div>
+      <div style="font-size:20px;margin:6px 0;">${emojiMap[s.durum]}</div>
+      <div class="bey-trafik-durum">${s.ozet}</div>
+      <div style="font-size:11px;color:var(--accent);margin-top:8px;">Detay →</div>
+    </div>
+  `).join('');
+
+  document.getElementById('beyKontrolSonucPanel').style.display = 'block';
+  document.getElementById('beyDetayKart').style.display = 'none';
+}
+
+// Detay paneli aç
+function beyDetayAc(idx) {
+  const s = _beySonuclar[idx];
+  const renkMap  = { yesil: '#4ade80', sari: '#facc15', kirmizi: '#f87171', gri: 'var(--text3)' };
+  const etiketMap = { yesil: 'UYGUN', sari: 'DİKKAT', kirmizi: 'SORUN', gri: 'VERİ YOK' };
+
+  const satirHtml = s.detay.map(d => {
+    if (d.baslik) return `<div style="font-size:11px;color:var(--text3);margin:10px 0 4px;font-weight:600;letter-spacing:.5px;">${d.etiket}</div>`;
+    const vurguStyle = d.vurgu ? 'font-weight:700;color:var(--text);' : 'color:var(--text2);';
+    const altStyle   = d.alt  ? 'padding-left:16px;opacity:.8;' : '';
+    return `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-radius:6px;
+              font-size:13px;margin-bottom:3px;background:rgba(0,0,0,.02);${altStyle}">
+      <span style="${vurguStyle}">${d.etiket}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;${d.vurgu?'font-weight:700;':''}color:var(--text);">${d.deger||''}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('beyDetayIcerik').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <span style="font-size:22px;">${s.ikon}</span>
+      <div>
+        <div style="font-weight:700;font-size:15px;">${s.baslik}</div>
+        <div style="font-size:12px;color:${renkMap[s.durum]};font-weight:600;">${etiketMap[s.durum]}</div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;"
+        onclick="document.getElementById('beyDetayKart').style.display='none'">✕ Kapat</button>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+      ${satirHtml}
+    </div>
+  `;
+
+  const kart = document.getElementById('beyDetayKart');
+  kart.style.display = 'block';
+  kart.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Yazdır / PDF
+function beyKontrolYazdir() {
+  if (!_beySonuclar) return;
   window.print();
 }
 
