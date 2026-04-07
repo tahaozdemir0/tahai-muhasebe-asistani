@@ -2625,6 +2625,7 @@
         <button class="tab active" id="tabKkeg" onclick="switchHesapTab('kkeg')">🚗 Binek Araç KKEG</button>
         <button class="tab" id="tabStopaj" onclick="switchHesapTab('stopaj')">📋 Stopaj Hesaplama</button>
         <button class="tab" id="tabKdv" onclick="switchHesapTab('kdv')">🧮 KDV Hesaplama</button>
+        <button class="tab" id="tabKdv2" onclick="switchHesapTab('kdv2')">🌍 KDV-2 Hesaplama</button>
       </div>
 
       <!-- KKEG SAYFASI -->
@@ -2836,6 +2837,85 @@
           <div style="display:flex; gap:10px;">
             <button class="btn btn-success" onclick="stopajExcelIndir()">⬇️ Excel İndir</button>
             <button class="btn btn-outline" onclick="stopajTemizle()">🗑️ Temizle</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KDV-2 HESAPLAMA -->
+      <div id="hesapKdv2" style="display:none;">
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>🌍 KDV-2 Hesaplama (Sorumlu Sıfatıyla)</span><button onclick="yardimAc('kdv-2')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
+          <div class="card-desc">Yurt dışı hizmet alımları ve tevkifata tabi işlemler için sorumlu sıfatıyla beyan edilecek <b style="color:var(--accent3)">KDV-2</b> tutarını hesapla.</div>
+
+          <!-- Satır giriş alanı -->
+          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+            <div style="display:grid; grid-template-columns:2fr 1.5fr 1fr 1fr 1fr auto; gap:8px; align-items:center; font-size:11px; color:var(--text3); font-family:'IBM Plex Mono',monospace; padding:0 4px;">
+              <span>Açıklama</span>
+              <span>Hizmet Türü</span>
+              <span>Brüt Tutar (₺)</span>
+              <span>KDV Oranı</span>
+              <span>Tevkifat Oranı</span>
+              <span></span>
+            </div>
+            <div id="kdv2Satirlar" style="display:flex; flex-direction:column; gap:8px;"></div>
+            <button class="btn btn-outline" onclick="kdv2SatirEkle()" style="width:fit-content;">+ Satır Ekle</button>
+          </div>
+
+          <button class="btn btn-primary" onclick="kdv2Hesapla()">🧮 Hesapla</button>
+        </div>
+
+        <!-- KDV-2 SONUÇ -->
+        <div class="card" id="kdv2Sonuc" style="display:none;">
+          <div class="card-title">📊 KDV-2 Hesap Sonucu</div>
+
+          <!-- Özet kartlar -->
+          <div class="stats-row" style="grid-template-columns:repeat(4,1fr); margin-bottom:16px;">
+            <div class="stat-card">
+              <div class="stat-label">TOPLAM BRÜT</div>
+              <div class="stat-value" id="kdv2StatBrut" style="font-size:16px;">0 ₺</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">TOPLAM KDV</div>
+              <div class="stat-value" id="kdv2StatKdv" style="font-size:16px;">0 ₺</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">TEVKİF EDİLEN (KDV-2)</div>
+              <div class="stat-value" id="kdv2StatTevkif" style="font-size:16px; color:var(--accent3);">0 ₺</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">NET ÖDEME (SATICI)</div>
+              <div class="stat-value" id="kdv2StatNet" style="font-size:16px; color:var(--accent2);">0 ₺</div>
+            </div>
+          </div>
+
+          <!-- Detay tablo -->
+          <div class="table-wrap" style="margin-bottom:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Açıklama</th>
+                  <th>Hizmet Türü</th>
+                  <th>Brüt (₺)</th>
+                  <th>KDV %</th>
+                  <th>Toplam KDV</th>
+                  <th>Tevkifat %</th>
+                  <th>Tevkif KDV</th>
+                  <th>Kalan KDV</th>
+                  <th>Net Ödeme</th>
+                </tr>
+              </thead>
+              <tbody id="kdv2TabloBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Alt bilgilendirme -->
+          <div style="background:rgba(59,130,246,0.08); border-left:3px solid #3b82f6; padding:12px; border-radius:6px; font-size:13px; color:var(--text2); margin-bottom:16px;">
+            💡 Tevkif edilen KDV tutarları KDV-2 beyannamesinde <strong>360.03</strong> hesabına alacak, <strong>191.03</strong> hesabına borç olarak kaydedilmelidir.
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-success" onclick="kdv2ExcelIndir()">⬇️ Excel İndir (Luca Formatı)</button>
+            <button class="btn btn-outline" onclick="kdv2Temizle()">🗑️ Temizle</button>
           </div>
         </div>
       </div>
@@ -7517,12 +7597,14 @@ function kartFisArsivExcel() {
 }
 
 function switchHesapTab(tab) {
-  document.getElementById('hesapKkeg').style.display = tab === 'kkeg' ? 'block' : 'none';
-  document.getElementById('hesapStopaj').style.display = tab === 'stopaj' ? 'block' : 'none';
-  document.getElementById('hesapKdv').style.display = tab === 'kdv' ? 'block' : 'none';
-  document.getElementById('tabKkeg').classList.toggle('active', tab === 'kkeg');
+  document.getElementById('hesapKkeg').style.display    = tab === 'kkeg'   ? 'block' : 'none';
+  document.getElementById('hesapStopaj').style.display  = tab === 'stopaj' ? 'block' : 'none';
+  document.getElementById('hesapKdv').style.display     = tab === 'kdv'    ? 'block' : 'none';
+  document.getElementById('hesapKdv2').style.display    = tab === 'kdv2'   ? 'block' : 'none';
+  document.getElementById('tabKkeg').classList.toggle('active',   tab === 'kkeg');
   document.getElementById('tabStopaj').classList.toggle('active', tab === 'stopaj');
-  document.getElementById('tabKdv').classList.toggle('active', tab === 'kdv');
+  document.getElementById('tabKdv').classList.toggle('active',    tab === 'kdv');
+  document.getElementById('tabKdv2').classList.toggle('active',   tab === 'kdv2');
 }
 
 // ---- KKEG ----
@@ -7746,6 +7828,183 @@ function stopajExcelIndir() {
   const headers = ['Açıklama/Kişi','Brüt Tutar','KDV Oranı','KDV Tutarı','Stopaj Oranı','Stopaj Tutarı','Net Ödeme','Muhtasar Matrah'];
   const rows = stopajSonucData.map(r => [r.aciklama, r.brut, '%'+r.kdvOrani, r.kdvTutar.toFixed(2), '%'+r.stopajOrani, r.stopajTutar.toFixed(2), r.netOdeme.toFixed(2), r.muhtasarMatrah.toFixed(2)]);
   downloadCSV(headers, rows, 'stopaj_hesaplama.csv');
+}
+
+// ===================== KDV-2 HESAPLAYICI =====================
+// Yurt dışı hizmet alımı ve tevkifata tabi işlemler için
+// sorumlu sıfatıyla beyan edilecek KDV-2 tutarını hesaplar.
+
+let kdv2Sayac = 0;
+let kdv2SonucData = [];
+
+// Hizmet türü → otomatik tevkifat oranı eşlemesi
+const _KDV2_TURLERI = [
+  { ad: 'Yurt Dışı Hizmet Alımı',   tevkifat: 100 },
+  { ad: 'Danışmanlık Hizmeti',       tevkifat: 30  },
+  { ad: 'Yapım İşi',                 tevkifat: 40  },
+  { ad: 'Temizlik Hizmeti',          tevkifat: 90  },
+  { ad: 'Özel Güvenlik',             tevkifat: 90  },
+  { ad: 'Yemek Servisi',             tevkifat: 50  },
+  { ad: 'Diğer (Manuel)',            tevkifat: 0   },
+];
+
+// Hizmet türü dropdown HTML'i üret
+function _kdv2TurSecenekleri() {
+  return _KDV2_TURLERI.map(t =>
+    `<option value="${t.tevkifat}" data-ad="${t.ad}">${t.ad} (${t.tevkifat === 100 ? '10/10' : t.tevkifat/10 + '/10'})</option>`
+  ).join('');
+}
+
+// Yeni satır ekle
+function kdv2SatirEkle(aciklama = '', tur = '100', brut = '', kdvOrani = 20, tevkifatOrani = '') {
+  kdv2Sayac++;
+  const id = kdv2Sayac;
+
+  const div = document.createElement('div');
+  div.id = 'kdv2Satir_' + id;
+  div.style.cssText = 'display:grid; grid-template-columns:2fr 1.5fr 1fr 1fr 1fr auto; gap:8px; align-items:center;';
+  div.innerHTML = `
+    <input type="text" placeholder="Açıklama" value="${aciklama}"
+           style="padding:8px 10px; border:1px solid var(--border); border-radius:6px;
+                  background:var(--surface2); color:var(--text); font-size:13px;">
+    <select onchange="kdv2TurDegisti(${id})"
+            style="padding:8px; border:1px solid var(--border); border-radius:6px;
+                   background:var(--surface2); color:var(--text); font-size:13px;">
+      ${_kdv2TurSecenekleri()}
+    </select>
+    <input type="number" placeholder="0.00" value="${brut}" min="0" step="0.01"
+           style="padding:8px 10px; border:1px solid var(--border); border-radius:6px;
+                  background:var(--surface2); color:var(--text); font-size:13px; text-align:right;">
+    <select style="padding:8px; border:1px solid var(--border); border-radius:6px;
+                   background:var(--surface2); color:var(--text); font-size:13px;">
+      <option value="1"  ${kdvOrani==1  ?'selected':''}>%1</option>
+      <option value="10" ${kdvOrani==10 ?'selected':''}>%10</option>
+      <option value="20" ${kdvOrani==20 ?'selected':''} >%20</option>
+    </select>
+    <input type="number" id="kdv2Tevkifat_${id}" placeholder="0-100" value="${tevkifatOrani !== '' ? tevkifatOrani : 100}"
+           min="0" max="100" step="1"
+           style="padding:8px 10px; border:1px solid var(--border); border-radius:6px;
+                  background:var(--surface2); color:var(--text); font-size:13px; text-align:right;">
+    <button onclick="document.getElementById('kdv2Satir_${id}').remove()"
+            style="background:transparent; border:none; color:var(--accent3);
+                   font-size:18px; cursor:pointer; padding:4px;">✕</button>
+  `;
+  document.getElementById('kdv2Satirlar').appendChild(div);
+
+  // Dropdown'u seçilen değere ayarla
+  const sel = div.querySelector('select');
+  sel.value = String(tur);
+}
+
+// Tür değişince tevkifat oranını otomatik doldur
+function kdv2TurDegisti(id) {
+  const satir = document.getElementById('kdv2Satir_' + id);
+  const sel = satir.querySelector('select');
+  const tevkifatInput = document.getElementById('kdv2Tevkifat_' + id);
+  // "Diğer (Manuel)" → 0 değeri, kullanıcı kendisi girer
+  tevkifatInput.value = sel.value;
+  tevkifatInput.readOnly = sel.value !== '0';
+}
+
+// Hesapla
+function kdv2Hesapla() {
+  const container = document.getElementById('kdv2Satirlar');
+  const satirlar = container.children;
+
+  if (satirlar.length === 0) {
+    showNotif('⚠️ En az bir satır ekleyin.', 'error');
+    return;
+  }
+
+  kdv2SonucData = [];
+  let toplamBrut = 0, toplamKdv = 0, toplamTevkif = 0, toplamNet = 0;
+  const tbody = document.getElementById('kdv2TabloBody');
+  tbody.innerHTML = '';
+
+  Array.from(satirlar).forEach(satir => {
+    const inputs  = satir.querySelectorAll('input');
+    const selects = satir.querySelectorAll('select');
+
+    const aciklama    = inputs[0].value.trim() || '—';
+    const brut        = parseFloat(inputs[1].value) || 0;
+    const kdvOrani    = parseFloat(selects[1].value) || 20;
+    const tevkifatPct = parseFloat(inputs[2].value) || 0; // 0-100
+    const turAd       = selects[0].selectedOptions[0]?.dataset.ad || selects[0].selectedOptions[0]?.text || '—';
+
+    // Hesaplama
+    const toplamKdvSatir   = brut * (kdvOrani / 100);
+    const tevkifKdv        = toplamKdvSatir * (tevkifatPct / 100);
+    const kalanKdv         = toplamKdvSatir - tevkifKdv;
+    const netOdeme         = brut + kalanKdv;
+
+    toplamBrut   += brut;
+    toplamKdv    += toplamKdvSatir;
+    toplamTevkif += tevkifKdv;
+    toplamNet    += netOdeme;
+
+    kdv2SonucData.push({ aciklama, turAd, brut, kdvOrani, toplamKdvSatir, tevkifatPct, tevkifKdv, kalanKdv, netOdeme });
+
+    // Tablo satırı
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${aciklama}</td>
+      <td style="font-size:12px;">${turAd}</td>
+      <td style="text-align:right;">${fmt(brut)} ₺</td>
+      <td style="text-align:center;">%${kdvOrani}</td>
+      <td style="text-align:right;">${fmt(toplamKdvSatir)} ₺</td>
+      <td style="text-align:center; color:var(--accent3);">%${tevkifatPct}</td>
+      <td style="text-align:right; color:var(--accent3); font-weight:600;">${fmt(tevkifKdv)} ₺</td>
+      <td style="text-align:right;">${fmt(kalanKdv)} ₺</td>
+      <td style="text-align:right; font-weight:600;">${fmt(netOdeme)} ₺</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Özet satır
+  const trToplam = document.createElement('tr');
+  trToplam.style.fontWeight = '700';
+  trToplam.style.borderTop = '2px solid var(--border)';
+  trToplam.innerHTML = `
+    <td colspan="2">TOPLAM</td>
+    <td style="text-align:right;">${fmt(toplamBrut)} ₺</td>
+    <td></td>
+    <td style="text-align:right;">${fmt(toplamKdv)} ₺</td>
+    <td></td>
+    <td style="text-align:right; color:var(--accent3);">${fmt(toplamTevkif)} ₺</td>
+    <td style="text-align:right;">${fmt(toplamKdv - toplamTevkif)} ₺</td>
+    <td style="text-align:right;">${fmt(toplamNet)} ₺</td>
+  `;
+  tbody.appendChild(trToplam);
+
+  // Özet kartları güncelle
+  document.getElementById('kdv2StatBrut').textContent   = fmt(toplamBrut)   + ' ₺';
+  document.getElementById('kdv2StatKdv').textContent    = fmt(toplamKdv)    + ' ₺';
+  document.getElementById('kdv2StatTevkif').textContent = fmt(toplamTevkif) + ' ₺';
+  document.getElementById('kdv2StatNet').textContent    = fmt(toplamNet)    + ' ₺';
+
+  document.getElementById('kdv2Sonuc').style.display = 'block';
+  document.getElementById('kdv2Sonuc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Excel indir (Luca uyumlu)
+function kdv2ExcelIndir() {
+  const headers = ['Açıklama','Hizmet Türü','Brüt Tutar','KDV Oranı','Toplam KDV','Tevkifat Oranı','Tevkif Edilen KDV','Kalan KDV','Net Ödeme'];
+  const rows = kdv2SonucData.map(r => [
+    r.aciklama, r.turAd,
+    r.brut.toFixed(2), '%' + r.kdvOrani,
+    r.toplamKdvSatir.toFixed(2), '%' + r.tevkifatPct,
+    r.tevkifKdv.toFixed(2), r.kalanKdv.toFixed(2), r.netOdeme.toFixed(2)
+  ]);
+  downloadCSV(headers, rows, 'kdv2_hesaplama.csv');
+}
+
+// Temizle
+function kdv2Temizle() {
+  document.getElementById('kdv2Satirlar').innerHTML = '';
+  document.getElementById('kdv2Sonuc').style.display = 'none';
+  kdv2Sayac = 0;
+  kdv2SonucData = [];
+  kdv2SatirEkle(); // Boş satırla başlat
 }
 
 // ---- YARDIMCI ----

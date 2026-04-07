@@ -736,6 +736,55 @@ const YARDIM_ICERIK = {
     `
   },
 
+  'kdv-2': {
+    baslik: '🌍 KDV-2 Hesaplama (Sorumlu Sıfatıyla)',
+    icerik: `
+      <h3>Bu özellik ne işe yarar?</h3>
+      <p>Yurt dışından alınan hizmetler ve tevkifata tabi
+      işlemlerde sorumlu sıfatıyla beyan edilecek KDV-2
+      tutarını hesaplar.</p>
+
+      <div class="info-kutu">
+        <strong>💡 KDV-2 Nedir?</strong><br>
+        Yurt dışı satıcılardan veya tevkifata tabi hizmetlerde
+        alıcı (Türk firması) KDV'yi sorumlu sıfatıyla beyan eder.
+        Bu KDV-2 beyannamesinde <strong>360.03</strong> hesabında
+        alacak, <strong>191.03</strong> hesabında borç olarak
+        raporlanır.
+      </div>
+
+      <h3>Adım adım kullanım</h3>
+      <ol>
+        <li>Açıklama girin (örn: "Google Cloud EMEA")</li>
+        <li>Hizmet türünü seçin — tevkifat oranı otomatik dolar</li>
+        <li>Brüt tutarı (KDV hariç) girin</li>
+        <li>KDV oranını seçin (%1, %10, %20)</li>
+        <li>Gerekirse tevkifat oranını düzenleyin</li>
+        <li>Birden fazla işlem için <strong>"+ Satır Ekle"</strong></li>
+        <li><strong>"🧮 Hesapla"</strong> butonuna basın</li>
+        <li>Sonuç kartlarında tevkif edilen KDV görünür</li>
+        <li><strong>"⬇️ Excel İndir"</strong> ile Luca'ya aktarın</li>
+      </ol>
+
+      <div class="info-kutu">
+        <strong>📋 Yaygın Tevkifat Oranları</strong><br>
+        • Yurt dışı hizmet → 10/10 (Tam tevkifat)<br>
+        • Danışmanlık → 3/10<br>
+        • Yapım işi → 4/10<br>
+        • Temizlik / Özel güvenlik → 9/10<br>
+        • Yemek servisi → 5/10
+      </div>
+
+      <div class="uyari-kutu">
+        <strong>⚠️ Muhasebe Kaydı</strong><br>
+        Tevkif edilen KDV alıcının <strong>360.03</strong> hesabına
+        alacak, <strong>191.03</strong> hesabına borç olarak kaydedilir.
+        Bu iki tutar eşit olmalıdır. KDV Mutabakat modülünde
+        bu kontrol otomatik yapılır.
+      </div>
+    `
+  },
+
   'ayarlar': {
     baslik: '⚙️ Ayarlar Modülü',
     icerik: `
