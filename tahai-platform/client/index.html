@@ -1726,32 +1726,147 @@
         </div>
         <div class="result-header">
           <div class="result-title">✅ İşlenen Fişler <span class="badge" id="fisCount">0 kayıt</span></div>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn btn-success" onclick="downloadExcel('fis')">⬇️ Luca Excel İndir</button>
+            <button class="btn btn-outline" onclick="downloadFisGruplu()" style="font-size:12px;">📊 Gruplu CSV</button>
             <button class="btn btn-primary" onclick="fisMukellefKaydet()" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">💾 Mükellefe Kaydet</button>
             <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="tumFisleriSil()">🗑️ Tüm Fişleri Sil</button>
             <button class="btn btn-outline" onclick="clearFisResult()">Temizle</button>
           </div>
         </div>
-        <div class="table-wrap">
-          <table id="fisTable">
-            <thead>
-              <tr>
-                <th>Mükellef</th>
-                <th>Tarih</th>
-                <th>Fiş Türü</th>
-                <th>Satıcı/Yer</th>
-                <th>KDV Oranı</th>
-                <th>Matrah</th>
-                <th>KDV Tutarı</th>
-                <th>Toplam</th>
-                <th>Muhasebe Kodu</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="fisTableBody"></tbody>
-          </table>
+
+        <!-- Gruplandırılmış fişler -->
+        <div id="fisGruplarContainer">
+
+          <!-- %1 KDV Grubu -->
+          <div id="fisGrup1" class="fis-grup" style="display:none; margin-bottom:20px;">
+            <div style="background:linear-gradient(135deg,#10b981,#059669);padding:16px;border-radius:10px 10px 0 0;color:white;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div style="font-size:16px;font-weight:700;">🟢 %1 KDV'Lİ FİŞLER</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup1Sayi">0</span> adet fiş</div>
+                </div>
+                <div style="text-align:right;font-size:13px;line-height:1.6;">
+                  <div>Matrah: <strong id="fisGrup1Matrah">0 ₺</strong></div>
+                  <div>KDV: <strong id="fisGrup1Kdv">0 ₺</strong></div>
+                  <div style="font-size:15px;">Toplam: <strong id="fisGrup1Toplam">0 ₺</strong></div>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
+                  <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
+                  <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
+                  <th style="padding:8px 10px;text-align:right;">Matrah</th>
+                  <th style="padding:8px 10px;text-align:right;">KDV</th>
+                  <th style="padding:8px 10px;text-align:right;">Toplam</th>
+                  <th style="padding:8px 10px;text-align:left;">Muhasebe Kodu</th>
+                  <th style="padding:8px 10px;text-align:center;"></th>
+                </tr></thead>
+                <tbody id="fisGrup1Body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- %10 KDV Grubu -->
+          <div id="fisGrup10" class="fis-grup" style="display:none; margin-bottom:20px;">
+            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:16px;border-radius:10px 10px 0 0;color:white;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div style="font-size:16px;font-weight:700;">🟡 %10 KDV'Lİ FİŞLER</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup10Sayi">0</span> adet fiş</div>
+                </div>
+                <div style="text-align:right;font-size:13px;line-height:1.6;">
+                  <div>Matrah: <strong id="fisGrup10Matrah">0 ₺</strong></div>
+                  <div>KDV: <strong id="fisGrup10Kdv">0 ₺</strong></div>
+                  <div style="font-size:15px;">Toplam: <strong id="fisGrup10Toplam">0 ₺</strong></div>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
+                  <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
+                  <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
+                  <th style="padding:8px 10px;text-align:right;">Matrah</th>
+                  <th style="padding:8px 10px;text-align:right;">KDV</th>
+                  <th style="padding:8px 10px;text-align:right;">Toplam</th>
+                  <th style="padding:8px 10px;text-align:left;">Muhasebe Kodu</th>
+                  <th style="padding:8px 10px;text-align:center;"></th>
+                </tr></thead>
+                <tbody id="fisGrup10Body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- %20 KDV Grubu -->
+          <div id="fisGrup20" class="fis-grup" style="display:none; margin-bottom:20px;">
+            <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);padding:16px;border-radius:10px 10px 0 0;color:white;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div style="font-size:16px;font-weight:700;">🔵 %20 KDV'Lİ FİŞLER</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup20Sayi">0</span> adet fiş</div>
+                </div>
+                <div style="text-align:right;font-size:13px;line-height:1.6;">
+                  <div>Matrah: <strong id="fisGrup20Matrah">0 ₺</strong></div>
+                  <div>KDV: <strong id="fisGrup20Kdv">0 ₺</strong></div>
+                  <div style="font-size:15px;">Toplam: <strong id="fisGrup20Toplam">0 ₺</strong></div>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
+                  <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
+                  <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
+                  <th style="padding:8px 10px;text-align:right;">Matrah</th>
+                  <th style="padding:8px 10px;text-align:right;">KDV</th>
+                  <th style="padding:8px 10px;text-align:right;">Toplam</th>
+                  <th style="padding:8px 10px;text-align:left;">Muhasebe Kodu</th>
+                  <th style="padding:8px 10px;text-align:center;"></th>
+                </tr></thead>
+                <tbody id="fisGrup20Body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Diğer / KDV Yok -->
+          <div id="fisGrupDiger" class="fis-grup" style="display:none; margin-bottom:20px;">
+            <div style="background:linear-gradient(135deg,#6b7280,#4b5563);padding:16px;border-radius:10px 10px 0 0;color:white;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <div style="font-size:16px;font-weight:700;">⚪ DİĞER / KDV YOK</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrupDigerSayi">0</span> adet fiş</div>
+                </div>
+                <div style="text-align:right;font-size:13px;line-height:1.6;">
+                  <div style="font-size:15px;">Toplam: <strong id="fisGrupDigerToplam">0 ₺</strong></div>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
+                  <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
+                  <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
+                  <th style="padding:8px 10px;text-align:right;">Matrah</th>
+                  <th style="padding:8px 10px;text-align:right;">KDV</th>
+                  <th style="padding:8px 10px;text-align:right;">Toplam</th>
+                  <th style="padding:8px 10px;text-align:left;">Muhasebe Kodu</th>
+                  <th style="padding:8px 10px;text-align:center;"></th>
+                </tr></thead>
+                <tbody id="fisGrupDigerBody"></tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
+        <!-- Geriye dönük uyumluluk için gizli tablo -->
+        <table id="fisTable" style="display:none;"><tbody id="fisTableBody"></tbody></table>
       </div>
     </div>
 
@@ -5334,67 +5449,123 @@ function getFisTuruRenk(tur) {
   return renkler[tur] || '#8892a4';
 }
 
+// ─── Fişleri KDV oranına göre grupla ve render et ──────────────────────────
 function renderFisTable() {
-  const tbody = document.getElementById('fisTableBody');
-  tbody.innerHTML = fisData.map((r, idx) => {
-    // 5) Fiş türü renklendirme
-    const renk = getFisTuruRenk(r.fis_turu);
-    const dupStyle = r._duplicate ? 'background:rgba(248,113,113,0.08);' : '';
-    // 3) KDV uyuşmazlık — sarı zemin
-    const kdvStyle = r._kdvHata ? 'background:rgba(251,191,36,0.10);' : '';
-    const rowStyle = dupStyle || kdvStyle;
-    const kdvUyari = r._kdvHata ? ' <span title="Tutarlar uyuşmuyor, kontrol edin" style="color:#f59e0b;cursor:help;">⚠️</span>' : '';
-    return `
-    <tr id="fis_row_${idx}" style="${rowStyle}">
-      <td>${r.mukellef}</td>
-      <td id="fis_tarih_${idx}">${r.tarih}</td>
-      <td><span style="color:${renk}; font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span></td>
-      <td>${r.satici}</td>
-      <td>
-        <select class="kdv-select" onchange="kdvOranDegis(${idx}, this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;cursor:pointer;">
-          <option value="1"  ${r.kdv_orani==1  ? 'selected':''}>%1</option>
-          <option value="10" ${r.kdv_orani==10 ? 'selected':''}>%10</option>
-          <option value="20" ${r.kdv_orani==20 ? 'selected':''}>%20</option>
-        </select>
-      </td>
-      <td id="fis_matrah_${idx}">${r.matrah?.toLocaleString('tr-TR')} ₺</td>
-      <td id="fis_kdv_${idx}">${r.kdv_tutari?.toLocaleString('tr-TR')} ₺${kdvUyari}</td>
-      <td id="fis_toplam_${idx}"><strong>${r.toplam?.toLocaleString('tr-TR')} ₺</strong></td>
-      <td><code style="color:var(--accent3)">${r.muhasebe_kodu}</code></td>
-      <td style="display:flex;gap:4px;">
-        <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" onclick="fisDuzenle(${idx})">✏️</button>
-        <button class="btn" style="padding:4px 10px;font-size:11px;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:6px;" onclick="fisSil(${idx})">🗑️</button>
-      </td>
-    </tr>`;
-  }).join('');
+  // Fişleri 4 gruba ayır (global index'i koruyarak)
+  const gruplar = { '1': [], '10': [], '20': [], 'Diger': [] };
+  fisData.forEach((r, idx) => {
+    const oran = parseInt(r.kdv_orani || 0);
+    if      (oran === 1)  gruplar['1'].push({ r, idx });
+    else if (oran === 10) gruplar['10'].push({ r, idx });
+    else if (oran === 20) gruplar['20'].push({ r, idx });
+    else                  gruplar['Diger'].push({ r, idx });
+  });
+
+  _renderFisGrubu('1',     gruplar['1'],     true);
+  _renderFisGrubu('10',    gruplar['10'],    true);
+  _renderFisGrubu('20',    gruplar['20'],    true);
+  _renderFisGrubu('Diger', gruplar['Diger'], false);
+
   document.getElementById('fisCount').textContent = fisData.length + ' kayıt';
   document.getElementById('fisResult').classList.add('visible');
   updateFisTotals();
 }
 
-// 1) Fiş satırı düzenleme
+// ─── Tek bir KDV grubunu tabloya yaz ────────────────────────────────────────
+function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
+  const container = document.getElementById('fisGrup' + grupAdi);
+  const tbody     = document.getElementById('fisGrup' + grupAdi + 'Body');
+  if (!container || !tbody) return;
+
+  if (satirlar.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+
+  // Grup toplamlari
+  const totMatrah = satirlar.reduce((a, {r}) => a + (r.matrah     || 0), 0);
+  const totKdv    = satirlar.reduce((a, {r}) => a + (r.kdv_tutari || 0), 0);
+  const totToplam = satirlar.reduce((a, {r}) => a + (r.toplam     || 0), 0);
+  const _f = n => n.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
+
+  const sayiEl   = document.getElementById('fisGrup' + grupAdi + 'Sayi');
+  const matrahEl = document.getElementById('fisGrup' + grupAdi + 'Matrah');
+  const kdvEl    = document.getElementById('fisGrup' + grupAdi + 'Kdv');
+  const toplamEl = document.getElementById('fisGrup' + grupAdi + 'Toplam');
+
+  if (sayiEl)   sayiEl.textContent   = satirlar.length;
+  if (matrahEl) matrahEl.textContent = _f(totMatrah);
+  if (kdvEl)    kdvEl.textContent    = _f(totKdv);
+  if (toplamEl) toplamEl.textContent = _f(totToplam);
+
+  // Satır HTML — global idx kullanılıyor (fisSil/fisDuzenle uyumluluğu)
+  tbody.innerHTML = satirlar.map(({ r, idx }) => {
+    const renk     = getFisTuruRenk(r.fis_turu);
+    const dupStyle = r._duplicate ? 'background:rgba(248,113,113,0.08);' : '';
+    const kdvStyle = r._kdvHata   ? 'background:rgba(251,191,36,0.10);'  : '';
+    const rowStyle = dupStyle || kdvStyle;
+    const kdvUyari = r._kdvHata   ? '<span title="Tutarlar uyuşmuyor" style="color:#f59e0b;">⚠️</span>' : '';
+    const kdvDropdown = `<select class="kdv-select" onchange="kdvOranDegis(${idx},this.value)"
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 5px;font-size:11px;cursor:pointer;">
+      <option value="1"  ${r.kdv_orani==1  ?'selected':''}>%1</option>
+      <option value="10" ${r.kdv_orani==10 ?'selected':''}>%10</option>
+      <option value="20" ${r.kdv_orani==20 ?'selected':''}>%20</option>
+    </select>`;
+    return `
+    <tr id="fis_row_${idx}" style="${rowStyle}border-top:1px solid var(--border);">
+      <td style="padding:9px 10px;font-size:13px;" id="fis_tarih_${idx}">${r.tarih}</td>
+      <td style="padding:9px 10px;font-size:13px;">
+        <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>
+        ${!kdvGoster ? '<br>' + kdvDropdown : ''}
+      </td>
+      <td style="padding:9px 10px;font-size:13px;">${r.satici}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right;" id="fis_matrah_${idx}">${(r.matrah||0).toLocaleString('tr-TR')} ₺</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right;" id="fis_kdv_${idx}">${(r.kdv_tutari||0).toLocaleString('tr-TR')} ₺${kdvUyari}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right;font-weight:600;" id="fis_toplam_${idx}">${(r.toplam||0).toLocaleString('tr-TR')} ₺</td>
+      <td style="padding:9px 10px;font-size:12px;"><code style="color:var(--accent3)">${r.muhasebe_kodu}</code></td>
+      <td style="padding:9px 10px;text-align:center;">
+        <div style="display:flex;gap:4px;justify-content:center;">
+          <button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="fisDuzenle(${idx})">✏️</button>
+          <button class="btn" style="padding:3px 8px;font-size:11px;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:6px;" onclick="fisSil(${idx})">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// 1) Fiş satırı düzenleme — 8 kolon yapısıyla uyumlu
 function fisDuzenle(idx) {
   const r = fisData[idx];
   const row = document.getElementById('fis_row_' + idx);
+  if (!row) return;
+  const inp = 'class="form-input" style="width:85px;padding:3px 6px;font-size:12px;"';
   row.innerHTML = `
-    <td>${r.mukellef}</td>
-    <td><input class="form-input" style="width:110px;padding:4px 6px;font-size:12px;" value="${r.tarih}" id="fe_tarih_${idx}" /></td>
-    <td style="color:${getFisTuruRenk(r.fis_turu)}">${r.fis_turu}</td>
-    <td>${r.satici}</td>
-    <td>
-      <select id="fe_kdv_oran_${idx}" onchange="feKdvHesapla(${idx})" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;">
-        <option value="1"  ${r.kdv_orani==1  ? 'selected':''}>%1</option>
-        <option value="10" ${r.kdv_orani==10 ? 'selected':''}>%10</option>
-        <option value="20" ${r.kdv_orani==20 ? 'selected':''}>%20</option>
+    <td style="padding:6px 10px;">
+      <input ${inp} style="width:110px;padding:3px 6px;font-size:12px;" value="${r.tarih}" id="fe_tarih_${idx}" />
+    </td>
+    <td style="padding:6px 10px;">
+      <span style="color:${getFisTuruRenk(r.fis_turu)};font-size:12px;display:block;margin-bottom:3px;">${r.fis_turu}</span>
+      <select id="fe_kdv_oran_${idx}" onchange="feKdvHesapla(${idx})"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 5px;font-size:11px;">
+        <option value="1"  ${r.kdv_orani==1  ?'selected':''}>%1</option>
+        <option value="10" ${r.kdv_orani==10 ?'selected':''}>%10</option>
+        <option value="20" ${r.kdv_orani==20 ?'selected':''}>%20</option>
       </select>
     </td>
-    <td><input class="form-input" style="width:90px;padding:4px 6px;font-size:12px;" type="number" step="0.01" value="${r.matrah||0}" id="fe_matrah_${idx}" oninput="feHesaplaMatrahtan(${idx})" /></td>
-    <td><input class="form-input" style="width:90px;padding:4px 6px;font-size:12px;" type="number" step="0.01" value="${r.kdv_tutari||0}" id="fe_kdv_${idx}" oninput="feHesaplaKdvden(${idx})" /></td>
-    <td><input class="form-input" style="width:90px;padding:4px 6px;font-size:12px;background:rgba(52,211,153,0.08);" type="number" step="0.01" value="${r.toplam||0}" id="fe_toplam_${idx}" oninput="feHesaplaToplam(${idx})" /></td>
-    <td><code style="color:var(--accent3)">${r.muhasebe_kodu}</code></td>
-    <td style="display:flex;gap:4px;">
-      <button class="btn btn-success" style="padding:4px 10px;font-size:11px;" onclick="fisKaydet(${idx})">💾</button>
-      <button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="renderFisTable()">✕</button>
+    <td style="padding:6px 10px;font-size:12px;">${r.satici}</td>
+    <td style="padding:6px 10px;">
+      <input ${inp} type="number" step="0.01" value="${r.matrah||0}" id="fe_matrah_${idx}" oninput="feHesaplaMatrahtan(${idx})" />
+    </td>
+    <td style="padding:6px 10px;">
+      <input ${inp} type="number" step="0.01" value="${r.kdv_tutari||0}" id="fe_kdv_${idx}" oninput="feHesaplaKdvden(${idx})" />
+    </td>
+    <td style="padding:6px 10px;">
+      <input ${inp} style="width:85px;padding:3px 6px;font-size:12px;background:rgba(52,211,153,0.08);" type="number" step="0.01" value="${r.toplam||0}" id="fe_toplam_${idx}" oninput="feHesaplaToplam(${idx})" />
+    </td>
+    <td style="padding:6px 10px;"><code style="color:var(--accent3);font-size:11px;">${r.muhasebe_kodu}</code></td>
+    <td style="padding:6px 10px;">
+      <div style="display:flex;gap:4px;justify-content:center;">
+        <button class="btn btn-success" style="padding:3px 8px;font-size:11px;" onclick="fisKaydet(${idx})">💾</button>
+        <button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="renderFisTable()">✕</button>
+      </div>
     </td>
   `;
 }
@@ -6335,7 +6506,81 @@ function clearZ() { zFiles = []; renderFileList([], 'zFileList', 'removeZFile');
 function clearFis() { fisFiles = []; renderFileList([], 'fisFileList', 'removeFisFile'); document.getElementById('fisBtn').disabled = true; }
 function clearFatura() { faturaFiles = []; renderFileList([], 'faturaFileList', 'removeFaturaFile'); document.getElementById('faturaBtn').disabled = true; }
 function clearZResult() { zData = []; document.getElementById('zTableBody').innerHTML = ''; document.getElementById('zResult').classList.remove('visible'); document.getElementById('statZ').textContent = '0'; autoSave(); }
-function clearFisResult() { fisData = []; document.getElementById('fisTableBody').innerHTML = ''; document.getElementById('fisResult').classList.remove('visible'); document.getElementById('statFis').textContent = '0'; updateFisTotals(); autoSave(); }
+function clearFisResult() {
+  fisData = [];
+  // Grupları temizle ve gizle
+  ['1','10','20','Diger'].forEach(g => {
+    const el = document.getElementById('fisGrup' + g);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('fisResult').classList.remove('visible');
+  document.getElementById('statFis').textContent = '0';
+  updateFisTotals();
+  autoSave();
+}
+
+// Gruplandırılmış CSV indir (her KDV grubu ayrı bölüm)
+function downloadFisGruplu() {
+  if (fisData.length === 0) { showNotif('⚠️ İndirilecek fiş yok.', 'error'); return; }
+
+  const gruplar = { '1': [], '10': [], '20': [], 'Diger': [] };
+  fisData.forEach(r => {
+    const oran = parseInt(r.kdv_orani || 0);
+    if      (oran === 1)  gruplar['1'].push(r);
+    else if (oran === 10) gruplar['10'].push(r);
+    else if (oran === 20) gruplar['20'].push(r);
+    else                  gruplar['Diger'].push(r);
+  });
+
+  const bom   = '\uFEFF';
+  const hdrs  = ['Tarih','Fiş Türü','Satıcı / Yer','KDV Oranı (%)','Matrah (₺)','KDV Tutarı (₺)','Toplam (₺)','Muhasebe Kodu'];
+  const q     = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const lines = [bom.slice(1)]; // BOM zaten prepend edilecek
+
+  const grupBilgi = [
+    { key:'1',     ad:'%1 KDV\'Lİ FİŞLER'  },
+    { key:'10',    ad:'%10 KDV\'Lİ FİŞLER' },
+    { key:'20',    ad:'%20 KDV\'Lİ FİŞLER' },
+    { key:'Diger', ad:'DİĞER / KDV YOK'    },
+  ];
+
+  let genelMatrah = 0, genelKdv = 0, genelToplam = 0;
+
+  grupBilgi.forEach(({ key, ad }) => {
+    const g = gruplar[key];
+    if (g.length === 0) return;
+    const totM = g.reduce((a,r) => a+(r.matrah||0), 0);
+    const totK = g.reduce((a,r) => a+(r.kdv_tutari||0), 0);
+    const totT = g.reduce((a,r) => a+(r.toplam||0), 0);
+    genelMatrah += totM; genelKdv += totK; genelToplam += totT;
+
+    lines.push(q('=== ' + ad + ' (' + g.length + ' fiş) ==='));
+    lines.push(hdrs.map(q).join(';'));
+    g.forEach(r => lines.push([_fmtTarih(r.tarih),r.fis_turu,r.satici,r.kdv_orani,formatSayi(r.matrah),formatSayi(r.kdv_tutari),formatSayi(r.toplam),r.muhasebe_kodu].map(q).join(';')));
+    lines.push([q('GRUP TOPLAM'),'','','',q(formatSayi(totM)),q(formatSayi(totK)),q(formatSayi(totT)),''].join(';'));
+    lines.push(''); // boş satır ayraç
+  });
+
+  // Genel özet
+  lines.push(q('=== GENEL ÖZET ==='));
+  lines.push(['KDV Grubu','Fiş Sayısı','Toplam Matrah','Toplam KDV','Toplam Tutar'].map(q).join(';'));
+  grupBilgi.forEach(({ key, ad }) => {
+    const g = gruplar[key];
+    if (g.length === 0) return;
+    const totM = g.reduce((a,r)=>a+(r.matrah||0),0);
+    const totK = g.reduce((a,r)=>a+(r.kdv_tutari||0),0);
+    const totT = g.reduce((a,r)=>a+(r.toplam||0),0);
+    lines.push([q(ad),q(g.length),q(formatSayi(totM)),q(formatSayi(totK)),q(formatSayi(totT))].join(';'));
+  });
+  lines.push([q('GENEL TOPLAM'),q(fisData.length),q(formatSayi(genelMatrah)),q(formatSayi(genelKdv)),q(formatSayi(genelToplam))].join(';'));
+
+  const blob = new Blob([bom + lines.join('\n')], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'luca_fisler_gruplu.csv';
+  a.click();
+  showNotif('✅ luca_fisler_gruplu.csv indirildi!', 'success');
+}
 function clearFaturaResult() { faturaData = []; document.getElementById('faturaTableBody').innerHTML = ''; document.getElementById('faturaResult').classList.remove('visible'); document.getElementById('statFatura').textContent = '0'; autoSave(); }
 
 // ===================== TABS =====================

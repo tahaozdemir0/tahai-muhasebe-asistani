@@ -74,6 +74,23 @@ const YARDIM_ICERIK = {
         • Tek seferde birden fazla fiş yükleyebilirsiniz<br>
         • AI hatalı okursa manuel düzeltme yapabilirsiniz
       </div>
+
+      <h3>📊 Fişler KDV Oranına Göre Gruplandırıldı</h3>
+      <p>İşlenen fişler otomatik olarak 3 renkli gruba ayrılır:</p>
+      <ul>
+        <li><strong>🟢 %1 KDV'Lİ FİŞLER</strong> — Gıda, market gibi</li>
+        <li><strong>🟡 %10 KDV'Lİ FİŞLER</strong> — Restoran, kafe gibi</li>
+        <li><strong>🔵 %20 KDV'Lİ FİŞLER</strong> — Akaryakıt, ofis malzemeleri gibi</li>
+      </ul>
+      <p>Her grubun başlığında <strong>toplam matrah, KDV ve toplam tutar</strong> gösterilir.</p>
+
+      <div class="info-kutu">
+        <strong>💡 Neden Gruplandırdık?</strong><br>
+        Muhasebede fişleri KDV oranına göre ayrı toplu işlemek standart uygulamadır.
+        Her grup doğrudan Luca'ya toplu giriş için hazır bilgi sunar.<br><br>
+        <strong>📊 Gruplu CSV İndir</strong> butonu ile her grubu ayrı bölümde,
+        özet tablolarla birlikte CSV olarak indirebilirsiniz.
+      </div>
     `
   },
 
