@@ -2439,6 +2439,81 @@
           <!-- dinamik -->
         </div>
       </div>
+
+      <!-- Resmi Tatil Yönetimi -->
+      <div class="card">
+        <div class="card-title">🗓️ Resmi Tatil Listesi (Manuel Güncelleme)</div>
+        <div class="card-desc">
+          Dini bayram tarihleri her yıl değişir. Beyanname Takvimi doğru hesaplasın diye
+          yeni yılın tatil günlerini buradan ekleyebilirsiniz.
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <div class="form-group" style="min-width:120px;max-width:140px;margin:0;">
+            <label style="font-size:11px;">YIL</label>
+            <select class="form-input" id="tatilYilSec" style="width:100%;" onchange="tatilListesiniGoster()">
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:160px;margin:0;">
+            <label style="font-size:11px;">TARİH (YYYY-MM-DD)</label>
+            <input type="date" class="form-input" id="tatilTarihInput" style="width:100%;" />
+          </div>
+          <div class="form-group" style="flex:2;min-width:160px;margin:0;">
+            <label style="font-size:11px;">AÇIKLAMA</label>
+            <input type="text" class="form-input" id="tatilAciklamaInput" placeholder="Örn: Ramazan Bayramı 1. Gün" style="width:100%;" />
+          </div>
+          <button class="btn btn-primary" onclick="tatilEkle()" style="margin-top:18px;">+ Ekle</button>
+        </div>
+
+        <div id="tatilListesi" style="font-size:13px;"></div>
+      </div>
+
+      <!-- GİB Uzatma Tanımla -->
+      <div class="card">
+        <div class="card-title">⚡ GİB Süre Uzatması Tanımla</div>
+        <div class="card-desc">
+          GİB bazen beyanname sürelerini uzatır. Sirküler yayınlandığında buradan tanımlayın,
+          Beyanname Takvimi otomatik güncellenir.
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;">BEYANNAME TÜRÜ</label>
+            <select class="form-input" id="gibTipSec" style="width:100%;">
+              <option>KDV-1 Beyannamesi</option>
+              <option>KDV-2 Beyannamesi</option>
+              <option>Muhtasar Beyanname</option>
+              <option>Damga Vergisi</option>
+              <option>SGK Prim Ödeme</option>
+              <option>Ba/Bs Formu</option>
+              <option>Geçici Vergi - 1. Dönem</option>
+              <option>Geçici Vergi - 2. Dönem</option>
+              <option>Geçici Vergi - 3. Dönem</option>
+              <option>Geçici Vergi - 4. Dönem</option>
+              <option>Gelir Vergisi Beyannamesi</option>
+              <option>Kurumlar Vergisi Beyannamesi</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;">ORİJİNAL TARİH</label>
+            <input type="date" class="form-input" id="gibOrijTarih" style="width:100%;" />
+          </div>
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;">UZATILAN TARİH</label>
+            <input type="date" class="form-input" id="gibYeniTarih" style="width:100%;" />
+          </div>
+          <div>
+            <label style="font-size:11px;display:block;margin-bottom:4px;">AÇIKLAMA</label>
+            <input type="text" class="form-input" id="gibAciklama" placeholder="GİB 2026/X Sirküleri" style="width:100%;" />
+          </div>
+          <button class="btn btn-primary" onclick="gibUzatmaEkle()">+ Ekle</button>
+        </div>
+
+        <div id="gibUzatmaListesi" style="font-size:13px;"></div>
+      </div>
     </div>
 
     <!-- HATIRLATICI PAGE -->
@@ -7761,6 +7836,170 @@ function tumKartlariSil() {
 }
 
 // ===================== BEYANNAME TAKVİMİ =====================
+
+// ─── Sabit resmi tatil listesi (2026-2027) ──────────────────────────────────
+const RESMI_TATILLER_BASE = {
+  '2026': [
+    '2026-01-01', // Yılbaşı
+    '2026-03-20', // Ramazan Bayramı Arefe
+    '2026-03-21', // Ramazan Bayramı 1. Gün
+    '2026-03-22', // Ramazan Bayramı 2. Gün
+    '2026-03-23', // Ramazan Bayramı 3. Gün
+    '2026-04-23', // Ulusal Egemenlik ve Çocuk Bayramı
+    '2026-05-01', // Emek ve Dayanışma Günü
+    '2026-05-19', // Atatürk'ü Anma Günü
+    '2026-05-26', // Kurban Bayramı Arefe
+    '2026-05-27', // Kurban Bayramı 1. Gün
+    '2026-05-28', // Kurban Bayramı 2. Gün
+    '2026-05-29', // Kurban Bayramı 3. Gün
+    '2026-05-30', // Kurban Bayramı 4. Gün
+    '2026-07-15', // Demokrasi ve Milli Birlik Günü
+    '2026-08-30', // Zafer Bayramı
+    '2026-10-28', // Cumhuriyet Bayramı Arefe
+    '2026-10-29', // Cumhuriyet Bayramı
+  ],
+  '2027': [
+    '2027-01-01', // Yılbaşı
+    '2027-03-10', // Ramazan Bayramı Arefe (tahmini)
+    '2027-03-11', // Ramazan Bayramı 1. Gün
+    '2027-03-12', // Ramazan Bayramı 2. Gün
+    '2027-03-13', // Ramazan Bayramı 3. Gün
+    '2027-04-23', // Ulusal Egemenlik ve Çocuk Bayramı
+    '2027-05-01', // Emek ve Dayanışma Günü
+    '2027-05-16', // Kurban Bayramı Arefe (tahmini)
+    '2027-05-17', // Kurban Bayramı 1. Gün
+    '2027-05-18', // Kurban Bayramı 2. Gün
+    '2027-05-19', // Atatürk'ü Anma Günü + Kurban 3. Gün
+    '2027-05-20', // Kurban Bayramı 4. Gün
+    '2027-07-15', // Demokrasi ve Milli Birlik Günü
+    '2027-08-30', // Zafer Bayramı
+    '2027-10-29', // Cumhuriyet Bayramı
+  ]
+};
+
+// Kullanıcının localStorage'a eklediği tatillerle birleştir
+function getResmiTatiller() {
+  let ekstra = {};
+  try { ekstra = JSON.parse(localStorage.getItem(_sk('tahai_resmi_tatiller')) || '{}'); } catch(e) {}
+  const merged = {};
+  const yillar = new Set([...Object.keys(RESMI_TATILLER_BASE), ...Object.keys(ekstra)]);
+  yillar.forEach(y => {
+    const base = RESMI_TATILLER_BASE[y] || [];
+    const ext  = ekstra[y] || [];
+    merged[y]  = [...new Set([...base, ...ext])].sort();
+  });
+  return merged;
+}
+
+// GİB uzatma listesi (localStorage)
+function getGibUzatmalar() {
+  try { return JSON.parse(localStorage.getItem(_sk('tahai_gib_uzatmalar')) || '[]'); } catch(e) { return []; }
+}
+
+// Tarih resmi tatil mi?
+function resmiTatilMi(tarih) {
+  const tatiller = getResmiTatiller();
+  const yil = tarih.getFullYear();
+  const ay  = String(tarih.getMonth() + 1).padStart(2, '0');
+  const gun = String(tarih.getDate()).padStart(2, '0');
+  return (tatiller[yil.toString()] || []).includes(`${yil}-${ay}-${gun}`);
+}
+
+// Hafta sonu mu?
+function haftaSonuMu(tarih) { const g = tarih.getDay(); return g === 0 || g === 6; }
+
+// Sonraki iş gününü bul (tatil veya hafta sonuysa ilerle)
+function sonrakiIsGunu(tarih) {
+  let t = new Date(tarih);
+  while (haftaSonuMu(t) || resmiTatilMi(t)) t.setDate(t.getDate() + 1);
+  return t;
+}
+
+// GİB uzatması varsa uygula
+function gibUzatmaUygula(tip, tarih) {
+  const uzatmalar = getGibUzatmalar();
+  const orijStr = _tarihStr(tarih);
+  const uz = uzatmalar.find(u => u.tip === tip && u.orijinalTarih === orijStr);
+  if (!uz) return { tarih, gibUzatma: null };
+  const yeniTarih = new Date(uz.uzatilmisTarih);
+  return { tarih: sonrakiIsGunu(yeniTarih), gibUzatma: uz };
+}
+
+// Tarih → YYYY-MM-DD string
+function _tarihStr(tarih) {
+  const y = tarih.getFullYear();
+  const m = String(tarih.getMonth() + 1).padStart(2, '0');
+  const d = String(tarih.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Tarih → "28 Mart 2026 Cumartesi" formatı
+function tarihFormatla(tarih) {
+  const aylar  = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const gunler = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  return `${tarih.getDate()} ${aylar[tarih.getMonth()]} ${tarih.getFullYear()} ${gunler[tarih.getDay()]}`;
+}
+
+// Tarihe göre renk ve etiket
+function getTarihRengi(tarih) {
+  const bugun = new Date(); bugun.setHours(0,0,0,0);
+  const hedef = new Date(tarih); hedef.setHours(0,0,0,0);
+  const fark  = Math.ceil((hedef - bugun) / 86400000);
+  if (fark < 0)    return { hex: '#6b7280', label: 'Geçti'       };
+  if (fark === 0)  return { hex: '#ef4444', label: 'BUGÜN'       };
+  if (fark <= 3)   return { hex: '#ef4444', label: `${fark} gün` };
+  if (fark <= 7)   return { hex: '#f59e0b', label: `${fark} gün` };
+  if (fark <= 30)  return { hex: '#eab308', label: `${fark} gün` };
+  return            { hex: '#10b981', label: `${fark} gün`        };
+}
+
+// Seçilen AY için beyanname tarihlerini hesapla
+function getBeyannameTarihleri(yil, ay) {
+  const tarihler = [];
+  const sonrakiAy  = ay === 12 ? 1  : ay + 1;
+  const sonrakiYil = ay === 12 ? yil + 1 : yil;
+  const ayAdlari   = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const donemAd    = `${ayAdlari[ay-1]} ${yil}`;
+
+  // Yardımcı: beyanname objesi oluştur
+  const bey = (tip, icon, kategori, orijinalFn, aciklama) => {
+    const orig    = orijinalFn();
+    const gercek  = sonrakiIsGunu(orig);
+    const { tarih: gibTarih, gibUzatma } = gibUzatmaUygula(tip, gercek);
+    return {
+      tip, icon, kategori, aciklama,
+      tarih:         gibTarih,
+      orijinalTarih: orig,
+      ertelendi:     orig.getTime() !== gibTarih.getTime(),
+      gibUzatma,
+    };
+  };
+
+  // ── Aylık beyannameler (sonraki ayın 28'i) ────────────────────────────────
+  const _28 = () => new Date(sonrakiYil, sonrakiAy - 1, 28);
+  const _son = () => new Date(sonrakiYil, sonrakiAy, 0);
+
+  tarihler.push(bey('KDV-1 Beyannamesi',    '📋', 'aylik', _28,  `${donemAd} dönemi KDV-1`));
+  tarihler.push(bey('KDV-2 Beyannamesi',    '🌍', 'aylik', _28,  `${donemAd} dönemi KDV-2 (Sorumlu Sıfatıyla)`));
+  tarihler.push(bey('Muhtasar Beyanname',   '👥', 'aylik', _28,  `${donemAd} dönemi MUHSGK`));
+  tarihler.push(bey('Damga Vergisi',        '📜', 'aylik', _28,  `${donemAd} dönemi Damga`));
+  tarihler.push(bey('SGK Prim Ödeme',       '🏥', 'aylik', _son, `${donemAd} dönemi SGK Prim`));
+  tarihler.push(bey('Ba/Bs Formu',          '📊', 'aylik', _son, `${donemAd} dönemi Ba/Bs`));
+
+  // ── 3 Aylık — Geçici Vergi ────────────────────────────────────────────────
+  if (ay === 3)  tarihler.push(bey('Geçici Vergi - 1. Dönem', '💰', '3aylik', () => new Date(yil, 4, 17),       `${yil} Ocak-Mart Geçici Vergi`));
+  if (ay === 6)  tarihler.push(bey('Geçici Vergi - 2. Dönem', '💰', '3aylik', () => new Date(yil, 7, 17),       `${yil} Nisan-Haziran Geçici Vergi`));
+  if (ay === 9)  tarihler.push(bey('Geçici Vergi - 3. Dönem', '💰', '3aylik', () => new Date(yil, 10, 17),      `${yil} Temmuz-Eylül Geçici Vergi`));
+  if (ay === 12) tarihler.push(bey('Geçici Vergi - 4. Dönem', '💰', '3aylik', () => new Date(yil + 1, 1, 17),   `${yil} Ekim-Aralık Geçici Vergi`));
+
+  // ── Yıllık beyanlar ───────────────────────────────────────────────────────
+  if (ay === 3) tarihler.push(bey('Gelir Vergisi Beyannamesi',  '📑', 'yillik', () => new Date(yil, 2, 31), `${yil - 1} Yılı Gelir Vergisi`));
+  if (ay === 4) tarihler.push(bey('Kurumlar Vergisi Beyannamesi','🏢', 'yillik', () => new Date(yil, 3, 30), `${yil - 1} Yılı Kurumlar Vergisi`));
+
+  tarihler.sort((a, b) => a.tarih - b.tarih);
+  return tarihler;
+}
+
 function otomatikTakvimiDoldur() {
   const el = document.getElementById('takviAy');
   if (el && !el.value) {
@@ -7773,55 +8012,170 @@ function otomatikTakvimiDoldur() {
 function takvimiGoster() {
   const ayInput = document.getElementById('takviAy').value;
   if (!ayInput) return;
-  const [yil, ay] = ayInput.split('-').map(Number);
-  const oncekiAy = ay === 1 ? 12 : ay - 1;
-  const oncekiYil = ay === 1 ? yil - 1 : yil;
+  const [yil, ay]  = ayInput.split('-').map(Number);
+  const ayAdlari   = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const donemAd    = `${ayAdlari[ay-1]} ${yil}`;
+  const tarihler   = getBeyannameTarihleri(yil, ay);
+  const el         = document.getElementById('takvimiIcerik');
 
-  const ayAdi = (a, y) => new Date(y, a-1, 1).toLocaleString('tr-TR', {month:'long', year:'numeric'});
-
-  // Beyanname listesi
-  const beyannameler = [
-    { ad: 'KDV Beyannamesi (Aylık)', gun: 26, aciklama: `${ayAdi(oncekiAy, oncekiYil)} dönemi KDV`, renk: 'accent', icon: '📊', hesap: 'Aylık mükellefler' },
-    { ad: 'Muhtasar Beyanname', gun: 26, aciklama: `${ayAdi(oncekiAy, oncekiYil)} dönemi stopaj`, renk: 'accent2', icon: '📋', hesap: 'Aylık stopaj ödemesi' },
-    { ad: 'SGK Bildirimi', gun: 23, aciklama: `${ayAdi(oncekiAy, oncekiYil)} dönemi SGK`, renk: 'accent3', icon: '👥', hesap: 'Aylık SGK bildirimi' },
-    { ad: 'SGK Prim Ödemesi', gun: 'son', aciklama: `${ayAdi(oncekiAy, oncekiYil)} dönemi prim`, renk: 'danger', icon: '💳', hesap: 'Son ödeme günü' },
-    { ad: 'KDV Ödemesi', gun: 26, aciklama: `${ayAdi(oncekiAy, oncekiYil)} dönemi KDV ödemesi`, renk: 'danger', icon: '💰', hesap: 'Beyanname ile birlikte' },
-  ];
-
-  const bugun = new Date();
-  const el = document.getElementById('takvimiIcerik');
+  const kategoriEtiket = { aylik: '📅 Aylık', '3aylik': '📆 3 Aylık', yillik: '📋 Yıllık' };
 
   el.innerHTML = `
-    <div style="font-size:12px; color:var(--text2); margin-bottom:16px; font-family:'IBM Plex Mono',monospace;">
-      📌 ${ayAdi(ay, yil)} ayında yapılacak işlemler (önceki dönem: ${ayAdi(oncekiAy, oncekiYil)})
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;font-family:'IBM Plex Mono',monospace;">
+      📌 <strong>${donemAd}</strong> dönemi için beyanname/ödeme son tarihleri
     </div>
-    ${beyannameler.map(b => {
-      const gunNo = b.gun === 'son' ? new Date(yil, ay, 0).getDate() : b.gun;
-      const tarih = new Date(yil, ay-1, gunNo);
-      const fark = Math.ceil((tarih - bugun) / (1000*60*60*24));
-      let durum, durumRenk;
-      if (fark < 0) { durum = 'Geçti'; durumRenk = 'var(--text3)'; }
-      else if (fark <= 3) { durum = `⚠️ ${fark} gün kaldı!`; durumRenk = 'var(--danger)'; }
-      else if (fark <= 7) { durum = `${fark} gün kaldı`; durumRenk = 'var(--accent3)'; }
-      else { durum = `${fark} gün kaldı`; durumRenk = 'var(--accent2)'; }
-      const tarihStr = tarih.toLocaleDateString('tr-TR', {day:'2-digit', month:'long', year:'numeric'});
+
+    ${tarihler.map(b => {
+      const renk      = getTarihRengi(b.tarih);
+      const tarihYazi = tarihFormatla(b.tarih);
+      const origYazi  = tarihFormatla(b.orijinalTarih);
+      const erteStr   = b.ertelendi
+        ? `<div style="font-size:11px;color:#f59e0b;margin-top:5px;">
+             ⚠️ Resmi tatil/hafta sonu nedeniyle ertelendi<br>
+             <span style="font-family:'IBM Plex Mono',monospace;">${origYazi} → ${tarihYazi}</span>
+           </div>` : '';
+      const gibStr    = b.gibUzatma
+        ? `<div style="font-size:11px;color:#60a5fa;margin-top:4px;">
+             ⚡ GİB Uzatması: ${b.gibUzatma.aciklama || ''}
+           </div>` : '';
       return `
-      <div style="display:flex; align-items:center; gap:16px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:8px;">
-        <div style="font-size:24px;">${b.icon}</div>
-        <div style="flex:1;">
-          <div style="font-weight:600; font-size:13px;">${b.ad}</div>
-          <div style="font-size:11px; color:var(--text2); margin-top:2px;">${b.aciklama}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:13px; font-weight:600; font-family:'IBM Plex Mono',monospace;">${tarihStr}</div>
-          <div style="font-size:11px; color:${durumRenk}; margin-top:3px; font-weight:600;">${durum}</div>
+      <div style="background:var(--card);border-radius:12px;padding:16px;margin-bottom:10px;
+                  border-left:4px solid ${renk.hex};">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <div style="font-size:12px;color:var(--text3);">${b.icon} ${b.tip} <span style="opacity:.6;">${kategoriEtiket[b.kategori]||''}</span></div>
+            <div style="font-size:15px;font-weight:600;margin-top:4px;">${b.aciklama}</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:6px;font-family:'IBM Plex Mono',monospace;">
+              📅 ${tarihYazi}
+            </div>
+            ${erteStr}${gibStr}
+          </div>
+          <div>
+            <div style="background:${renk.hex};color:white;padding:6px 14px;
+                        border-radius:20px;font-weight:700;font-size:13px;white-space:nowrap;">
+              ${renk.label}
+            </div>
+          </div>
         </div>
       </div>`;
     }).join('')}
-    <div style="margin-top:16px; padding:14px; background:rgba(79,142,247,0.08); border:1px solid rgba(79,142,247,0.2); border-radius:8px; font-size:11px; color:var(--text2); line-height:1.8;">
-      💡 <b style="color:var(--accent)">Hatırlatma:</b> Son gün hafta sonuna denk gelirse bir sonraki iş günü kabul edilir. 3 aylık KDV mükellefleri için takvim farklıdır.
-    </div>
-  `;
+
+    <div style="margin-top:16px;padding:14px;background:rgba(79,142,247,0.08);
+                border:1px solid rgba(79,142,247,0.2);border-radius:8px;
+                font-size:11px;color:var(--text2);line-height:1.8;">
+      💡 <b style="color:var(--accent)">Hatırlatma:</b>
+      Son gün hafta sonu veya resmi tatile denk gelirse bir sonraki iş gününe ertelenir.
+      Dini bayram tarihleri Ayarlar'dan güncellenebilir. GİB uzatmaları da Ayarlar'dan tanımlanabilir.
+    </div>`;
+}
+
+// ─── Resmi Tatil Yönetimi (Ayarlar) ─────────────────────────────────────────
+
+// Ayarlar > Tatil listesini göster
+function tatilListesiniGoster() {
+  const yil = document.getElementById('tatilYilSec')?.value || '2026';
+  const el  = document.getElementById('tatilListesi');
+  if (!el) return;
+
+  const tatiller = getResmiTatiller();
+  const liste    = tatiller[yil] || [];
+  const base     = RESMI_TATILLER_BASE[yil] || [];
+
+  if (liste.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;">Bu yıl için tanımlı tatil yok.</div>';
+    return;
+  }
+
+  el.innerHTML = liste.map(t => {
+    const isSabit = base.includes(t);
+    const tarih   = new Date(t);
+    const tarihYazi = tarih.toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric', weekday:'long' });
+    return `
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:8px 12px;border-radius:8px;background:var(--surface2);
+                margin-bottom:6px;font-size:13px;">
+      <span>📅 ${tarihYazi}</span>
+      ${isSabit
+        ? '<span style="font-size:11px;color:var(--text3);background:var(--bg);padding:2px 8px;border-radius:12px;">Sabit</span>'
+        : `<button onclick="tatilSil('${yil}','${t}')" style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:6px;padding:2px 10px;cursor:pointer;font-size:11px;">Sil</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+// Yeni tatil ekle
+function tatilEkle() {
+  const yil   = document.getElementById('tatilYilSec')?.value;
+  const tarih = document.getElementById('tatilTarihInput')?.value;
+  if (!yil || !tarih) { showNotif('⚠️ Yıl ve tarih seçin.', 'error'); return; }
+
+  let ekstra = {};
+  try { ekstra = JSON.parse(localStorage.getItem(_sk('tahai_resmi_tatiller')) || '{}'); } catch(e) {}
+  if (!ekstra[yil]) ekstra[yil] = [];
+  if (ekstra[yil].includes(tarih)) { showNotif('Bu tarih zaten ekli.', 'error'); return; }
+  ekstra[yil].push(tarih);
+  ekstra[yil].sort();
+  localStorage.setItem(_sk('tahai_resmi_tatiller'), JSON.stringify(ekstra));
+  document.getElementById('tatilTarihInput').value = '';
+  tatilListesiniGoster();
+  showNotif(`✅ ${tarih} tarihi eklendi.`, 'success');
+}
+
+// Tatil sil
+function tatilSil(yil, tarih) {
+  let ekstra = {};
+  try { ekstra = JSON.parse(localStorage.getItem(_sk('tahai_resmi_tatiller')) || '{}'); } catch(e) {}
+  if (!ekstra[yil]) return;
+  ekstra[yil] = ekstra[yil].filter(t => t !== tarih);
+  localStorage.setItem(_sk('tahai_resmi_tatiller'), JSON.stringify(ekstra));
+  tatilListesiniGoster();
+  showNotif(`🗑️ ${tarih} silindi.`, 'success');
+}
+
+// ─── GİB Uzatma Yönetimi (Ayarlar) ──────────────────────────────────────────
+
+function gibUzatmaEkle() {
+  const tip       = document.getElementById('gibTipSec')?.value;
+  const origTarih = document.getElementById('gibOrijTarih')?.value;
+  const yeniTarih = document.getElementById('gibYeniTarih')?.value;
+  const aciklama  = document.getElementById('gibAciklama')?.value || '';
+  if (!tip || !origTarih || !yeniTarih) { showNotif('⚠️ Tüm alanları doldurun.', 'error'); return; }
+
+  const liste = getGibUzatmalar();
+  liste.push({ tip, orijinalTarih: origTarih, uzatilmisTarih: yeniTarih, aciklama });
+  localStorage.setItem(_sk('tahai_gib_uzatmalar'), JSON.stringify(liste));
+  ['gibOrijTarih','gibYeniTarih','gibAciklama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  gibUzatmaListesiniGoster();
+  showNotif('✅ GİB uzatması eklendi.', 'success');
+}
+
+function gibUzatmaListesiniGoster() {
+  const el    = document.getElementById('gibUzatmaListesi');
+  if (!el) return;
+  const liste = getGibUzatmalar();
+  if (liste.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;">Henüz uzatma tanımlanmadı.</div>';
+    return;
+  }
+  el.innerHTML = liste.map((u, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:8px 12px;border-radius:8px;background:var(--surface2);
+                margin-bottom:6px;font-size:13px;gap:10px;flex-wrap:wrap;">
+      <div>
+        <strong>${u.tip}</strong>
+        <span style="color:var(--text3);font-size:11px;margin-left:8px;">${u.orijinalTarih} → ${u.uzatilmisTarih}</span>
+        ${u.aciklama ? `<span style="color:var(--accent);font-size:11px;margin-left:8px;">${u.aciklama}</span>` : ''}
+      </div>
+      <button onclick="gibUzatmaSil(${i})" style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:6px;padding:2px 10px;cursor:pointer;font-size:11px;white-space:nowrap;">Sil</button>
+    </div>`).join('');
+}
+
+function gibUzatmaSil(idx) {
+  const liste = getGibUzatmalar();
+  liste.splice(idx, 1);
+  localStorage.setItem(_sk('tahai_gib_uzatmalar'), JSON.stringify(liste));
+  gibUzatmaListesiniGoster();
+  showNotif('🗑️ GİB uzatması silindi.', 'success');
 }
 
 // ===================== VERİ YEDEKLEME =====================
