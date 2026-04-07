@@ -1275,6 +1275,67 @@
   }
   tr.muavin-ters-satir { background: rgba(248,113,113,.10) !important; }
   tr.muavin-donuc-satir { background: rgba(248,113,113,.20) !important; font-weight: 700; }
+
+  /* ── Yardım Sistemi ─────────────────────────────────────── */
+  #yardimPanel { font-family: inherit; }
+  #yardimPanel.acik { right: 0 !important; }
+
+  .yardim-btn:hover {
+    background: var(--accent) !important;
+    color: #fff !important;
+    border-color: var(--accent) !important;
+  }
+
+  #yardimIcerik h3 {
+    color: var(--accent);
+    font-size: 15px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  #yardimIcerik h4 {
+    color: var(--text);
+    font-size: 14px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+  #yardimIcerik ol, #yardimIcerik ul {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  #yardimIcerik li { margin-bottom: 6px; }
+  #yardimIcerik .info-kutu {
+    background: rgba(59,130,246,0.1);
+    border-left: 3px solid #3b82f6;
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 6px;
+  }
+  #yardimIcerik .uyari-kutu {
+    background: rgba(245,158,11,0.1);
+    border-left: 3px solid #f59e0b;
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 6px;
+  }
+  #yardimIcerik .luca-kutu {
+    background: rgba(34,197,94,0.1);
+    border-left: 3px solid #22c55e;
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 6px;
+  }
+  #yardimIcerik strong { color: var(--accent); }
+  #yardimIcerik code {
+    background: rgba(0,0,0,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  @media (max-width: 768px) {
+    #yardimPanel { width: 100% !important; right: -100% !important; }
+  }
 </style>
 </head>
 <body>
@@ -1437,7 +1498,7 @@
     <!-- Z RAPORU PAGErapor -->
     <div class="page active" id="page-z-raporu">
       <div class="card">
-        <div class="card-title">🧾 Z Raporu İşleme</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>🧾 Z Raporu İşleme</span><button onclick="yardimAc('z-raporu')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Z raporu fotoğraf veya PDF'lerini yükle. Günlük ciro, KDV ayrımı ve net satış otomatik çıkarılır. Luca'ya hazır Excel üretilir.</div>
 
         <div class="form-row">
@@ -1516,7 +1577,7 @@
     <!-- FİŞLER PAGE -->
     <div class="page" id="page-fisler">
       <div class="card">
-        <div class="card-title">🗂️ Fiş İşleme</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>🗂️ Fiş İşleme</span><button onclick="yardimAc('fis-isleme')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Gider fişlerinin fotoğraflarını yükle. KDV oranı (%1/%10/%20), fiş türü, tarih ve tutarlar otomatik tespit edilir.</div>
 
         <div class="form-row">
@@ -1616,7 +1677,7 @@
     <!-- FATURALAR PAGE -->
     <div class="page" id="page-faturalar">
       <div class="card">
-        <div class="card-title">📄 Fatura Listesi Kontrolü</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>📄 Fatura Listesi Kontrolü</span><button onclick="yardimAc('faturalar')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Mükellef seç, Alış veya Satış faturalarını yükle. Luca ↔ Fatura Entegratörü karşılaştırması sonuçları mükellef kartına kaydedilir.</div>
 
         <!-- Mükellef seçici -->
@@ -1965,7 +2026,7 @@
     <!-- MİZAN PAGE -->
     <div class="page" id="page-mizan">
       <div class="card" style="margin-bottom:12px;">
-        <div class="card-title">📊 Mizan Analizi</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>📊 Mizan Analizi</span><button onclick="yardimAc('mizan')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Luca'dan indirdiğin mizan Excel'ini yükle — AI hesap kodlarını öğrensin, fişlerin otomatik kodlansın.</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
@@ -2106,6 +2167,10 @@
 
     <!-- SONUÇLAR PAGE -->
     <div class="page" id="page-sonuclar">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:18px;font-weight:700;color:var(--text);">📈 Sonuçlar</span>
+        <button onclick="yardimAc('sonuclar')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button>
+      </div>
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">İŞLENEN Z RAPORU</div>
@@ -2160,7 +2225,7 @@
     <!-- AYARLAR PAGE -->
     <div class="page" id="page-ayarlar">
       <div class="card">
-        <div class="card-title">⚙️ Mükellef Listesi</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>⚙️ Mükellef Listesi</span><button onclick="yardimAc('ayarlar')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Sık kullandığın mükellefleri ekle. Fiş ve Z raporu işlerken açılır listeden hızlıca seç.</div>
         <div style="display: flex; gap: 10px; margin-bottom: 16px;">
           <input type="text" class="form-input" id="newMukellef" placeholder="Mükellef adı..." style="flex:1" />
@@ -2183,7 +2248,7 @@
     <!-- HATIRLATICI PAGE -->
     <div class="page" id="page-hatirlatici">
       <div class="card">
-        <div class="card-title">🔔 Fiş Hatırlatıcı</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>🔔 Fiş Hatırlatıcı</span><button onclick="yardimAc('hatirlatici')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Hangi mükelleflerin fişi henüz gelmedi takip et. Her ayın başında sıfırla, fiş gelince işaretle.</div>
 
         <div style="display:flex; gap:10px; margin-bottom:16px;">
@@ -2222,7 +2287,7 @@
     <!-- KAMERA PAGE -->
     <div class="page" id="page-kamera">
       <div class="card">
-        <div class="card-title">📷 Kamera ile Direkt Çekim</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>📷 Kamera ile Direkt Çekim</span><button onclick="yardimAc('kamera')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Telefondan veya bilgisayar kamerasından anında fotoğraf çek. Dosya seçmeye gerek yok — çek, seç, işle!</div>
 
         <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
@@ -2314,7 +2379,7 @@
     <!-- MÜKELLEF KARTI PAGE -->
     <div class="page" id="page-mukellef-kart">
       <div class="card">
-        <div class="card-title">👤 Mükellef Kartları</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>👤 Mükellef Kartları</span><button onclick="yardimAc('mukellef-karti')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Her mükellefin detaylı bilgilerini kaydet. Seçtiğinde bu ayki KDV ve işlem özetini görebilirsin.</div>
         <div style="display:flex; gap:10px; margin-bottom:16px;">
           <button class="btn btn-primary" onclick="mukellefKartEkle()">+ Yeni Mükellef Kartı</button>
@@ -2479,7 +2544,7 @@
     <!-- BEYANNAME TAKVİMİ PAGE -->
     <div class="page" id="page-beyanname-takvim">
       <div class="card">
-        <div class="card-title">📅 Beyanname & Ödeme Takvimi</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>📅 Beyanname & Ödeme Takvimi</span><button onclick="yardimAc('beyanname-takvimi')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div class="card-desc">Bu ay ve yaklaşan beyanname/ödeme tarihlerini otomatik gösterir. Kırmızı = bu hafta, sarı = bu ay.</div>
 
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:20px;">
@@ -2507,7 +2572,7 @@
       <!-- KKEG SAYFASI -->
       <div id="hesapKkeg">
         <div class="card">
-          <div class="card-title">🚗 Binek Araç KKEG Hesaplayıcı</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>🚗 Binek Araç KKEG Hesaplayıcı</span><button onclick="yardimAc('kkeg')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
           <div class="card-desc">
             Binek araç giderlerinin <b style="color:var(--accent3)">%30'u KKEG</b> sayılır ve kurumlar vergisi matrahına eklenir.
             Exceldeki sütun yapısına göre: KDV Dahil → KDV Hariç → Gider Yazılan Matrah → KKEG hesaplanır.
@@ -2595,7 +2660,7 @@
       <!-- KDV HESAPLAMA -->
       <div id="hesapKdv" style="display:none;">
         <div class="card">
-          <div class="card-title">🧮 KDV Hesaplama</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>🧮 KDV Hesaplama</span><button onclick="yardimAc('kdv-hesaplama')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
           <div class="card-desc">KDV oranını seç, istediğin tutarı gir — anında hesaplar.</div>
 
           <!-- Oran seçimi -->
@@ -2652,7 +2717,7 @@
       </div>
 <div id="hesapStopaj" style="display:none;">
         <div class="card">
-          <div class="card-title">📋 Serbest Meslek Stopaj Hesaplayıcı</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;"><span>📋 Serbest Meslek Stopaj Hesaplayıcı</span><button onclick="yardimAc('stopaj')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
           <div class="card-desc">Avukat, danışman, muhasebeci gibi serbest meslek ödemelerinde stopaj hesapla. Stopaj oranını kendin girebilirsin.</div>
 
           <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
@@ -2726,7 +2791,7 @@
 
       <!-- Başlık -->
       <div style="margin-bottom:8px;">
-        <div style="font-size:20px;font-weight:700;color:var(--text);">📋 Beyanname Öncesi Kontrol</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;">📋 Beyanname Öncesi Kontrol<button onclick="yardimAc('beyanname-kontrol')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div style="font-size:13px;color:var(--text3);margin-top:4px;">
           Beyanname göndermeden önce mizan verilerinden otomatik tutarlılık kontrolü
         </div>
@@ -2825,7 +2890,7 @@
 
       <!-- Başlık -->
       <div style="margin-bottom:8px;">
-        <div style="font-size:20px;font-weight:700;color:var(--text);">🔍 KDV Mutabakat Kontrol</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;">🔍 KDV Mutabakat Kontrol<button onclick="yardimAc('kdv-mutabakat')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div style="font-size:13px;color:var(--text3);margin-top:4px;">
           Beyanname öncesi 191 / 391 / 360.03 hesaplarının mizanla mutabakatı
         </div>
@@ -2913,7 +2978,7 @@
     <div class="page" id="page-donem-kapanis">
 
       <div style="margin-bottom:8px;">
-        <div style="font-size:20px;font-weight:700;color:var(--text);">✅ Dönem Kapanış Kontrol Listesi</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;">✅ Dönem Kapanış Kontrol Listesi<button onclick="yardimAc('donem-kapanis')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div style="font-size:13px;color:var(--text3);margin-top:4px;">
           Ay sonu kapanış öncesi yapılması gereken kontroller — mizan yüklüyse bakiyeler otomatik dolar
         </div>
@@ -2973,7 +3038,7 @@
 
       <!-- Başlık -->
       <div style="margin-bottom:8px;">
-        <div style="font-size:20px;font-weight:700;color:var(--text);">⚠️ Risk Raporu</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;">⚠️ Risk Raporu<button onclick="yardimAc('risk-raporu')" class="yardim-btn" title="Nasıl kullanılır?" style="background:transparent;border:1px solid var(--border);color:var(--accent);min-width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">?</button></div>
         <div style="font-size:13px;color:var(--text3);margin-top:4px;">
           Tüm mükelleflerin kontrol sonuçlarından otomatik risk skoru ve öncelik sıralaması
         </div>
@@ -9736,5 +9801,48 @@ init();
 <!-- TahAI Backend Bridge -->
 <script>window.TAHAI_API_BASE = window.location.origin;</script>
 <script src="/tahai-api.js"></script>
+<script src="/yardim-sistemi.js"></script>
+
+<!-- ── Yardım Paneli (Global, tüm modüller için tek panel) ── -->
+<div id="yardimOverlay"
+     style="display:none; position:fixed; top:0; left:0;
+            width:100%; height:100%; background:rgba(0,0,0,0.5);
+            z-index:9998;"
+     onclick="yardimKapat()">
+</div>
+
+<div id="yardimPanel"
+     style="display:none; position:fixed; top:0; right:-500px;
+            width:480px; height:100%; background:var(--card);
+            box-shadow:-4px 0 20px rgba(0,0,0,0.3);
+            z-index:9999; overflow-y:auto;
+            transition:right 0.3s ease-in-out;">
+
+  <!-- Başlık -->
+  <div style="position:sticky; top:0; background:var(--card);
+              padding:20px; border-bottom:1px solid var(--border);
+              display:flex; justify-content:space-between;
+              align-items:center; z-index:10;">
+    <span id="yardimBaslik" style="margin:0; font-size:18px;
+          font-weight:700; color:var(--text);">📖 Yardım</span>
+    <button onclick="yardimKapat()"
+            style="background:transparent; border:none;
+                   color:var(--text); font-size:24px;
+                   cursor:pointer; padding:0 8px; line-height:1;">✕</button>
+  </div>
+
+  <!-- İçerik -->
+  <div id="yardimIcerik"
+       style="padding:20px; line-height:1.7; font-size:14px;
+              color:var(--text);">
+    İçerik yükleniyor...
+  </div>
+
+  <!-- Alt bilgi -->
+  <div style="padding:16px 20px; border-top:1px solid var(--border);
+              text-align:center; font-size:12px; color:var(--muted);">
+    💡 Daha fazla yardım için: <strong>TahAI Destek</strong>
+  </div>
+</div>
 </body>
 </html>
