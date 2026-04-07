@@ -485,6 +485,29 @@
   .bey-trafik-kart.kirmizi .bey-trafik-rozet{ background: rgba(224,92,92,.2);  color: #f87171; }
   .bey-trafik-kart.gri    .bey-trafik-rozet { background: var(--surface2);     color: var(--text3); }
 
+  /* Beyanname türü seçici butonları */
+  .bey-tur-btn {
+    background: var(--card);
+    color: var(--text);
+    border: 2px solid var(--border);
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .bey-tur-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .bey-tur-btn.aktif {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+  }
+
   .bey-detay-panel { display: none; }
   .bey-detay-panel.aktif { display: block; }
 
@@ -2937,7 +2960,7 @@
 
       <!-- Ayarlar kartı -->
       <div class="card" id="beyAyarPanel">
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:flex-end;flex-wrap:wrap;">
           <div>
             <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">MÜKELLEf</label>
             <select id="beyMukellef" class="input" style="width:100%"></select>
@@ -2946,8 +2969,24 @@
             <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:6px;">DÖNEM</label>
             <input type="month" id="beyDonem" class="input" style="width:100%" />
           </div>
-          <button class="btn btn-primary" onclick="beyKontrolHesapla()">🔍 Kontrol Et</button>
         </div>
+
+        <!-- Beyanname türü seçici -->
+        <div style="margin:16px 0 8px;">
+          <label style="display:block;font-weight:600;margin-bottom:8px;color:var(--text);font-size:13px;">
+            🎯 KONTROL EDİLECEK BEYANNAME TÜRÜ
+          </label>
+          <div id="beyTuruSecici" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="bey-tur-btn aktif" data-tur="hepsi"    onclick="beyTuruSec('hepsi')">🔄 Tümü</button>
+            <button class="bey-tur-btn"       data-tur="kdv1"     onclick="beyTuruSec('kdv1')">📋 KDV-1</button>
+            <button class="bey-tur-btn"       data-tur="kdv2"     onclick="beyTuruSec('kdv2')">🌍 KDV-2</button>
+            <button class="bey-tur-btn"       data-tur="muhtasar" onclick="beyTuruSec('muhtasar')">👥 Muhtasar</button>
+            <button class="bey-tur-btn"       data-tur="sgk"      onclick="beyTuruSec('sgk')">🏥 SGK</button>
+            <button class="bey-tur-btn"       data-tur="gecici"   onclick="beyTuruSec('gecici')">💰 Geçici Vergi</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="beyKontrolHesapla()" style="width:100%;margin-bottom:4px;">🔍 Kontrol Et</button>
 
         <!-- Mizan yükleme alanı -->
         <div style="margin-top:16px;">
@@ -4083,7 +4122,16 @@ function kdvMutYazdir() {
 
 // ===================== BEYANNAME KONTROL MODÜLÜ =====================
 
-let _beySonuclar = null;
+let _beySonuclar  = null;
+let aktifBeyTuru  = 'hepsi'; // seçili beyanname türü
+
+// ─── Beyanname türü seçici ───────────────────────────────────────────────────
+function beyTuruSec(tur) {
+  aktifBeyTuru = tur;
+  document.querySelectorAll('.bey-tur-btn').forEach(btn => btn.classList.remove('aktif'));
+  const aktifBtn = document.querySelector(`.bey-tur-btn[data-tur="${tur}"]`);
+  if (aktifBtn) aktifBtn.classList.add('aktif');
+}
 
 // Excel yükleme — KDV Mutabakat parse fonksiyonunu paylaşır (_kdvMutSatirlar doldurur)
 function beyHandleFile(file) {
@@ -4201,6 +4249,47 @@ function _beyKdv1(s) {
   }
 
   return { id: 'kdv1', baslik: 'KDV-1 Beyannamesi', ikon: '💰', durum, ozet, detay };
+}
+
+// KDV-2 Beyannamesi kontrolü (Sorumlu Sıfatıyla KDV — yurt dışı hizmet/tevkifat)
+function _beyKdv2(s) {
+  // 191.03.xxx — Tevkifatlı İndirilecek KDV (borç bakiye)
+  // 360.03.xxx — Ödenecek KDV-2 (alacak bakiye)
+  // Bu iki tutar birbirine eşit olmalı
+  const h19103 = s.filter(r => String(r.hesap_kodu).startsWith('191.03') && _beyEnAlt(r.hesap_kodu));
+  const t19103 = h19103.reduce((a, r) => a + (r.borc_bak || r.borc_top || 0), 0);
+
+  const h36003 = s.filter(r => String(r.hesap_kodu).startsWith('360.03') && _beyEnAlt(r.hesap_kodu));
+  const t36003 = h36003.reduce((a, r) => a + (r.alacak_bak || r.alacak_top || 0), 0);
+
+  const fark = Math.abs(t19103 - t36003);
+
+  let durum, ozet;
+  if (t19103 === 0 && t36003 === 0) {
+    durum = 'gri';
+    ozet  = 'Bu dönem KDV-2 işlemi yok';
+  } else if (fark < 1) {
+    durum = 'yesil';
+    ozet  = 'KDV-2 mutabık: ' + fmt(t36003) + ' ₺';
+  } else if (fark < 100) {
+    durum = 'sari';
+    ozet  = 'Küçük fark var: ' + fmt(fark) + ' ₺';
+  } else {
+    durum = 'kirmizi';
+    ozet  = 'Fark: ' + fmt(fark) + ' ₺ — kontrol gerekli';
+  }
+
+  const detay = [
+    { etiket: '191.03 Tevkifatlı İndirilecek KDV', deger: fmt(t19103) + ' ₺', vurgu: t19103 > 0 },
+    { etiket: '360.03 Ödenecek KDV-2',             deger: fmt(t36003) + ' ₺', vurgu: t36003 > 0 },
+    { etiket: 'Fark',                               deger: fmt(fark)   + ' ₺', vurgu: fark > 1 },
+  ];
+  if (h19103.length > 0 || h36003.length > 0) {
+    detay.push({ baslik: true, etiket: '── Açıklama' });
+    detay.push({ alt: true, etiket: 'Yurt dışı hizmet alımı ve tevkifatlı işlemler için 191.03 ve 360.03 eşit olmalıdır.', deger: '' });
+  }
+
+  return { id: 'kdv2', baslik: 'KDV-2 Beyannamesi', ikon: '🌍', durum, ozet, detay };
 }
 
 // Muhtasar Beyanname kontrolü
@@ -4336,12 +4425,13 @@ function beyKontrolHesapla() {
   document.getElementById('beyMizanKaynakSatir').textContent = veri.adet + ' hesap';
 
   const _beyMukAd = document.getElementById('beyMukellef')?.value || '';
-  _beySonuclar = [
-    _beyKdv1(veri.satirlar),
-    _beyMuhtasar(veri.satirlar, _beyMukAd),
-    _beySgk(veri.satirlar, _beyMukAd),
-    _beyGeciciVergi(veri.satirlar),
-  ];
+  // Sadece seçili beyanname türünü hesapla
+  _beySonuclar = [];
+  if (aktifBeyTuru === 'hepsi' || aktifBeyTuru === 'kdv1')     _beySonuclar.push(_beyKdv1(veri.satirlar));
+  if (aktifBeyTuru === 'hepsi' || aktifBeyTuru === 'kdv2')     _beySonuclar.push(_beyKdv2(veri.satirlar));
+  if (aktifBeyTuru === 'hepsi' || aktifBeyTuru === 'muhtasar') _beySonuclar.push(_beyMuhtasar(veri.satirlar, _beyMukAd));
+  if (aktifBeyTuru === 'hepsi' || aktifBeyTuru === 'sgk')      _beySonuclar.push(_beySgk(veri.satirlar, _beyMukAd));
+  if (aktifBeyTuru === 'hepsi' || aktifBeyTuru === 'gecici')   _beySonuclar.push(_beyGeciciVergi(veri.satirlar));
   // Risk raporuna beyanname verisini kaydet
   const _rrBeyMuk = document.getElementById('beyMukellef')?.value;
   const _rrBeyDon = document.getElementById('beyDonem')?.value;
@@ -4421,6 +4511,41 @@ function beyDetayAc(idx) {
 function beyKontrolYazdir() {
   if (!_beySonuclar) return;
   window.print();
+}
+
+// ─── AI Analiz ──────────────────────────────────────────────────────────────
+async function beyAIAnalizEt() {
+  const btn    = document.getElementById('beyAIBtn');
+  const metinEl = document.getElementById('beyAIMetin');
+  if (!_beySonuclar || _beySonuclar.length === 0) return;
+
+  btn.disabled    = true;
+  btn.textContent = '⏳ Analiz ediliyor...';
+  metinEl.style.display = 'block';
+  metinEl.textContent   = 'TahAI analiz yapıyor...';
+
+  // Seçili türe göre prompt başlığı
+  const turAdi = {
+    hepsi: 'tüm beyannameler', kdv1: 'KDV-1', kdv2: 'KDV-2',
+    muhtasar: 'Muhtasar', sgk: 'SGK', gecici: 'Geçici Vergi'
+  }[aktifBeyTuru] || 'beyannameler';
+
+  const ozet = _beySonuclar.map(s =>
+    `${s.baslik} [${s.durum.toUpperCase()}]: ${s.ozet}\n` +
+    s.detay.filter(d => !d.baslik && d.etiket && d.deger).map(d => `  - ${d.etiket}: ${d.deger}`).join('\n')
+  ).join('\n\n');
+
+  const prompt = `Sen bir muhasebe uzmanısın. Aşağıda ${turAdi} için beyanname kontrol sonuçları var:\n\n${ozet}\n\nKısa, net, uygulanabilir Türkçe yorum yaz. Sorunları önce say, sonra çözüm öner. Maksimum 250 kelime. Markdown kullanma.`;
+
+  try {
+    const cevap = await callClaude(prompt, null, true);
+    metinEl.textContent = typeof cevap === 'string' ? cevap : (cevap?.text || JSON.stringify(cevap));
+  } catch (e) {
+    metinEl.textContent = '❌ AI analiz hatası: ' + (e.message || 'Bilinmeyen hata');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '🤖 AI ile Analiz Et';
+  }
 }
 
 // ===================== DÖNEM KAPANIŞ MODÜLÜ =====================
