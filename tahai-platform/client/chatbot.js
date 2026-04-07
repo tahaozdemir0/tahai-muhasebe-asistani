@@ -9,18 +9,36 @@ let chatbotMesajGecmisi = [];
 
 // ─── Chatbot'u aç ────────────────────────────────────────────────
 function chatbotAc() {
-  document.getElementById('chatbotPencere').style.display = 'flex';
-  document.getElementById('chatbotBalon').style.display = 'none';
+  const pencere = document.getElementById('chatbotPencere');
+  const balon   = document.getElementById('chatbotBalon');
+  if (!pencere || !balon) { console.error('Chatbot elementleri bulunamadı'); return; }
+
+  pencere.style.display = 'flex';
+  balon.style.display   = 'none';
+
   setTimeout(() => {
-    document.getElementById('chatbotInput').focus();
+    const input = document.getElementById('chatbotInput');
+    if (input) input.focus();
   }, 100);
 }
 
 // ─── Chatbot'u kapat ─────────────────────────────────────────────
 function chatbotKapat() {
-  document.getElementById('chatbotPencere').style.display = 'none';
-  document.getElementById('chatbotBalon').style.display = 'flex';
+  const pencere = document.getElementById('chatbotPencere');
+  const balon   = document.getElementById('chatbotBalon');
+  if (!pencere || !balon) { console.error('Chatbot elementleri bulunamadı'); return; }
+
+  pencere.style.display = 'none';
+  balon.style.display   = 'flex';
 }
+
+// ─── ESC tuşu ile kapat ──────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const pencere = document.getElementById('chatbotPencere');
+    if (pencere && pencere.style.display !== 'none') chatbotKapat();
+  }
+});
 
 // ─── Hızlı soru butonu ───────────────────────────────────────────
 function chatbotHizliSor(soru) {

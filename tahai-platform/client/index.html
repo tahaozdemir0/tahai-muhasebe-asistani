@@ -10124,7 +10124,7 @@ init();
 <!-- ── AI Chatbot Baloncuk Butonu (Sabit, sağ alt köşe) ── -->
 <button id="chatbotBalon" onclick="chatbotAc()"
         title="TahAI Asistana Sor"
-        style="position:fixed; bottom:24px; right:24px;
+        style="position:fixed; bottom:32px; right:32px;
                width:60px; height:60px; border-radius:50%;
                background:linear-gradient(135deg, #667eea, #764ba2);
                color:white; border:none; font-size:28px;
@@ -10137,9 +10137,9 @@ init();
 
 <!-- ── AI Chatbot Sohbet Penceresi ── -->
 <div id="chatbotPencere"
-     style="display:none; position:fixed; bottom:100px; right:24px;
-            width:400px; height:600px; background:var(--card);
-            border-radius:16px;
+     style="display:none; position:fixed; bottom:24px; right:24px;
+            width:400px; height:min(600px, calc(100vh - 40px));
+            background:var(--card); border-radius:16px;
             box-shadow:0 10px 40px rgba(0,0,0,0.3);
             z-index:9998; flex-direction:column;
             overflow:hidden;">
@@ -10155,7 +10155,8 @@ init();
     </div>
     <button onclick="chatbotKapat()"
             style="background:transparent; border:none;
-                   color:white; font-size:22px; cursor:pointer; line-height:1;">✕</button>
+                   color:white; font-size:22px; cursor:pointer;
+                   padding:4px 8px; line-height:1; flex-shrink:0;">✕</button>
   </div>
 
   <!-- Mesaj Alanı -->
