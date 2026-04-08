@@ -1,5 +1,6 @@
 // Hesap Planı Eşleştirme Route'ları
 // Mükellef bazlı hesap kodu → beyanname kategorisi eşlemesini Supabase'de saklar
+// Geriye uyumlu: hem UUID (mukellef_id) hem mükellef adı (text) kabul eder
 
 const express  = require('express');
 const supabase = require('../config/supabase');
@@ -8,10 +9,36 @@ const auth     = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
-// GET /api/hesap-plani/:mukellefId
-// Bir mükellefe ait onaylanmış eşlemeleri çek (UUID bazlı)
-router.get('/:mukellefId', async (req, res) => {
-  const mukellef_id = req.params.mukellefId;
+// UUID formatı kontrolü
+function isUUID(str) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
+// Mükellef adından ID çözümle (geriye uyumluluk)
+async function resolveMukellefId(paramValue, userId) {
+  if (isUUID(paramValue)) return paramValue;
+
+  // Mükellef adı ile ara
+  const ad = decodeURIComponent(paramValue);
+  const { data } = await supabase
+    .from('mukellefler')
+    .select('id')
+    .eq('user_id', userId)
+    .ilike('ad', ad)
+    .limit(1)
+    .single();
+
+  return data ? data.id : null;
+}
+
+// GET /api/hesap-plani/:mukellefIdOrAd
+router.get('/:mukellefIdOrAd', async (req, res) => {
+  const mukellef_id = await resolveMukellefId(req.params.mukellefIdOrAd, req.user.id);
+
+  if (!mukellef_id) {
+    // Mükellef bulunamadı — boş dön (hata değil, henüz kayıt yok)
+    return res.json({ eslesmeler: [] });
+  }
 
   const { data, error } = await supabase
     .from('hesap_plani_esleme')
@@ -24,10 +51,13 @@ router.get('/:mukellefId', async (req, res) => {
   res.json({ eslesmeler: data || [] });
 });
 
-// GET /api/hesap-plani/:mukellefId/tumu
-// Tüm eşlemeleri çek (onaysızlar dahil — modal için)
-router.get('/:mukellefId/tumu', async (req, res) => {
-  const mukellef_id = req.params.mukellefId;
+// GET /api/hesap-plani/:mukellefIdOrAd/tumu
+router.get('/:mukellefIdOrAd/tumu', async (req, res) => {
+  const mukellef_id = await resolveMukellefId(req.params.mukellefIdOrAd, req.user.id);
+
+  if (!mukellef_id) {
+    return res.json({ eslesmeler: [] });
+  }
 
   const { data, error } = await supabase
     .from('hesap_plani_esleme')
@@ -40,12 +70,30 @@ router.get('/:mukellefId/tumu', async (req, res) => {
 });
 
 // POST /api/hesap-plani
-// Eşlemeleri kaydet (upsert — çakışınca güncelle)
 router.post('/', async (req, res) => {
-  const { mukellef_id, eslesmeler } = req.body;
+  let { mukellef_id, mukellef_ad, eslesmeler } = req.body;
 
-  if (!mukellef_id || !Array.isArray(eslesmeler) || eslesmeler.length === 0) {
-    return res.status(400).json({ error: 'mukellef_id ve eslesmeler zorunlu' });
+  if (!eslesmeler || !Array.isArray(eslesmeler) || eslesmeler.length === 0) {
+    return res.status(400).json({ error: 'eslesmeler zorunlu' });
+  }
+
+  // mukellef_id veya mukellef_ad'dan çözümle
+  if (mukellef_id && !isUUID(mukellef_id)) {
+    // Eski format: mukellef_id aslında ad olarak gönderilmiş
+    mukellef_ad = mukellef_id;
+    mukellef_id = null;
+  }
+
+  if (!mukellef_id && mukellef_ad) {
+    const resolved = await resolveMukellefId(mukellef_ad, req.user.id);
+    if (!resolved) {
+      return res.status(404).json({ error: 'Mükellef bulunamadı: ' + mukellef_ad });
+    }
+    mukellef_id = resolved;
+  }
+
+  if (!mukellef_id) {
+    return res.status(400).json({ error: 'mukellef_id veya mukellef_ad zorunlu' });
   }
 
   // Mükellef sahiplik kontrolü
@@ -65,7 +113,7 @@ router.post('/', async (req, res) => {
     hesap_adi:      e.hesap_adi || '',
     kategori:       e.kategori,
     beyanname_turu: e.beyanname_turu,
-    onaylandi:      e.onaylandi !== false  // default: true
+    onaylandi:      e.onaylandi !== false
   }));
 
   const { error } = await supabase
@@ -76,10 +124,13 @@ router.post('/', async (req, res) => {
   res.json({ success: true, kaydedilen: rows.length });
 });
 
-// DELETE /api/hesap-plani/:mukellefId
-// Bir mükellefin tüm eşlemelerini sıfırla (yeniden eşleme için)
-router.delete('/:mukellefId', async (req, res) => {
-  const mukellef_id = req.params.mukellefId;
+// DELETE /api/hesap-plani/:mukellefIdOrAd
+router.delete('/:mukellefIdOrAd', async (req, res) => {
+  const mukellef_id = await resolveMukellefId(req.params.mukellefIdOrAd, req.user.id);
+
+  if (!mukellef_id) {
+    return res.json({ success: true }); // yoksa zaten silinecek bir şey yok
+  }
 
   const { error } = await supabase
     .from('hesap_plani_esleme')

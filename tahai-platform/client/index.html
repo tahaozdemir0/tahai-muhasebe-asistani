@@ -10438,7 +10438,8 @@ async function hpModalKaydet() {
     await _tFetch('/api/hesap-plani', {
       method: 'POST',
       body: JSON.stringify({
-        mukellef_id: mukId || _hpModalMukellef,
+        mukellef_id: mukId || undefined,
+        mukellef_ad: _hpModalMukellef,
         eslesmeler:  _hpModalSatirlar
       })
     });
