@@ -2322,7 +2322,7 @@
             🤖 AI Analiz Et &amp; Kodları Öğren
             <span id="mizanAnalizSpinner" class="spinner" style="display:none;"></span>
           </button>
-          <button class="btn btn-outline" id="mizanKaydetBtn" onclick="mizanKaydet()" disabled style="color:var(--accent2);border-color:var(--accent2);">
+          <button class="btn btn-outline" id="mizanKaydetBtn" onclick="mizanKaydetAPI()" disabled style="color:var(--accent2);border-color:var(--accent2);">
             💾 Mükellefe Kaydet
           </button>
           <button class="btn btn-outline" onclick="mizanSifirla()">🗑️ Temizle</button>
@@ -8931,6 +8931,22 @@ let mizanFiltreMetn = '';  // Arama filtresi
 let _muavinData     = {};  // { hesapKodu: { hareketler, tersDonusler, nakliYekun } }
 let _muavinYuklendi = false; // Muavin dosyası parse edildi mi
 
+// ── Mükellef Ad → UUID çözümleyici (API geçişi için) ──────────────────
+let _mukellefIdCache = {};  // ad → id mapping
+
+async function _getMukellefIdByAd(ad) {
+  if (!ad) return null;
+  if (_mukellefIdCache[ad]) return _mukellefIdCache[ad];
+  try {
+    const liste = await mukellefleriGetir();
+    liste.forEach(m => { _mukellefIdCache[m.ad] = m.id; });
+    return _mukellefIdCache[ad] || null;
+  } catch(e) {
+    console.error('[Mizan] UUID çözümleme hatası:', e.message);
+    return null;
+  }
+}
+
 // Mükellef değişince arşivi yenile
 function mizanMukellefDegisti() {
   const muk = document.getElementById('mizanMukellef').value;
@@ -9708,11 +9724,11 @@ CEVABI SADECE JSON olarak döndür, başka hiçbir şey yazma:
     const raw = await callClaude(prompt);
     const sonuc = safeParseJSON(raw);
 
-    // Hesap kodlarını localStorage'a kaydet (mükellef bazlı)
+    // Hesap kodlarını Supabase'e kaydet (mükellef bazlı)
     if (sonuc.hesap_esleme) {
+      // localStorage fallback (hala muhasebeCodes için gerekli)
       const key = _sk('tahai_hesap_kodlari_' + mukellef);
       const mevcutKodlar = JSON.parse(localStorage.getItem(key) || '{}');
-      // AI önerisi + mevcut mizan kodlarını birleştir
       const tumKodlar = {
         ...mevcutKodlar,
         ai_esleme: sonuc.hesap_esleme,
@@ -9720,6 +9736,17 @@ CEVABI SADECE JSON olarak döndür, başka hiçbir şey yazma:
         guncelleme: new Date().toLocaleDateString('tr-TR')
       };
       localStorage.setItem(key, JSON.stringify(tumKodlar));
+
+      // Supabase'e de kaydet (arka planda)
+      (async () => {
+        const mukId = await _getMukellefIdByAd(mukellef);
+        if (mukId) {
+          const eslesmeler = Object.entries(sonuc.hesap_esleme).map(([kat, kod]) => ({
+            hesap_kodu: kod, hesap_adi: kat, kategori: kat, beyanname_turu: 'genel', onaylandi: true
+          }));
+          try { await hesapEslemeKaydet(mukId, eslesmeler); } catch(e) { console.warn('[HP] Supabase kayıt hatası:', e.message); }
+        }
+      })();
 
       // muhasebeCodes'u güncelle — bu mükellef için
       Object.entries(sonuc.hesap_esleme).forEach(([tur, kod]) => {
@@ -9788,45 +9815,87 @@ function mizanAnomaliGoster(anomaliler, genelYorum) {
   panel.style.display = 'block';
 }
 
-// Mizanı localStorage'a kaydet
-function mizanKaydet() {
+// Mizanı Supabase'e kaydet (mükellef bazlı, dönem bazlı upsert)
+async function mizanKaydetAPI() {
   if (mizanSatirlar.length === 0) { showNotif('⚠️ Kaydedilecek mizan yok!', 'error'); return; }
   const mukellef = document.getElementById('mizanMukellef').value;
   if (!mukellef) { showNotif('⚠️ Mükellef seç!', 'error'); return; }
   const donem = document.getElementById('mizanDonem').value;
-
-  const key    = _sk('tahai_mizan_' + mukellef);
-  const arsiv  = JSON.parse(localStorage.getItem(key) || '[]');
   const firmaAd = document.getElementById('mizanFirmaAd').textContent.replace('| ','');
 
-  arsiv.unshift({
-    dosya: mizanDosyaAdi,
-    donem: donem || '',
-    firma: firmaAd,
-    satir_sayisi: mizanSatirlar.length,
-    tarih: new Date().toLocaleDateString('tr-TR'),
-    satirlar: mizanSatirlar
-  });
+  const mukellefId = await _getMukellefIdByAd(mukellef);
+  if (!mukellefId) {
+    // Fallback: eski localStorage yöntemi
+    showNotif('⚠️ Mükellef Supabase\'de bulunamadı, localStorage\'a kaydediliyor.', 'warn');
+    const key = _sk('tahai_mizan_' + mukellef);
+    const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
+    arsiv.unshift({ dosya: mizanDosyaAdi, donem: donem || '', firma: firmaAd, satir_sayisi: mizanSatirlar.length, tarih: new Date().toLocaleDateString('tr-TR'), satirlar: mizanSatirlar });
+    localStorage.setItem(key, JSON.stringify(arsiv));
+    autoSave();
+    mizanArsivGoster(mukellef);
+    return;
+  }
 
-  localStorage.setItem(key, JSON.stringify(arsiv));
-  autoSave();
-  showNotif(`✅ Mizan "${mukellef}" kartına kaydedildi!`, 'success');
-  mizanArsivGoster(mukellef);
+  try {
+    await mizanKaydet(mukellefId, {
+      donem: donem || '',
+      tarih_araligi: '',
+      firma_adi: firmaAd,
+      satirlar: mizanSatirlar,
+      dosya_adi: mizanDosyaAdi
+    });
+    showNotif(`✅ Mizan "${mukellef}" kartına kaydedildi!`, 'success');
+    mizanArsivGoster(mukellef);
+  } catch(e) {
+    console.error('[Mizan] Kayıt hatası:', e.message);
+    showNotif('❌ Mizan kaydedilemedi: ' + e.message, 'error');
+  }
 }
 
-// Mükellef arşivini göster
-function mizanArsivGoster(mukellef) {
+// Mükellef arşivini göster (Supabase'den)
+async function mizanArsivGoster(mukellef) {
   const el = document.getElementById('mizanArsivListesi');
   if (!mukellef) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Mükellef seçin.</div>'; return; }
 
-  const key   = _sk('tahai_mizan_' + mukellef);
-  const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
+  const mukellefId = await _getMukellefIdByAd(mukellef);
 
+  // Supabase'den çek
+  if (mukellefId) {
+    try {
+      const arsiv = await mukellefMizanlariGetir(mukellefId);
+      if (arsiv.length === 0) {
+        el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Henüz kaydedilmiş mizan yok.</div>';
+        return;
+      }
+      el.innerHTML = arsiv.map(m => {
+        const satirSayisi = m.dosya_adi ? '' : '';
+        const tarih = m.created_at ? new Date(m.created_at).toLocaleDateString('tr-TR') : '';
+        return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+          <div>
+            <span style="font-weight:600;color:var(--accent);">📊 ${m.donem || '—'}</span>
+            <span style="color:var(--text2);font-size:12px;margin-left:10px;">${m.firma_adi || ''}</span>
+            <span style="color:var(--text3);font-size:11px;margin-left:10px;">${m.dosya_adi || ''} · ${tarih}</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-outline" style="padding:3px 10px;font-size:11px;" onclick="mizanArsivYukleAPI('${mukellefId}','${m.id}')">📂 Yükle</button>
+            <button class="btn btn-outline" style="padding:3px 10px;font-size:11px;color:var(--danger);border-color:var(--danger);" onclick="mizanArsivSilAPI('${m.id}','${mukellef}')">🗑️</button>
+          </div>
+        </div>`;
+      }).join('');
+      return;
+    } catch(e) {
+      console.warn('[Mizan] Supabase arşiv hatası, localStorage fallback:', e.message);
+    }
+  }
+
+  // Fallback: localStorage
+  const key = _sk('tahai_mizan_' + mukellef);
+  const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
   if (arsiv.length === 0) {
     el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Henüz kaydedilmiş mizan yok.</div>';
     return;
   }
-
   el.innerHTML = arsiv.map((m, i) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
       <div>
@@ -9841,7 +9910,33 @@ function mizanArsivGoster(mukellef) {
     </div>`).join('');
 }
 
-// Arşivden mizan yükle
+// Arşivden mizan yükle (Supabase)
+async function mizanArsivYukleAPI(mukellefId, mizanId) {
+  try {
+    const mizan = await mizanGetir(mukellefId, mizanId);
+    if (!mizan) { showNotif('❌ Mizan bulunamadı.', 'error'); return; }
+
+    mizanSatirlar = mizan.satirlar || [];
+    mizanDosyaAdi = mizan.dosya_adi || '';
+
+    if (mizan.donem) document.getElementById('mizanDonem').value = mizan.donem;
+    document.getElementById('mizanDosyaBilgi').style.display = 'block';
+    document.getElementById('mizanDosyaAd').textContent = '📄 ' + mizanDosyaAdi;
+    document.getElementById('mizanFirmaAd').textContent = mizan.firma_adi ? '| ' + mizan.firma_adi : '';
+
+    mizanKdvMutabakat();
+    renderMizanTable(mizanSatirlar);
+    _mizanTersBakiyeGuncelle();
+    document.getElementById('mizanAnalizBtn').disabled = false;
+    document.getElementById('mizanKaydetBtn').disabled = false;
+    showNotif('✅ Mizan yüklendi.', 'success');
+  } catch(e) {
+    console.error('[Mizan] Yükleme hatası:', e.message);
+    showNotif('❌ Mizan yüklenemedi: ' + e.message, 'error');
+  }
+}
+
+// Arşivden mizan yükle (localStorage fallback)
 function mizanArsivYukle(mukellef, idx) {
   const key   = _sk('tahai_mizan_' + mukellef);
   const arsiv = JSON.parse(localStorage.getItem(key) || '[]');
@@ -9864,7 +9959,19 @@ function mizanArsivYukle(mukellef, idx) {
   showNotif('✅ Mizan yüklendi.', 'success');
 }
 
-// Arşivden mizan sil
+// Arşivden mizan sil (Supabase)
+async function mizanArsivSilAPI(mizanId, mukellef) {
+  if (!confirm('Bu mizan kaydını silmek istiyor musunuz?')) return;
+  try {
+    await mizanSil(mizanId);
+    mizanArsivGoster(mukellef);
+    showNotif('🗑️ Mizan silindi.', 'success');
+  } catch(e) {
+    showNotif('❌ Silinemedi: ' + e.message, 'error');
+  }
+}
+
+// Arşivden mizan sil (localStorage fallback)
 function mizanArsivSil(mukellef, idx) {
   if (!confirm('Bu mizan kaydını silmek istiyor musunuz?')) return;
   const key   = _sk('tahai_mizan_' + mukellef);
@@ -9893,10 +10000,28 @@ function mizanSifirla() {
 }
 
 // Mükellefe özel öğrenilen hesap kodlarını getir
+// Önce localStorage'dan (hızlı), arka planda Supabase'den güncelle
 function getMukellefHesapKodlari(mukellef) {
   if (!mukellef) return null;
   const key = _sk('tahai_hesap_kodlari_' + mukellef);
   const data = localStorage.getItem(key);
+
+  // Arka planda Supabase'den de çek ve localStorage'ı güncelle
+  (async () => {
+    const mukId = await _getMukellefIdByAd(mukellef);
+    if (!mukId) return;
+    try {
+      const eslesmeler = await hesapEslemeGetir(mukId);
+      if (eslesmeler.length > 0) {
+        const mevcutKodlar = JSON.parse(localStorage.getItem(key) || '{}');
+        const supabaseEsleme = {};
+        eslesmeler.forEach(e => { supabaseEsleme[e.kategori] = e.hesap_kodu; });
+        const guncel = { ...mevcutKodlar, ai_esleme: { ...mevcutKodlar.ai_esleme, ...supabaseEsleme } };
+        localStorage.setItem(key, JSON.stringify(guncel));
+      }
+    } catch(e) { /* sessizce devam */ }
+  })();
+
   return data ? JSON.parse(data) : null;
 }
 
