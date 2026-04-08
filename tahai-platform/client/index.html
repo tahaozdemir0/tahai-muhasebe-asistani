@@ -3840,6 +3840,30 @@ async function init() {
   // 4) Auto-load: önceki verileri yükle
   await autoLoad();
 
+  // 5) Migration: localStorage → Supabase (tek seferlik)
+  if (_checkSession() && typeof localStorageMigration === 'function' && typeof _migrationYapildiMi === 'function') {
+    if (!_migrationYapildiMi() && _migrationGerekliMi()) {
+      const cevap = confirm('📦 Eski verileriniz bulundu!\n\nLocalStorage\'daki mükellef, mizan, fiş ve fatura verileriniz Supabase buluta taşınacak.\n\nBu işlem bir kez yapılır ve verileriniz artık her cihazdan erişilebilir olur.\n\nDevam edilsin mi?');
+      if (cevap) {
+        showNotif('⏳ Veriler buluta taşınıyor...', 'info');
+        try {
+          const sonuc = await localStorageMigration();
+          if (sonuc) {
+            const ozet = [];
+            if (sonuc.mukellef) ozet.push(sonuc.mukellef + ' mükellef');
+            if (sonuc.mizan) ozet.push(sonuc.mizan + ' mizan');
+            if (sonuc.fis) ozet.push(sonuc.fis + ' fiş');
+            if (sonuc.fatura) ozet.push(sonuc.fatura + ' fatura');
+            if (sonuc.hp) ozet.push(sonuc.hp + ' hesap kodu');
+            showNotif('✅ Migration tamamlandı: ' + (ozet.join(', ') || 'veri yok'), 'success');
+          }
+        } catch(e) {
+          showNotif('⚠️ Migration hatası: ' + e.message, 'error');
+        }
+      }
+    }
+  }
+
   // Tüm butonların oturum durumunu yansıtması için kısa gecikme
   setTimeout(() => {
     const _hasSession = !!(sessionStorage.getItem('_jwt') || localStorage.getItem('tahai_token'));

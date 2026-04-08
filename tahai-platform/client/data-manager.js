@@ -379,6 +379,170 @@ async function dmCloudSave(snapshot) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MIGRATION: localStorage → Supabase
+// ═══════════════════════════════════════════════════════════════
+
+// Eski localStorage verisinin varlığını kontrol et
+function _migrationGerekliMi() {
+  const uid = (() => { try { return JSON.parse(localStorage.getItem('tahai_user') || '{}').id || ''; } catch(e) { return ''; } })();
+  const prefix = uid ? 'u_' + uid + '_' : '';
+
+  // Kontrol et: mükellef listesi localStorage'da var mı?
+  const mukellefRaw = localStorage.getItem(prefix + 'luca_mukellef');
+  if (!mukellefRaw) return false;
+  try {
+    const arr = JSON.parse(mukellefRaw);
+    return Array.isArray(arr) && arr.length > 0;
+  } catch(e) { return false; }
+}
+
+// Migration durumunu kontrol et
+function _migrationYapildiMi() {
+  return localStorage.getItem('tahai_migration_v1_done') === 'true';
+}
+
+// Ana migration fonksiyonu
+async function localStorageMigration() {
+  if (_migrationYapildiMi() || !_migrationGerekliMi()) return false;
+
+  console.log('[Migration] Eski localStorage verisi tespit edildi...');
+
+  const uid = (() => { try { return JSON.parse(localStorage.getItem('tahai_user') || '{}').id || ''; } catch(e) { return ''; } })();
+  const sk = (key) => uid ? 'u_' + uid + '_' + key : key;
+
+  let migrated = { mukellef: 0, mizan: 0, fis: 0, fatura: 0, dk: 0, hp: 0 };
+
+  try {
+    // 1. Mükellef listesini çek
+    const mukellefListeRaw = localStorage.getItem(sk('luca_mukellef'));
+    const mukellefListe = mukellefListeRaw ? JSON.parse(mukellefListeRaw) : [];
+
+    // Mükellef kartlarını da çek (detaylı bilgi için)
+    const kartlarRaw = localStorage.getItem(sk('tahai_kartlar'));
+    const kartlar = kartlarRaw ? JSON.parse(kartlarRaw) : [];
+
+    // Supabase'de zaten olan mükellefleri çek
+    const mevcutMukellefler = await mukellefleriGetir();
+    const mevcutAdlar = new Set(mevcutMukellefler.map(m => m.ad.toLowerCase()));
+
+    // Yeni mükellefleri ekle
+    for (const ad of mukellefListe) {
+      if (typeof ad !== 'string' || !ad.trim()) continue;
+      if (mevcutAdlar.has(ad.toLowerCase())) continue;
+
+      // Kart bilgisi var mı?
+      const kart = kartlar.find(k => k && k.ad && k.ad.toLowerCase() === ad.toLowerCase());
+      try {
+        await mukellefEkle({
+          ad: ad,
+          vkn: kart?.vkn || '',
+          vergi_dairesi: kart?.vd || '',
+          tur: kart?.tur || '',
+          adres: kart?.adres || '',
+          tel: kart?.tel || '',
+          email: kart?.eposta || '',
+          not: kart?.not || '',
+          kdv_periyot: kart?.kdv_periyot || 'aylik'
+        });
+        migrated.mukellef++;
+      } catch(e) { console.warn('[Migration] Mükellef eklenemedi:', ad, e.message); }
+    }
+
+    // UUID cache'i yenile
+    _mukellefIdCache = {};
+    const guncelMukellefler = await mukellefleriGetir();
+    guncelMukellefler.forEach(m => { _mukellefIdCache[m.ad] = m.id; });
+
+    // 2. Her mükellef için arşiv verilerini migrate et
+    for (const m of guncelMukellefler) {
+      const mukId = m.id;
+      const ad = m.ad;
+
+      // Mizan arşivi
+      try {
+        const mizanKey = sk('tahai_mizan_' + ad);
+        const mizanArsiv = JSON.parse(localStorage.getItem(mizanKey) || '[]');
+        for (const miz of mizanArsiv) {
+          try {
+            await mizanKaydet(mukId, {
+              donem: miz.donem || '',
+              firma_adi: miz.firma || '',
+              satirlar: miz.satirlar || [],
+              dosya_adi: miz.dosya || ''
+            });
+            migrated.mizan++;
+          } catch(e) { /* aynı dönem varsa upsert, hata normal */ }
+        }
+      } catch(e) {}
+
+      // Fiş arşivi
+      try {
+        const fisKey = sk('tahai_fis_arsiv_' + ad);
+        const fisArsiv = JSON.parse(localStorage.getItem(fisKey) || '[]');
+        if (fisArsiv.length > 0) {
+          const apiFisler = fisArsiv.map(f => ({
+            tarih: f.tarih || '', fis_turu: f.fis_turu || f.tur || '',
+            satici: f.satici || '', kdv_orani: f.kdv_orani || 0,
+            matrah: f.matrah || 0, kdv_tutari: f.kdv_tutari || f.kdv || 0,
+            toplam: f.toplam || 0, donem: (f.tarih || '').slice(0, 7),
+            hesap_kodu: f.muhasebe_kodu || f.hesap_kodu || ''
+          }));
+          try {
+            await fislerTopluKaydet(mukId, apiFisler);
+            migrated.fis += apiFisler.length;
+          } catch(e) {}
+        }
+      } catch(e) {}
+
+      // Fatura arşivi
+      try {
+        const faturaKey = sk('tahai_fatura_arsiv_' + ad);
+        const faturaArsiv = JSON.parse(localStorage.getItem(faturaKey) || '[]');
+        if (faturaArsiv.length > 0) {
+          const apiFaturalar = faturaArsiv.map(f => ({
+            tarih: f.tarih || '', tur: f.fatura_turu || 'alis',
+            belge_no: f.fatura_no || '', satici_alici: f.firma || '',
+            vkn: f.vkn_tckn || '', kdv_orani: f.kdv_orani || 0,
+            matrah: f.matrah || 0, kdv_tutari: f.kdv || 0,
+            toplam: f.toplam || 0, donem: (f.tarih || '').slice(0, 7),
+            kaynak: 'migration'
+          }));
+          try {
+            await faturalarTopluKaydet(mukId, apiFaturalar);
+            migrated.fatura += apiFaturalar.length;
+          } catch(e) {}
+        }
+      } catch(e) {}
+
+      // Hesap kodları
+      try {
+        const hpKey = sk('tahai_hesap_kodlari_' + ad);
+        const hpData = JSON.parse(localStorage.getItem(hpKey) || '{}');
+        if (hpData.ai_esleme) {
+          const eslesmeler = Object.entries(hpData.ai_esleme).map(([kat, kod]) => ({
+            hesap_kodu: kod, hesap_adi: kat, kategori: kat,
+            beyanname_turu: 'genel', onaylandi: true
+          }));
+          try {
+            await hesapEslemeKaydet(mukId, eslesmeler);
+            migrated.hp += eslesmeler.length;
+          } catch(e) {}
+        }
+      } catch(e) {}
+    }
+
+    // Migration tamamlandı işaretle
+    localStorage.setItem('tahai_migration_v1_done', 'true');
+    console.log('[Migration] Tamamlandı:', migrated);
+    return migrated;
+
+  } catch(e) {
+    console.error('[Migration] Genel hata:', e.message);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INIT LOG
 // ═══════════════════════════════════════════════════════════════
 console.log('[DataManager] v1.0 yüklendi — ' + Object.keys({

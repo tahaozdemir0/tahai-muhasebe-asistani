@@ -5,6 +5,11 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 router.use(authMiddleware);
 
+// ⚠️ DEPRECATED — Bu endpoint geçiş dönemi için korunuyor.
+// Yeni veri erişimi /api/mukellef, /api/mizan, /api/fis, /api/fatura üzerinden yapılır.
+// data-manager.js v1.0 ile istemci artık doğrudan CRUD endpoint'lerini kullanıyor.
+// localStorageMigration() tamamlandıktan sonra bu endpoint kaldırılabilir.
+
 // GET /api/sync/snapshot — Kullanıcının tüm verisini tek seferde yükle (geçiş dönemi)
 router.get('/snapshot', async (req, res) => {
   const userId = req.user.id;
