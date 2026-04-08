@@ -3756,7 +3756,8 @@ function kdvTutarlariUyusuyorMu(matrah, kdv, toplam) {
 }
 
 /**
- * 4) Auto-save: localStorage'a veri kaydet
+ * 4) Auto-save: localStorage'a veri kaydet (oturum verisi)
+ * Not: Mükellef bazlı kalıcı kayıt artık fisMukellefKaydet / faturaIsleMukellefKaydet ile yapılıyor
  */
 function autoSave() {
   try {
@@ -5433,12 +5434,27 @@ function kartFisArsivGoster(adParam) {
   el.innerHTML = html;
 }
 
-// Arşivden tek fiş sil
-function arsivFisSil(ad, donem, idx) {
+// Arşivden tek fiş sil (Supabase varsa API, yoksa localStorage)
+async function arsivFisSil(ad, donem, idx) {
   if (!confirm('Bu fişi arşivden silmek istediğinize emin misiniz?')) return;
+
+  const mukId = await _getMukellefIdByAd(ad);
+  if (mukId) {
+    // Supabase'den sil — döneme göre fişleri çek, idx'i bul
+    try {
+      const fisler = await fisleriGetir(mukId, donem);
+      if (fisler[idx] && fisler[idx].id) {
+        await fisSil(fisler[idx].id);
+        kartFisArsivGoster(ad);
+        showNotif('🗑️ Fiş arşivden silindi.', 'success');
+        return;
+      }
+    } catch(e) { console.warn('[Fiş] Supabase sil hatası, localStorage fallback:', e.message); }
+  }
+
+  // Fallback: localStorage
   const key = _sk('tahai_fis_arsiv_' + ad);
   const arsiv = getMukellefFisArsiv(ad);
-  // Döneme göre sıralı index bul
   const donemFisler = arsiv.filter(r => (r.donem||r.tarih||'').slice(0,7) === donem);
   const silFis = donemFisler[idx];
   if (!silFis) return;
@@ -5450,8 +5466,8 @@ function arsivFisSil(ad, donem, idx) {
 
 // ===== FİŞ MÜKELLEf ARŞİVİ =====
 
-// Fişleri mükellefe kalıcı olarak kaydet
-function fisMukellefKaydet() {
+// Fişleri mükellefe kalıcı olarak kaydet (Supabase + localStorage fallback)
+async function fisMukellefKaydet() {
   if (fisData.length === 0) { showNotif('⚠️ Kaydedilecek fiş yok!', 'error'); return; }
 
   // Her mükellef için ayrı grupla
@@ -5463,26 +5479,68 @@ function fisMukellefKaydet() {
   });
 
   let kaydedilen = 0;
-  Object.entries(gruplar).forEach(([mukellef, fisler]) => {
-    const key = _sk('tahai_fis_arsiv_' + mukellef);
-    const mevcut = JSON.parse(localStorage.getItem(key) || '[]');
-    // Mükerrer kontrolü — aynı tarih+satıcı+toplam kombinasyonu varsa ekleme
-    fisler.forEach(yeni => {
-      const var_mi = mevcut.some(m =>
-        m.tarih === yeni.tarih &&
-        m.satici === yeni.satici &&
-        Math.abs((m.toplam||0) - (yeni.toplam||0)) < 0.01
-      );
-      if (!var_mi) { mevcut.push(yeni); kaydedilen++; }
-    });
-    localStorage.setItem(key, JSON.stringify(mevcut));
-  });
+  for (const [mukellef, fisler] of Object.entries(gruplar)) {
+    const mukId = await _getMukellefIdByAd(mukellef);
+
+    if (mukId) {
+      // Supabase'e toplu kaydet
+      try {
+        const apiFisler = fisler.map(f => ({
+          tarih: f.tarih || '',
+          fis_turu: f.fis_turu || '',
+          satici: f.satici || '',
+          kdv_orani: f.kdv_orani || 0,
+          matrah: f.matrah || 0,
+          kdv_tutari: f.kdv_tutari || 0,
+          toplam: f.toplam || 0,
+          donem: (f.tarih || '').slice(0, 7),
+          hesap_kodu: f.muhasebe_kodu || ''
+        }));
+        const sonuc = await fislerTopluKaydet(mukId, apiFisler);
+        kaydedilen += sonuc.length;
+      } catch(e) {
+        console.error('[Fiş] Supabase toplu kayıt hatası:', e.message);
+        // Fallback: localStorage
+        _fisFallbackKaydet(mukellef, fisler);
+        kaydedilen += fisler.length;
+      }
+    } else {
+      // Fallback: localStorage
+      _fisFallbackKaydet(mukellef, fisler);
+      kaydedilen += fisler.length;
+    }
+  }
 
   autoSave();
   showNotif(`✅ ${kaydedilen} fiş mükellef kartına kaydedildi! Artık fişleri temizleyebilirsin.`, 'success');
 }
 
-// Fiş arşivinden mükellef fişlerini al
+function _fisFallbackKaydet(mukellef, fisler) {
+  const key = _sk('tahai_fis_arsiv_' + mukellef);
+  const mevcut = JSON.parse(localStorage.getItem(key) || '[]');
+  fisler.forEach(yeni => {
+    const var_mi = mevcut.some(m => m.tarih === yeni.tarih && m.satici === yeni.satici && Math.abs((m.toplam||0) - (yeni.toplam||0)) < 0.01);
+    if (!var_mi) mevcut.push(yeni);
+  });
+  localStorage.setItem(key, JSON.stringify(mevcut));
+}
+
+// Fiş arşivinden mükellef fişlerini al (Supabase öncelikli)
+async function getMukellefFisArsivAPI(ad, donem) {
+  const mukId = await _getMukellefIdByAd(ad);
+  if (mukId) {
+    try {
+      return await fisleriGetir(mukId, donem);
+    } catch(e) {
+      console.warn('[Fiş] Supabase arşiv hatası, localStorage fallback:', e.message);
+    }
+  }
+  // Fallback
+  const key = _sk('tahai_fis_arsiv_' + ad);
+  return JSON.parse(localStorage.getItem(key) || '[]');
+}
+
+// Senkron versiyon (mevcut kod uyumluluğu için)
 function getMukellefFisArsiv(ad) {
   const key = _sk('tahai_fis_arsiv_' + ad);
   return JSON.parse(localStorage.getItem(key) || '[]');
@@ -7090,11 +7148,41 @@ function faturaIsleExcel() {
   downloadCSV(headers, rows, mukellef + '_luca_fatura.csv');
 }
 
-function faturaIsleMukellefKaydet() {
+async function faturaIsleMukellefKaydet() {
   if (faturaIsleData.length === 0) { showNotif('⚠️ Kaydedilecek fatura yok!', 'error'); return; }
   const mukellef = document.getElementById('faturaIsleMukellef').value;
   if (!mukellef) { showNotif('⚠️ Önce mükellef seç!', 'error'); return; }
 
+  const mukId = await _getMukellefIdByAd(mukellef);
+  if (mukId) {
+    // Supabase'e toplu kaydet
+    try {
+      const apiFaturalar = faturaIsleData.map(f => ({
+        tarih: f.tarih || '',
+        tur: f.fatura_turu || 'alis',
+        belge_no: f.fatura_no || '',
+        satici_alici: f.firma || '',
+        vkn: f.vkn_tckn || '',
+        kdv_orani: f.kdv_orani || 0,
+        matrah: f.matrah || 0,
+        kdv_tutari: f.kdv || 0,
+        toplam: f.toplam || 0,
+        donem: (f.tarih || '').slice(0, 7),
+        kaynak: 'gorsel',
+        hesap_kodu: f.hesap_kodu || '',
+        durum: f.durum || 'normal',
+        not: f.not || ''
+      }));
+      const sonuc = await faturalarTopluKaydet(mukId, apiFaturalar);
+      showNotif(`✅ ${sonuc.length} fatura ${mukellef} kartına kaydedildi!`, 'success');
+      return;
+    } catch(e) {
+      console.error('[Fatura] Supabase toplu kayıt hatası:', e.message);
+      // Fallback aşağıda
+    }
+  }
+
+  // Fallback: localStorage
   const key = _sk('tahai_fatura_arsiv_' + mukellef);
   const mevcut = JSON.parse(localStorage.getItem(key) || '[]');
   let eklenen = 0;
@@ -10777,24 +10865,35 @@ function wsOzetDoldur() {
   document.getElementById('wsFisNum').textContent = fisSayisi;
   document.getElementById('wsZNum').textContent   = zSayisi;
 
-  // Son fiş arşivi
+  // Son fiş arşivi (Supabase'den çek)
   const arsivEl = document.getElementById('wsFisArsiv');
   if (arsivEl) {
-    const arsivKey = _sk('tahai_fis_arsiv_' + k.ad.toLowerCase().replace(/[^a-z0-9]/g,'_'));
-    const arsivData = JSON.parse(localStorage.getItem(arsivKey) || '[]');
-    if (arsivData.length === 0) {
-      arsivEl.innerHTML = '<span style="color:var(--text3)">Henüz kaydedilmiş fiş yok.</span>';
-    } else {
-      const son5 = arsivData.slice(-5).reverse();
-      arsivEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;">${
-        son5.map(r => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:center;">
-          <span style="font-size:18px;">${r.tur==='Akaryakıt'?'⛽':r.tur==='Market'?'🛒':r.tur==='Restoran'?'🍽️':'🗂️'}</span>
-          <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${r.aciklama||r.tur||'Fiş'}</div>
-          <div style="font-size:11px;color:var(--text3);">${r.tarih||''} ${r.donem||''}</div></div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent2);">${(r.toplam||0).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</div>
-        </div>`).join('')
-      }</div>`;
-    }
+    arsivEl.innerHTML = '<span style="color:var(--text3)">Yükleniyor...</span>';
+    (async () => {
+      let arsivData = [];
+      const mukId = await _getMukellefIdByAd(k.ad);
+      if (mukId) {
+        try { arsivData = await fisleriGetir(mukId); } catch(e) { /* fallback aşağıda */ }
+      }
+      if (arsivData.length === 0) {
+        // Fallback: localStorage
+        const arsivKey = _sk('tahai_fis_arsiv_' + k.ad.toLowerCase().replace(/[^a-z0-9]/g,'_'));
+        arsivData = JSON.parse(localStorage.getItem(arsivKey) || '[]');
+      }
+      if (arsivData.length === 0) {
+        arsivEl.innerHTML = '<span style="color:var(--text3)">Henüz kaydedilmiş fiş yok.</span>';
+      } else {
+        const son5 = arsivData.slice(-5).reverse();
+        arsivEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;">${
+          son5.map(r => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:center;">
+            <span style="font-size:18px;">${(r.fis_turu||r.tur)==='Akaryakıt'?'⛽':(r.fis_turu||r.tur)==='Market'?'🛒':(r.fis_turu||r.tur)==='Restoran'?'🍽️':'🗂️'}</span>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${r.aciklama||r.fis_turu||r.tur||'Fiş'}</div>
+            <div style="font-size:11px;color:var(--text3);">${r.tarih||''} ${r.donem||''}</div></div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent2);">${(r.toplam||0).toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</div>
+          </div>`).join('')
+        }</div>`;
+      }
+    })();
   }
 }
 
