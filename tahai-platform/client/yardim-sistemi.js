@@ -102,6 +102,26 @@ const YARDIM_ICERIK = {
       okuma, Luca-Entegratör karşılaştırma ve KDV/Tevkifat kontrolü
       olmak üzere 3 alt özellik içerir.</p>
 
+      <h3>🔍 Akıllı Filtre Barı</h3>
+      <p>Fatura listesi yüklendikten sonra sonuçların üstünde 6 renkli
+      filtre kutusu belirir. Her kutu ilgili fatura sayısını gösterir,
+      tıklayınca tablo o kategoriye göre süzülür.</p>
+
+      <div class="info-kutu">
+        <strong>📋 TÜMÜ</strong> — Tüm faturalar (varsayılan)<br>
+        <strong>✅ İŞLENMİŞ</strong> — Durum "Tamam", sorunsuz faturalar<br>
+        <strong>⚠️ İŞLENMEMİŞ</strong> — Durum "UYARI", kontrol gereken<br>
+        <strong>🔄 MÜKERRER</strong> — Aynı fatura no + VKN + tutar ile birden fazla kayıt<br>
+        <strong>💼 TEVKİFATLI</strong> — Notta "tevkifat" geçen faturalar<br>
+        <strong>❌ SORUNLU</strong> — Durum "HATA" veya kritik hata içerenler
+      </div>
+
+      <div class="info-kutu">
+        <strong>📊 Gruplu CSV</strong> butonu ile faturalar 4 gruba ayrılmış
+        şekilde (İşlenmiş / İşlenmemiş / Tevkifatlı / Sorunlu) ve
+        her grup için ara toplam satırıyla CSV'ye aktarılır.
+      </div>
+
       <div class="info-kutu">
         <strong>📑 Alt özellikler için ayrı yardımlar var:</strong><br>
         • Fatura İşleme (AI ile okuma)<br>
@@ -114,6 +134,7 @@ const YARDIM_ICERIK = {
         <li>Üstten mükellefi seçin</li>
         <li>Dönemi seçin</li>
         <li>Fatura türünü seçin (Alış / Satış)</li>
+        <li>Fatura verisi yüklendikten sonra filtre barından kategori seçin</li>
         <li>İhtiyacınıza göre alt özelliklerden birini kullanın</li>
       </ol>
     `

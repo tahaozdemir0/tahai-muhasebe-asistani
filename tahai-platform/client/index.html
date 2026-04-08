@@ -511,6 +511,44 @@
   .bey-detay-panel { display: none; }
   .bey-detay-panel.aktif { display: block; }
 
+  /* ── Fatura Akıllı Filtre Barı ─────────────────────────── */
+  .fatura-filtre-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .fatura-filtre {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 90px;
+    user-select: none;
+  }
+  .fatura-filtre:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .fatura-filtre.aktif { border-color: var(--accent); background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
+  .fatura-filtre .ff-sayi { font-size: 22px; font-weight: 700; line-height: 1; }
+  .fatura-filtre .ff-etiket { font-size: 11px; font-weight: 600; opacity: 0.85; white-space: nowrap; }
+  .fatura-filtre.ff-islenmis  { border-color: #48bb78; }
+  .fatura-filtre.ff-islenmis.aktif  { background: #48bb78; border-color: #48bb78; }
+  .fatura-filtre.ff-islenmemis { border-color: var(--accent3); }
+  .fatura-filtre.ff-islenmemis.aktif { background: var(--accent3); border-color: var(--accent3); }
+  .fatura-filtre.ff-mukerrer  { border-color: #9f7aea; }
+  .fatura-filtre.ff-mukerrer.aktif  { background: #9f7aea; border-color: #9f7aea; }
+  .fatura-filtre.ff-tevkifatli { border-color: #4299e1; }
+  .fatura-filtre.ff-tevkifatli.aktif { background: #4299e1; border-color: #4299e1; }
+  .fatura-filtre.ff-sorunlu   { border-color: var(--danger); }
+  .fatura-filtre.ff-sorunlu.aktif   { background: var(--danger); border-color: var(--danger); }
+
   .bey-kontrol-satir {
     display: flex; align-items: flex-start; gap: 12px;
     padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
@@ -2194,7 +2232,34 @@
           <div class="result-title">✅ Fatura Kontrolü <span class="badge" id="faturaCount">0 kayıt</span></div>
           <div style="display:flex; gap:8px;">
             <button class="btn btn-success" onclick="downloadExcel('fatura')">⬇️ Luca Excel İndir</button>
+            <button class="btn btn-outline" onclick="downloadFaturaGruplu()">📊 Gruplu CSV</button>
             <button class="btn btn-outline" onclick="clearFaturaResult()">Temizle</button>
+          </div>
+        </div>
+        <div class="fatura-filtre-bar" id="faturaFiltreBar">
+          <div class="fatura-filtre aktif"          data-filtre="tumü"        onclick="faturaFiltreUygula('tumü')">
+            <span class="ff-sayi" id="ffSayiTumu">0</span>
+            <span class="ff-etiket">📋 TÜMÜ</span>
+          </div>
+          <div class="fatura-filtre ff-islenmis"    data-filtre="islenmis"    onclick="faturaFiltreUygula('islenmis')">
+            <span class="ff-sayi" id="ffSayiIslenmis">0</span>
+            <span class="ff-etiket">✅ İŞLENMİŞ</span>
+          </div>
+          <div class="fatura-filtre ff-islenmemis"  data-filtre="islenmemis"  onclick="faturaFiltreUygula('islenmemis')">
+            <span class="ff-sayi" id="ffSayiIslenmemis">0</span>
+            <span class="ff-etiket">⚠️ İŞLENMEMİŞ</span>
+          </div>
+          <div class="fatura-filtre ff-mukerrer"    data-filtre="mukerrer"    onclick="faturaFiltreUygula('mukerrer')">
+            <span class="ff-sayi" id="ffSayiMukerrer">0</span>
+            <span class="ff-etiket">🔄 MÜKERRER</span>
+          </div>
+          <div class="fatura-filtre ff-tevkifatli"  data-filtre="tevkifatli"  onclick="faturaFiltreUygula('tevkifatli')">
+            <span class="ff-sayi" id="ffSayiTevkifatli">0</span>
+            <span class="ff-etiket">💼 TEVKİFATLI</span>
+          </div>
+          <div class="fatura-filtre ff-sorunlu"     data-filtre="sorunlu"     onclick="faturaFiltreUygula('sorunlu')">
+            <span class="ff-sayi" id="ffSayiSorunlu">0</span>
+            <span class="ff-etiket">❌ SORUNLU</span>
           </div>
         </div>
         <div class="table-wrap">
@@ -5822,9 +5887,82 @@ Mükerrer fatura no, eksik VKN, tutarsız KDV hesabı varsa UYARI veya HATA olar
   showNotif(`✅ ${newRows.length} fatura kontrol edildi!`, 'success');
 }
 
-function renderFaturaTable() {
+// ── Fatura analiz cache ──────────────────────────────────────
+let aktifFaturaFiltre = 'tumü';
+let faturaAnalizCache = { islenmis:[], islenmemis:[], mukerrer:[], tevkifatli:[], sorunlu:[] };
+
+function faturaSorunTespiti(r) {
+  // Sorunlu: durum HATA veya belirli hata ifadeleri içeren not
+  if (r.durum === 'HATA') return true;
+  if (r.not && /hata|geçersiz|eşleş|bulunamad|eksik vkn|duplicate|mükerrer/i.test(r.not)) return true;
+  return false;
+}
+
+function faturalariAnalizEt() {
+  const islenmis    = [];
+  const islenmemis  = [];
+  const mukerrer    = [];
+  const tevkifatli  = [];
+  const sorunlu     = [];
+
+  // Mükerrer tespiti için key → idxler haritası
+  const mukerrerMap = {};
+  faturaData.forEach((r, idx) => {
+    const key = (r.fatura_no||'') + '|' + (r.vkn_tckn||'') + '|' + (r.toplam||0);
+    if (!mukerrerMap[key]) mukerrerMap[key] = [];
+    mukerrerMap[key].push(idx);
+  });
+  const mukerrerIdxSet = new Set();
+  Object.values(mukerrerMap).forEach(idxler => {
+    if (idxler.length > 1) idxler.forEach(i => mukerrerIdxSet.add(i));
+  });
+
+  faturaData.forEach((r, idx) => {
+    // İşlenmiş: durum Tamam (sorunlu değil, mükerrer değil)
+    if (r.durum === 'Tamam' && !mukerrerIdxSet.has(idx)) islenmis.push(idx);
+    // İşlenmemiş: durum UYARI
+    if (r.durum === 'UYARI') islenmemis.push(idx);
+    // Mükerrer
+    if (mukerrerIdxSet.has(idx)) mukerrer.push(idx);
+    // Tevkifatlı: not veya fis_turu içinde tevkifat geçiyor
+    if (/tevkifat/i.test(r.not||'') || /tevkifat/i.test(r.fatura_turu||'')) tevkifatli.push(idx);
+    // Sorunlu
+    if (faturaSorunTespiti(r)) sorunlu.push(idx);
+  });
+
+  faturaAnalizCache = { islenmis, islenmemis, mukerrer, tevkifatli, sorunlu };
+  sayaclarGuncelle();
+}
+
+function sayaclarGuncelle() {
+  document.getElementById('ffSayiTumu').textContent       = faturaData.length;
+  document.getElementById('ffSayiIslenmis').textContent   = faturaAnalizCache.islenmis.length;
+  document.getElementById('ffSayiIslenmemis').textContent = faturaAnalizCache.islenmemis.length;
+  document.getElementById('ffSayiMukerrer').textContent   = faturaAnalizCache.mukerrer.length;
+  document.getElementById('ffSayiTevkifatli').textContent = faturaAnalizCache.tevkifatli.length;
+  document.getElementById('ffSayiSorunlu').textContent    = faturaAnalizCache.sorunlu.length;
+}
+
+function faturaFiltreUygula(filtre) {
+  aktifFaturaFiltre = filtre;
+  // Aktif buton stilini güncelle
+  document.querySelectorAll('.fatura-filtre').forEach(b => {
+    b.classList.toggle('aktif', b.dataset.filtre === filtre);
+  });
+  _renderFaturaFiltrelenmis();
+}
+
+function _renderFaturaFiltrelenmis() {
+  let gorunecek;
+  if (aktifFaturaFiltre === 'tumü') {
+    gorunecek = faturaData;
+  } else {
+    const idxler = faturaAnalizCache[aktifFaturaFiltre] || [];
+    gorunecek = idxler.map(i => faturaData[i]);
+  }
+
   const tbody = document.getElementById('faturaTableBody');
-  tbody.innerHTML = faturaData.map(r => {
+  tbody.innerHTML = gorunecek.map(r => {
     const color = r.durum === 'Tamam' ? 'var(--accent2)' : r.durum === 'UYARI' ? 'var(--accent3)' : 'var(--danger)';
     return `
     <tr>
@@ -5840,8 +5978,47 @@ function renderFaturaTable() {
       <td style="color:${color};font-size:11px">${r.not}</td>
     </tr>
   `}).join('');
-  document.getElementById('faturaCount').textContent = faturaData.length + ' kayıt';
+  document.getElementById('faturaCount').textContent = gorunecek.length + ' / ' + faturaData.length + ' kayıt';
+}
+
+function renderFaturaTable() {
+  // Filtre barını sıfırla ve tümünü göster
+  aktifFaturaFiltre = 'tumü';
+  document.querySelectorAll('.fatura-filtre').forEach(b => {
+    b.classList.toggle('aktif', b.dataset.filtre === 'tumü');
+  });
+  faturalariAnalizEt();
+  _renderFaturaFiltrelenmis();
   document.getElementById('faturaResult').classList.add('visible');
+}
+
+function downloadFaturaGruplu() {
+  if (!faturaData.length) { showNotif('Önce fatura verisi yükleyin', 'error'); return; }
+  faturalariAnalizEt();
+  const headers = ['Durum','Fatura No','Tarih','Firma','VKN/TCKN','KDV Oranı','Matrah','KDV','Toplam','Not'];
+  const rows = [];
+  const gruplar = [
+    { baslik: 'İŞLENMİŞ FATURALAR', key: 'islenmis' },
+    { baslik: 'İŞLENMEMİŞ / UYARILI FATURALAR', key: 'islenmemis' },
+    { baslik: 'TEVKİFATLI FATURALAR', key: 'tevkifatli' },
+    { baslik: 'SORUNLU FATURALAR', key: 'sorunlu' },
+  ];
+  gruplar.forEach(g => {
+    const idxler = faturaAnalizCache[g.key] || [];
+    if (!idxler.length) return;
+    rows.push(['--- ' + g.baslik + ' (' + idxler.length + ' adet) ---', '', '', '', '', '', '', '', '', '']);
+    idxler.forEach(i => {
+      const r = faturaData[i];
+      rows.push([r.durum, r.fatura_no, r.tarih, r.firma, r.vkn_tckn, '%'+r.kdv_orani, r.matrah, r.kdv, r.toplam, r.not]);
+    });
+    const topMatrah = idxler.reduce((s,i) => s + (faturaData[i].matrah||0), 0);
+    const topKdv    = idxler.reduce((s,i) => s + (faturaData[i].kdv||0), 0);
+    const topToplam = idxler.reduce((s,i) => s + (faturaData[i].toplam||0), 0);
+    rows.push(['TOPLAM', '', '', '', '', '', formatSayi(topMatrah), formatSayi(topKdv), formatSayi(topToplam), '']);
+    rows.push(['', '', '', '', '', '', '', '', '', '']);
+  });
+  downloadCSV(headers, rows, 'luca_faturalar_gruplu.csv');
+  showNotif('✅ Gruplu CSV indirildi!', 'success');
 }
 
 // ===================== EXCEL DOWNLOAD =====================
@@ -6656,7 +6833,17 @@ function downloadFisGruplu() {
   a.click();
   showNotif('✅ luca_fisler_gruplu.csv indirildi!', 'success');
 }
-function clearFaturaResult() { faturaData = []; document.getElementById('faturaTableBody').innerHTML = ''; document.getElementById('faturaResult').classList.remove('visible'); document.getElementById('statFatura').textContent = '0'; autoSave(); }
+function clearFaturaResult() {
+  faturaData = [];
+  faturaAnalizCache = { islenmis:[], islenmemis:[], mukerrer:[], tevkifatli:[], sorunlu:[] };
+  aktifFaturaFiltre = 'tumü';
+  document.getElementById('faturaTableBody').innerHTML = '';
+  document.getElementById('faturaResult').classList.remove('visible');
+  document.getElementById('statFatura').textContent = '0';
+  sayaclarGuncelle();
+  document.querySelectorAll('.fatura-filtre').forEach(b => b.classList.toggle('aktif', b.dataset.filtre === 'tumü'));
+  autoSave();
+}
 
 // ===================== TABS =====================
 
@@ -10842,6 +11029,7 @@ init();
 <!-- TahAI Backend Bridge -->
 <script>window.TAHAI_API_BASE = window.location.origin;</script>
 <script src="/tahai-api.js"></script>
+<script src="/data-manager.js"></script>
 <script src="/yardim-sistemi.js"></script>
 <script src="/chatbot.js"></script>
 

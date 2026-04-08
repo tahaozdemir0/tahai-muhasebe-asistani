@@ -16,6 +16,8 @@ const claudeRoutes   = require('./routes/claude');
 const syncRoutes     = require('./routes/sync');
 const adminRoutes    = require('./routes/admin');
 const hesapPlaniRoutes = require('./routes/hesap-plani');
+const kontrolSonuclariRoutes = require('./routes/kontrol-sonuclari');
+const donemKapanisRoutes = require('./routes/donem-kapanis');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -91,6 +93,8 @@ app.use('/api/claude',   claudeRoutes);
 app.use('/api/sync',     syncRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/hesap-plani', hesapPlaniRoutes);
+app.use('/api/kontrol-sonuclari', kontrolSonuclariRoutes);
+app.use('/api/donem-kapanis', donemKapanisRoutes);
 
 // Giriş/Kayıt sayfası
 app.get('/giris', (req, res) => {

@@ -11,7 +11,7 @@ router.get('/:mukellefId', async (req, res) => {
 
   const { data, error } = await supabase
     .from('mizanlar')
-    .select('id, donem, tarih_araligi, firma_adi, anomali_raporu, created_at')
+    .select('id, donem, tarih_araligi, firma_adi, anomali_raporu, hesap_ozeti, ters_bakiyeler, dosya_adi, created_at')
     // satirlar JSONB büyük olabilir, listede gönderme
     .eq('user_id', req.user.id)
     .eq('mukellef_id', mukellefId)
@@ -37,7 +37,7 @@ router.get('/:mukellefId/:id', async (req, res) => {
 
 // POST /api/mizan — Mizan kaydet
 router.post('/', async (req, res) => {
-  const { mukellef_id, donem, tarih_araligi, firma_adi, satirlar, anomali_raporu } = req.body;
+  const { mukellef_id, donem, tarih_araligi, firma_adi, satirlar, anomali_raporu, hesap_ozeti, ters_bakiyeler, dosya_adi } = req.body;
 
   if (!mukellef_id) {
     return res.status(400).json({ error: 'mukellef_id zorunlu' });
@@ -53,18 +53,24 @@ router.post('/', async (req, res) => {
 
   if (!mukellef) return res.status(403).json({ error: 'Bu mükellefe erişim yetkiniz yok' });
 
+  // Aynı dönem için mevcut mizan varsa güncelle (UPSERT mantığı)
+  const insertData = {
+    user_id: req.user.id,
+    mukellef_id,
+    donem: donem || '',
+    tarih_araligi: tarih_araligi || '',
+    firma_adi: firma_adi || '',
+    satirlar: satirlar || [],
+    anomali_raporu: anomali_raporu || '',
+    hesap_ozeti: hesap_ozeti || null,
+    ters_bakiyeler: ters_bakiyeler || null,
+    dosya_adi: dosya_adi || ''
+  };
+
   const { data, error } = await supabase
     .from('mizanlar')
-    .insert({
-      user_id: req.user.id,
-      mukellef_id,
-      donem: donem || '',
-      tarih_araligi: tarih_araligi || '',
-      firma_adi: firma_adi || '',
-      satirlar: satirlar || [],
-      anomali_raporu: anomali_raporu || ''
-    })
-    .select('id, donem, tarih_araligi, firma_adi, anomali_raporu, created_at')
+    .upsert(insertData, { onConflict: 'user_id,mukellef_id,donem' })
+    .select('id, donem, tarih_araligi, firma_adi, anomali_raporu, hesap_ozeti, ters_bakiyeler, dosya_adi, created_at')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });

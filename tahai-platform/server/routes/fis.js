@@ -28,7 +28,8 @@ router.get('/:mukellefId', async (req, res) => {
 router.post('/', async (req, res) => {
   const {
     mukellef_id, tarih, fis_turu, satici,
-    kdv_orani, matrah, kdv_tutari, toplam, donem
+    kdv_orani, matrah, kdv_tutari, toplam, donem,
+    hesap_kodu, gorsel_url, ai_verisi
   } = req.body;
 
   if (!mukellef_id || !tarih) {
@@ -57,7 +58,10 @@ router.post('/', async (req, res) => {
       matrah: matrah || 0,
       kdv_tutari: kdv_tutari || 0,
       toplam: toplam || 0,
-      donem: donem || ''
+      donem: donem || '',
+      hesap_kodu: hesap_kodu || '',
+      gorsel_url: gorsel_url || '',
+      ai_verisi: ai_verisi || null
     })
     .select()
     .single();
@@ -94,7 +98,10 @@ router.post('/bulk', async (req, res) => {
     matrah: f.matrah || 0,
     kdv_tutari: f.kdv_tutari || 0,
     toplam: f.toplam || 0,
-    donem: f.donem || ''
+    donem: f.donem || '',
+    hesap_kodu: f.hesap_kodu || '',
+    gorsel_url: f.gorsel_url || '',
+    ai_verisi: f.ai_verisi || null
   }));
 
   const { data, error } = await supabase

@@ -30,8 +30,9 @@ router.post('/', async (req, res) => {
   const {
     mukellef_id, tarih, tur, belge_no, satici_alici,
     kdv_orani, matrah, kdv_tutari, toplam,
-    donem, kaynak // kaynak: 'excel' | 'gorsel' | 'xml'
+    donem, kaynak, vkn, tevkifat, hesap_kodu, durum, mukerrer
   } = req.body;
+  const not_field = req.body.not;
 
   if (!mukellef_id || !tarih || !tur) {
     return res.status(400).json({ error: 'mukellef_id, tarih ve tur (alis/satis) zorunlu' });
@@ -65,7 +66,13 @@ router.post('/', async (req, res) => {
       kdv_tutari: kdv_tutari || 0,
       toplam: toplam || 0,
       donem: donem || '',
-      kaynak: kaynak || 'manuel'
+      kaynak: kaynak || 'manuel',
+      vkn: vkn || '',
+      tevkifat: tevkifat || 0,
+      hesap_kodu: hesap_kodu || '',
+      durum: durum || 'normal',
+      mukerrer: mukerrer || false,
+      not: not_field || ''
     })
     .select()
     .single();
@@ -104,7 +111,13 @@ router.post('/bulk', async (req, res) => {
     kdv_tutari: f.kdv_tutari || 0,
     toplam: f.toplam || 0,
     donem: f.donem || '',
-    kaynak: f.kaynak || 'excel'
+    kaynak: f.kaynak || 'excel',
+    vkn: f.vkn || '',
+    tevkifat: f.tevkifat || 0,
+    hesap_kodu: f.hesap_kodu || '',
+    durum: f.durum || 'normal',
+    mukerrer: f.mukerrer || false,
+    not: f.not || ''
   }));
 
   const { data, error } = await supabase

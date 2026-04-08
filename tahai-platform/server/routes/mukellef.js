@@ -34,7 +34,8 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/mukellef — Yeni mükellef
 router.post('/', async (req, res) => {
-  const { ad, vkn, vergi_dairesi, tur, adres, tel, email, not, kdv_periyot } = req.body;
+  const { ad, unvan, vkn, vergi_dairesi, tur, adres, tel, email, kdv_periyot } = req.body;
+  const not_field = req.body.not;
 
   if (!ad) return res.status(400).json({ error: 'Mükellef adı zorunlu' });
 
@@ -43,13 +44,14 @@ router.post('/', async (req, res) => {
     .insert({
       user_id: req.user.id,
       ad,
+      unvan: unvan || '',
       vkn: vkn || '',
       vergi_dairesi: vergi_dairesi || '',
       tur: tur || '',
       adres: adres || '',
       tel: tel || '',
       email: email || '',
-      not: not || '',
+      not: not_field || '',
       kdv_periyot: kdv_periyot || 'aylik'
     })
     .select()
@@ -61,7 +63,8 @@ router.post('/', async (req, res) => {
 
 // PUT /api/mukellef/:id — Güncelle
 router.put('/:id', async (req, res) => {
-  const { ad, vkn, vergi_dairesi, tur, adres, tel, email, not, kdv_periyot } = req.body;
+  const { ad, unvan, vkn, vergi_dairesi, tur, adres, tel, email, kdv_periyot } = req.body;
+  const not_field = req.body.not;
 
   // Önce sahiplik kontrol et
   const { data: existing } = await supabase
@@ -73,15 +76,16 @@ router.put('/:id', async (req, res) => {
 
   if (!existing) return res.status(404).json({ error: 'Mükellef bulunamadı' });
 
-  const updates = {};
+  const updates = { guncelleme: new Date().toISOString() };
   if (ad !== undefined) updates.ad = ad;
+  if (unvan !== undefined) updates.unvan = unvan;
   if (vkn !== undefined) updates.vkn = vkn;
   if (vergi_dairesi !== undefined) updates.vergi_dairesi = vergi_dairesi;
   if (tur !== undefined) updates.tur = tur;
   if (adres !== undefined) updates.adres = adres;
   if (tel !== undefined) updates.tel = tel;
   if (email !== undefined) updates.email = email;
-  if (not !== undefined) updates.not = not;
+  if (not_field !== undefined) updates.not = not_field;
   if (kdv_periyot !== undefined) updates.kdv_periyot = kdv_periyot;
 
   const { data, error } = await supabase
