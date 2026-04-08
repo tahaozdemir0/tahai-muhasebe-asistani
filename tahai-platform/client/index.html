@@ -4846,9 +4846,23 @@ function dkYukle() {
   _dkDonem    = (document.getElementById('dkDonem').value    || '').trim();
   if (!_dkMukellef || !_dkDonem) { showNotif('⚠️ Mükellef ve dönem seçin', 'error'); return; }
 
-  // Kayıtlı checkbox durumlarını yükle
+  // Kayıtlı checkbox durumlarını yükle (Supabase öncelikli, localStorage fallback)
   let kayitli = {};
   try { kayitli = JSON.parse(localStorage.getItem(_sk('dk_' + _dkMukellef + '_' + _dkDonem)) || '{}'); } catch(e) {}
+  // Arka planda Supabase'den de çek
+  (async () => {
+    const mukId = await _getMukellefIdByAd(_dkMukellef);
+    if (!mukId) return;
+    try {
+      const kList = await donemKapanisGetir(mukId, _dkDonem);
+      if (kList.length > 0 && kList[0].checklist) {
+        const sbData = {};
+        (kList[0].checklist || []).forEach(c => { sbData[c.id] = c.checked; });
+        // Supabase verisi varsa localStorage'ı güncelle
+        localStorage.setItem(_sk('dk_' + _dkMukellef + '_' + _dkDonem), JSON.stringify(sbData));
+      }
+    } catch(e) { /* sessizce devam */ }
+  })();
 
   // Mizan kaynağı
   const mizan = _beyGetSatirlar();
@@ -5019,6 +5033,18 @@ function _dkKaydet() {
   const data = {};
   for (const m of _DK_MADDELER) data[m.id] = !!_dkDurum[m.id]?.checked;
   try { localStorage.setItem(_sk('dk_' + _dkMukellef + '_' + _dkDonem), JSON.stringify(data)); } catch(e) {}
+
+  // Supabase'e de kaydet (arka planda)
+  const checklist = _DK_MADDELER.map(m => ({ id: m.id, baslik: m.baslik, checked: !!data[m.id] }));
+  const tamam = checklist.filter(c => c.checked).length;
+  const yuzde = _DK_MADDELER.length > 0 ? Math.round(tamam / _DK_MADDELER.length * 100) : 0;
+  (async () => {
+    const mukId = await _getMukellefIdByAd(_dkMukellef);
+    if (!mukId) return;
+    try {
+      await donemKapanisKaydet(mukId, { donem: _dkDonem, checklist, tamamlanma_yuzdesi: yuzde });
+    } catch(e) { console.warn('[DK] Supabase kayıt hatası:', e.message); }
+  })();
 }
 
 function dkSifirla() {
@@ -10252,10 +10278,12 @@ async function hpKontrolVeAc(mukellefAd, satirlar) {
   const ilgili = _hpIlgiliHesaplar(satirlar);
   if (ilgili.length === 0) return; // kontrol edilecek hesap yok
 
-  // Backend'den mevcut onaylı eşlemeleri çek
+  // Backend'den mevcut onaylı eşlemeleri çek (mukellef_id ile)
   let mevcutMap = {};
   try {
-    const res = await _tFetch('/api/hesap-plani/' + encodeURIComponent(mukellefAd));
+    const mukId = await _getMukellefIdByAd(mukellefAd);
+    const endpoint = mukId ? '/api/hesap-plani/' + mukId : '/api/hesap-plani/' + encodeURIComponent(mukellefAd);
+    const res = await _tFetch(endpoint);
     (res.eslesmeler || []).forEach(e => { mevcutMap[e.hesap_kodu] = e; });
     // Önbelleğe al
     _hpOnbellek[mukellefAd] = mevcutMap;
@@ -10382,10 +10410,11 @@ async function hpModalKaydet() {
   if (kaydetBtn) { kaydetBtn.disabled = true; kaydetBtn.textContent = '⏳ Kaydediliyor...'; }
 
   try {
+    const mukId = await _getMukellefIdByAd(_hpModalMukellef);
     await _tFetch('/api/hesap-plani', {
       method: 'POST',
       body: JSON.stringify({
-        mukellef_ad: _hpModalMukellef,
+        mukellef_id: mukId || _hpModalMukellef,
         eslesmeler:  _hpModalSatirlar
       })
     });
@@ -10473,6 +10502,7 @@ function _riskHesapla(mukellefAd, donem) {
 
 
   // ─── DÖNEM KAPANIŞ (max 10 puan) ──────────────────────────
+  // localStorage'dan oku (hızlı, senkron)
   const dkRaw = (() => { try { return localStorage.getItem(_sk('dk_' + mukellefAd + '_' + donem)); } catch(e) { return null; } })();
   if (dkRaw) {
     try {
