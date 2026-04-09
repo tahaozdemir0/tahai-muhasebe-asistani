@@ -40,35 +40,51 @@ router.post('/', async (req, res) => {
 
   content.push({ type: 'text', text: prompt });
 
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content }]
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json();
-      return res.status(resp.status).json({
-        error: err.error?.message || 'Anthropic API hatası'
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content }]
+        })
       });
+
+      // 529 Overloaded veya 429 Rate Limit → retry
+      if ((resp.status === 529 || resp.status === 429) && attempt < maxRetries) {
+        const wait = attempt * 2000; // 2s, 4s, 6s
+        console.warn(`[Claude Proxy] ${resp.status} — ${attempt}. deneme, ${wait}ms bekliyor...`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        return res.status(resp.status).json({
+          error: err.error?.message || 'Anthropic API hatası'
+        });
+      }
+
+      const data = await resp.json();
+      const text = data.content.map(c => c.text || '').join('');
+      return res.json({ text });
+
+    } catch (e) {
+      if (attempt < maxRetries) {
+        console.warn(`[Claude Proxy] Ağ hatası — ${attempt}. deneme:`, e.message);
+        await new Promise(r => setTimeout(r, attempt * 2000));
+        continue;
+      }
+      console.error('[Claude Proxy]', e.message);
+      return res.status(500).json({ error: 'Claude API bağlantı hatası: ' + e.message });
     }
-
-    const data = await resp.json();
-    const text = data.content.map(c => c.text || '').join('');
-    res.json({ text });
-
-  } catch (e) {
-    console.error('[Claude Proxy]', e.message);
-    res.status(500).json({ error: 'Claude API bağlantı hatası: ' + e.message });
   }
 });
 
