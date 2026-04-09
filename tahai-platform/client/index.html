@@ -5911,9 +5911,11 @@ function getFisTuruRenk(tur) {
 
 // ─── Fişleri KDV oranına göre grupla ve render et ──────────────────────────
 function renderFisTable() {
-  // Fişleri 4 gruba ayır (global index'i koruyarak)
+  // Fişleri 4 gruba ayır (global index'i koruyarak) — KKEG fişleri hariç
   const gruplar = { '1': [], '10': [], '20': [], 'Diger': [] };
   fisData.forEach((r, idx) => {
+    // KKEG fişlerini ana gruplardan çıkar (sadece KKEG tablosunda gösterilecek)
+    if (_fisKKEGKontrolEt(r).kkeg) return;
     const oran = parseInt(r.kdv_orani || 0);
     if      (oran === 1)  gruplar['1'].push({ r, idx });
     else if (oran === 10) gruplar['10'].push({ r, idx });
@@ -5968,8 +5970,6 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
     const kdvStyle = r._kdvHata   ? 'background:rgba(251,191,36,0.10);'  : '';
     const rowStyle = dupStyle || kdvStyle;
     const kdvUyari = r._kdvHata   ? '<span title="Tutarlar uyuşmuyor" style="color:#f59e0b;">⚠️</span>' : '';
-    const kkegKontrol = _fisKKEGKontrolEt(r);
-    const kkegBadge = kkegKontrol.kkeg ? `<span style="background:#f59e0b;color:white;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:6px;">🚗 KKEG</span>` : '';
     const secili = _fisSecilenIdxler.has(idx) ? ' secili' : '';
     const kdvDropdown = `<select class="kdv-select" onclick="event.stopPropagation()" onchange="kdvOranDegis(${idx},this.value)"
         style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 5px;font-size:11px;cursor:pointer;">
@@ -5982,7 +5982,7 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
       <td class="fis-secim-gosterge"></td>
       <td style="padding:9px 10px;font-size:13px;" id="fis_tarih_${idx}">${r.tarih}</td>
       <td style="padding:9px 10px;font-size:13px;">
-        <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>${kkegBadge}
+        <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>
         ${!kdvGoster ? '<br>' + kdvDropdown : ''}
       </td>
       <td style="padding:9px 10px;font-size:13px;">${r.satici}</td>
@@ -7109,6 +7109,8 @@ function downloadFisGruplu() {
 
   const gruplar = { '1': [], '10': [], '20': [], 'Diger': [] };
   fisData.forEach(r => {
+    // KKEG fişlerini ana gruplardan çıkar (ayrı KKEG bölümünde gösterilecek)
+    if (_fisKKEGKontrolEt(r).kkeg) return;
     const oran = parseInt(r.kdv_orani || 0);
     if      (oran === 1)  gruplar['1'].push(r);
     else if (oran === 10) gruplar['10'].push(r);
