@@ -91,6 +91,32 @@ const YARDIM_ICERIK = {
         <strong>📊 Gruplu CSV İndir</strong> butonu ile her grubu ayrı bölümde,
         özet tablolarla birlikte CSV olarak indirebilirsiniz.
       </div>
+
+      <h3>✅ Toplu Seçim ve Silme</h3>
+      <p>Her fişin solunda checkbox var. Birden fazla fiş
+      seçebilir ve toplu silebilirsiniz.</p>
+      <ul>
+        <li>Grup başlığındaki checkbox → O gruptaki tüm fişleri seçer</li>
+        <li>Fiş satırındaki 🗑️ → Tek fiş siler</li>
+        <li>Üstteki "Seçilenleri Sil" → Seçili tüm fişleri siler</li>
+      </ul>
+
+      <h3>🚗 Binek Araç KKEG Otomatik Tespiti</h3>
+      <p>Akaryakıt ve otopark fişleri otomatik olarak tanınır
+      ve ayrı bir tabloda gösterilir.</p>
+      <div class="info-kutu">
+        <strong>💡 Nasıl Çalışır?</strong><br>
+        Satıcı adında "Shell, BP, Opet, Petrol, İspark, Otopark"
+        gibi kelimeler geçerse sistem fişi binek araç gideri olarak
+        tanır. 7194 sayılı kanuna göre %70'i gider, %30'u KKEG
+        olarak hesaplanır.
+      </div>
+      <div class="uyari-kutu">
+        <strong>⚠️ Dikkat</strong><br>
+        Sistem otomatik tespit eder ama yanlış tanıma durumunda
+        fişi silip manuel olarak hesaplayabilirsiniz. Ticari araç
+        giderleri KKEG'e tabi değildir.
+      </div>
     `
   },
 
