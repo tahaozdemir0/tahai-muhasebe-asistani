@@ -1780,6 +1780,42 @@
           </div>
         </div>
 
+        <!-- Mükellefe Kaydet paneli -->
+        <div id="fisKaydetPanel" style="display:none; background:linear-gradient(135deg,rgba(52,211,153,0.08),rgba(102,126,234,0.08)); border:2px solid var(--accent2); border-radius:12px; padding:16px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div style="flex:1; min-width:200px;">
+              <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px;">AKTİF MÜKELLEF</div>
+              <div style="font-size:16px; font-weight:700; color:var(--accent2); margin-top:2px;" id="fisKaydetMukAd">—</div>
+              <div style="font-size:12px; color:var(--text2); margin-top:4px;">
+                <span id="fisKaydetDonem">—</span> •
+                <span id="fisKaydetFisSayi">0</span> fiş •
+                Son kayıt: <span id="fisKaydetSonTarih">—</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <div style="text-align:center; padding:6px 12px; background:rgba(16,185,129,0.1); border-radius:8px; min-width:70px;">
+                <div style="font-size:10px; color:#10b981;">%1 KDV</div>
+                <div style="font-size:14px; font-weight:700; color:#10b981;" id="fisKaydetKdv1">0 ₺</div>
+              </div>
+              <div style="text-align:center; padding:6px 12px; background:rgba(245,158,11,0.1); border-radius:8px; min-width:70px;">
+                <div style="font-size:10px; color:#f59e0b;">%10 KDV</div>
+                <div style="font-size:14px; font-weight:700; color:#f59e0b;" id="fisKaydetKdv10">0 ₺</div>
+              </div>
+              <div style="text-align:center; padding:6px 12px; background:rgba(59,130,246,0.1); border-radius:8px; min-width:70px;">
+                <div style="font-size:10px; color:#3b82f6;">%20 KDV</div>
+                <div style="font-size:14px; font-weight:700; color:#3b82f6;" id="fisKaydetKdv20">0 ₺</div>
+              </div>
+              <div style="text-align:center; padding:6px 12px; background:rgba(245,158,11,0.1); border-radius:8px; min-width:70px;">
+                <div style="font-size:10px; color:#d97706;">🚗 KKEG</div>
+                <div style="font-size:14px; font-weight:700; color:#d97706;" id="fisKaydetKKEG">0 ₺</div>
+              </div>
+            </div>
+            <button onclick="fisMukellefKaydet()" id="fisKaydetBuyukBtn" style="background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; padding:14px 28px; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3); transition:all 0.2s; white-space:nowrap;">
+              💾 Bu Mükellefe Kaydet
+            </button>
+          </div>
+        </div>
+
         <!-- Toplu işlem çubuğu -->
         <div id="fisTopluIslemBar" style="display:none; background:rgba(102,126,234,0.1); border:2px solid var(--accent); border-radius:10px; padding:12px 16px; margin-bottom:16px; justify-content:space-between; align-items:center;">
           <div><strong id="fisSeciliSayi">0</strong> fiş seçildi</div>
@@ -5585,49 +5621,108 @@ async function arsivFisSil(ad, donem, idx) {
 async function fisMukellefKaydet() {
   if (fisData.length === 0) { showNotif('⚠️ Kaydedilecek fiş yok!', 'error'); return; }
 
-  // Her mükellef için ayrı grupla
-  const gruplar = {};
-  fisData.forEach(r => {
-    const ad = r.mukellef || 'Bilinmiyor';
-    if (!gruplar[ad]) gruplar[ad] = [];
-    gruplar[ad].push(r);
-  });
+  // Aktif mükellef kontrolü
+  const mukAd = _gmSecili;
+  if (!mukAd) { showNotif('⚠️ Önce mükellef seçin! Üstteki "Mükellef" butonuna tıklayın.', 'error'); return; }
+
+  const mukId = window.aktifMukellef?.id || await _getMukellefIdByAd(mukAd);
+  const donem = document.getElementById('fisDonem')?.value || '';
+
+  // Kaydet butonunu disable et
+  const btn = document.getElementById('fisKaydetBuyukBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Kaydediliyor...'; }
 
   let kaydedilen = 0;
-  for (const [mukellef, fisler] of Object.entries(gruplar)) {
-    const mukId = await _getMukellefIdByAd(mukellef);
-
+  try {
     if (mukId) {
-      // Supabase'e toplu kaydet
-      try {
-        const apiFisler = fisler.map(f => ({
-          tarih: f.tarih || '',
-          fis_turu: f.fis_turu || '',
-          satici: f.satici || '',
-          kdv_orani: f.kdv_orani || 0,
-          matrah: f.matrah || 0,
-          kdv_tutari: f.kdv_tutari || 0,
-          toplam: f.toplam || 0,
-          donem: (f.tarih || '').slice(0, 7),
-          hesap_kodu: f.muhasebe_kodu || ''
-        }));
-        const sonuc = await fislerTopluKaydet(mukId, apiFisler);
-        kaydedilen += sonuc.length;
-      } catch(e) {
-        console.error('[Fiş] Supabase toplu kayıt hatası:', e.message);
-        // Fallback: localStorage
-        _fisFallbackKaydet(mukellef, fisler);
-        kaydedilen += fisler.length;
-      }
-    } else {
-      // Fallback: localStorage
-      _fisFallbackKaydet(mukellef, fisler);
-      kaydedilen += fisler.length;
-    }
-  }
+      const apiFisler = fisData.map(f => ({
+        tarih: f.tarih || '',
+        fis_turu: f.fis_turu || '',
+        satici: f.satici || '',
+        kdv_orani: f.kdv_orani || 0,
+        matrah: f.matrah || 0,
+        kdv_tutari: f.kdv_tutari || 0,
+        toplam: f.toplam || 0,
+        donem: donem || (f.tarih || '').slice(0, 7),
+        hesap_kodu: f.muhasebe_kodu || ''
+      }));
+      const sonuc = await fislerTopluKaydet(mukId, apiFisler);
+      kaydedilen = sonuc.length;
 
-  autoSave();
-  showNotif(`✅ ${kaydedilen} fiş mükellef kartına kaydedildi! Artık fişleri temizleyebilirsin.`, 'success');
+      // KDV özeti hesapla ve kontrol_sonuclari'na kaydet
+      await _fisKdvOzetiKaydet(mukId, donem);
+    } else {
+      _fisFallbackKaydet(mukAd, fisData);
+      kaydedilen = fisData.length;
+    }
+
+    showNotif(`✅ ${kaydedilen} fiş "${mukAd}" mükellefine kaydedildi!`, 'success');
+    _fisKaydetPanelGuncelle();
+  } catch(e) {
+    console.error('[Fiş] Kayıt hatası:', e.message);
+    showNotif('❌ Kayıt hatası: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Bu Mükellefe Kaydet'; }
+  }
+}
+
+// KDV özeti hesapla ve kontrol_sonuclari tablosuna kaydet
+async function _fisKdvOzetiKaydet(mukId, donem) {
+  const ozet = { kdv1: { matrah: 0, kdv: 0, sayi: 0 }, kdv10: { matrah: 0, kdv: 0, sayi: 0 }, kdv20: { matrah: 0, kdv: 0, sayi: 0 }, kkeg: { matrah: 0, kdv: 0, sayi: 0 }, genel: { matrah: 0, kdv: 0, toplam: 0, sayi: 0 } };
+
+  fisData.forEach(r => {
+    const oran = parseInt(r.kdv_orani || 0);
+    const matrah = parseFloat(r.matrah || 0);
+    const kdv = parseFloat(r.kdv_tutari || 0);
+    const toplam = parseFloat(r.toplam || 0);
+
+    ozet.genel.matrah += matrah; ozet.genel.kdv += kdv; ozet.genel.toplam += toplam; ozet.genel.sayi++;
+
+    if (_fisKKEGKontrolEt(r).kkeg) {
+      ozet.kkeg.matrah += matrah; ozet.kkeg.kdv += kdv; ozet.kkeg.sayi++;
+    } else if (oran === 1) {
+      ozet.kdv1.matrah += matrah; ozet.kdv1.kdv += kdv; ozet.kdv1.sayi++;
+    } else if (oran === 10) {
+      ozet.kdv10.matrah += matrah; ozet.kdv10.kdv += kdv; ozet.kdv10.sayi++;
+    } else if (oran === 20) {
+      ozet.kdv20.matrah += matrah; ozet.kdv20.kdv += kdv; ozet.kdv20.sayi++;
+    }
+  });
+
+  try {
+    await kontrolSonucuKaydet(mukId, {
+      donem: donem || '',
+      kontrol_turu: 'fis_ozeti',
+      sonuc_data: ozet,
+      risk_skoru: 0
+    });
+  } catch(e) { console.warn('[Fiş] KDV özet kayıt hatası:', e.message); }
+}
+
+// Kaydet panelini güncelle (fisData'dan)
+function _fisKaydetPanelGuncelle() {
+  const panel = document.getElementById('fisKaydetPanel');
+  if (!panel) return;
+
+  if (fisData.length === 0 && !_gmSecili) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  const _f = n => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let k1 = 0, k10 = 0, k20 = 0, kkeg = 0;
+  fisData.forEach(r => {
+    const kdv = parseFloat(r.kdv_tutari || 0);
+    if (_fisKKEGKontrolEt(r).kkeg) { kkeg += parseFloat(r.toplam || 0); return; }
+    const oran = parseInt(r.kdv_orani || 0);
+    if (oran === 1) k1 += kdv; else if (oran === 10) k10 += kdv; else if (oran === 20) k20 += kdv;
+  });
+
+  document.getElementById('fisKaydetMukAd').textContent = _gmSecili || '—';
+  document.getElementById('fisKaydetDonem').textContent = document.getElementById('fisDonem')?.value || '—';
+  document.getElementById('fisKaydetFisSayi').textContent = fisData.length;
+  document.getElementById('fisKaydetKdv1').textContent = _f(k1) + ' ₺';
+  document.getElementById('fisKaydetKdv10').textContent = _f(k10) + ' ₺';
+  document.getElementById('fisKaydetKdv20').textContent = _f(k20) + ' ₺';
+  document.getElementById('fisKaydetKKEG').textContent = _f(kkeg) + ' ₺';
 }
 
 function _fisFallbackKaydet(mukellef, fisler) {
@@ -5932,6 +6027,7 @@ function renderFisTable() {
   document.getElementById('fisResult').classList.add('visible');
   updateFisTotals();
   _fisKKEGTabloRender();
+  _fisKaydetPanelGuncelle();
   fisSecimTemizle();
 }
 
@@ -7089,13 +7185,14 @@ function clearFatura() { faturaFiles = []; renderFileList([], 'faturaFileList', 
 function clearZResult() { zData = []; document.getElementById('zTableBody').innerHTML = ''; document.getElementById('zResult').classList.remove('visible'); document.getElementById('statZ').textContent = '0'; autoSave(); }
 function clearFisResult() {
   fisData = [];
-  // Grupları temizle ve gizle
   ['1','10','20','Diger'].forEach(g => {
     const el = document.getElementById('fisGrup' + g);
     if (el) el.style.display = 'none';
   });
   const kkegC = document.getElementById('fisKKEGContainer');
   if (kkegC) kkegC.style.display = 'none';
+  const kaydetP = document.getElementById('fisKaydetPanel');
+  if (kaydetP) kaydetP.style.display = 'none';
   fisSecimTemizle();
   document.getElementById('fisResult').classList.remove('visible');
   document.getElementById('statFis').textContent = '0';
@@ -11349,6 +11446,17 @@ async function _aktifMukellefiYukle(mukellefAd) {
       mizanArsivGoster(mukellefAd);
     }
 
+    // Kaydet paneli ve son kaydetme bilgisini güncelle
+    _fisKaydetPanelGuncelle();
+    // Son fis_ozeti varsa tarih göster
+    try {
+      const ozetler = await kontrolSonuclariniGetir(mukId, null, 'fis_ozeti');
+      if (ozetler.length > 0) {
+        const sonEl = document.getElementById('fisKaydetSonTarih');
+        if (sonEl) sonEl.textContent = new Date(ozetler[0].olusturma).toLocaleDateString('tr-TR');
+      }
+    } catch(e) {}
+
     console.log(`[GM] ${mukellefAd}: ${fisler.length} fiş, ${faturalar.length} fatura, ${mizanlar.length} mizan yüklendi`);
   } catch(e) {
     console.warn('[GM] Veri yükleme hatası:', e.message);
@@ -11367,6 +11475,8 @@ function _mukellefEkranTemizle() {
   });
   const kkegC = document.getElementById('fisKKEGContainer');
   if (kkegC) kkegC.style.display = 'none';
+  const kaydetP = document.getElementById('fisKaydetPanel');
+  if (kaydetP) kaydetP.style.display = 'none';
   const fisResult = document.getElementById('fisResult');
   if (fisResult) fisResult.classList.remove('visible');
   document.getElementById('statFis').textContent = '0';
