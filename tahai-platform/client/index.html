@@ -2941,6 +2941,12 @@
             <div id="kartKdvOzet" style="font-size:12px; color:var(--text2); font-family:'IBM Plex Mono',monospace; line-height:2;"></div>
           </div>
 
+          <!-- Supabase Kontrol Özeti -->
+          <div id="kartSupabaseOzet" style="display:none; margin-bottom:16px;">
+            <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:var(--accent);">📋 Kayıtlı Kontrol Sonuçları</div>
+            <div id="kartSupabaseOzetIcerik" style="font-size:12px; color:var(--text2);"></div>
+          </div>
+
           <!-- FİŞ ARŞİVİ -->
           <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:16px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
@@ -6873,38 +6879,61 @@ function karsExcelIndir() {
 /**
  * Karşılaştırma sonuçlarını seçili mükelleffe kaydet
  */
-function karsilastirMukellefKaydet() {
+async function karsilastirMukellefKaydet() {
   if (!window._karsSonuclar || window._karsSonuclar.length === 0) {
     showNotif('⚠️ Önce karşılaştırma yap!', 'error'); return;
   }
-  const mukSec = document.getElementById('faturaMukellef');
-  const mukAd = mukSec ? mukSec.value : '';
+  const mukAd = _gmSecili || (document.getElementById('faturaMukellef')?.value || '');
   if (!mukAd) {
-    showNotif('⚠️ Önce faturalar sayfasında mükellef seç!', 'error'); return;
+    showNotif('⚠️ Önce mükellef seçin!', 'error'); return;
   }
   const donem = document.getElementById('faturaDonem') ? document.getElementById('faturaDonem').value : '';
   const alisSatis = window._faturaAlisSatis || 'satis';
+  const eslesen = window._karsSonuclar.filter(r => r.durum === '✅').length;
+  const sorunlu = window._karsSonuclar.filter(r => r.durum !== '✅').length;
+
+  // localStorage'a kaydet (geriye uyumluluk)
   const kayitKey = _sk('luca_fatura_' + mukAd.replace(/[^a-z0-9]/gi,'_'));
   let kayitlar = JSON.parse(localStorage.getItem(kayitKey) || '{}');
   const kayitAdi = (donem || new Date().toISOString().slice(0,7)) + '_' + alisSatis;
-  const eslesen = window._karsSonuclar.filter(r => r.durum === '✅').length;
-  const sorunlu = window._karsSonuclar.filter(r => r.durum !== '✅').length;
   kayitlar[kayitAdi] = {
-    tarih: new Date().toLocaleDateString('tr-TR'),
-    donem: donem,
-    tip: alisSatis === 'alis' ? 'Alış' : 'Satış',
-    mukellef: mukAd,
-    toplam: window._karsSonuclar.length,
-    eslesen: eslesen,
-    sorunlu: sorunlu,
-    detay: window._karsSonuclar
+    tarih: new Date().toLocaleDateString('tr-TR'), donem, tip: alisSatis === 'alis' ? 'Alış' : 'Satış',
+    mukellef: mukAd, toplam: window._karsSonuclar.length, eslesen, sorunlu, detay: window._karsSonuclar
   };
   localStorage.setItem(kayitKey, JSON.stringify(kayitlar));
-  // Mükellef kartında göstermek için genel listeye de ekle
   let tumKayitlar = JSON.parse(localStorage.getItem(_sk('luca_fatura_arsiv')) || '{}');
   if (!tumKayitlar[mukAd]) tumKayitlar[mukAd] = {};
   tumKayitlar[mukAd][kayitAdi] = kayitlar[kayitAdi];
   localStorage.setItem(_sk('luca_fatura_arsiv'), JSON.stringify(tumKayitlar));
+
+  // Supabase'e kontrol_sonuclari olarak kaydet
+  const mukId = window.aktifMukellef?.id || await _getMukellefIdByAd(mukAd);
+  if (mukId) {
+    // KDV bazlı toplamlar hesapla
+    const kdvOzet = { kdv1: { luca: 0, ent: 0 }, kdv10: { luca: 0, ent: 0 }, kdv20: { luca: 0, ent: 0 } };
+    window._karsSonuclar.forEach(r => {
+      const luca = parseFloat(r.luca_tutar || 0);
+      const ent = parseFloat(r.uyum_tutar || 0);
+      // Basit: toplam bazlı (oran bilgisi yoksa genel)
+      kdvOzet.kdv20.luca += luca;
+      kdvOzet.kdv20.ent += ent;
+    });
+
+    try {
+      await kontrolSonucuKaydet(mukId, {
+        donem: donem || '',
+        kontrol_turu: 'fatura_mutabakat',
+        sonuc_data: {
+          tur: alisSatis, donem,
+          toplam: window._karsSonuclar.length, eslesen, sorunlu,
+          kdv_ozet: kdvOzet,
+          durum: sorunlu === 0 ? 'mutabik' : 'uyumsuz'
+        },
+        risk_skoru: sorunlu > 5 ? 50 : sorunlu > 0 ? 25 : 0
+      });
+    } catch(e) { console.warn('[Kars] Supabase kayıt hatası:', e.message); }
+  }
+
   showNotif('✅ ' + mukAd + ' → ' + (alisSatis==='alis'?'Alış':'Satış') + ' faturaları kaydedildi! (' + eslesen + ' eşleşti, ' + sorunlu + ' sorunlu)', 'success');
 }
 
@@ -8419,7 +8448,110 @@ function kartAc(i) {
   document.getElementById('kartModal').style.display = 'flex';
   // Fiş arşivini render et
   setTimeout(() => kartFisArsivGoster(k.ad), 50);
+  // Supabase kontrol sonuçlarını yükle
+  _kartSupabaseOzetYukle(k.ad);
 }
+
+// Supabase'den kontrol sonuçları + mizan + fiş özeti çek ve kart modalında göster
+async function _kartSupabaseOzetYukle(mukAd) {
+  const ozetDiv = document.getElementById('kartSupabaseOzet');
+  const icerikDiv = document.getElementById('kartSupabaseOzetIcerik');
+  if (!ozetDiv || !icerikDiv) return;
+
+  const mukId = await _getMukellefIdByAd(mukAd);
+  if (!mukId) { ozetDiv.style.display = 'none'; return; }
+
+  ozetDiv.style.display = 'block';
+  icerikDiv.innerHTML = '<span style="color:var(--text3)">Yükleniyor...</span>';
+
+  try {
+    const [sonuclar, mizanlar, fisler, faturalar] = await Promise.all([
+      kontrolSonuclariniGetir(mukId),
+      mukellefMizanlariGetir(mukId),
+      fisleriGetir(mukId),
+      faturalariGetir(mukId)
+    ]);
+
+    const _f = n => (n||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let html = '';
+
+    // ── Fiş Özeti ──
+    if (fisler.length > 0) {
+      let k1m=0,k1k=0,k10m=0,k10k=0,k20m=0,k20k=0,kkegT=0;
+      fisler.forEach(f => {
+        const m=parseFloat(f.matrah||0), k=parseFloat(f.kdv_tutari||0), o=parseInt(f.kdv_orani||0);
+        if (o===1){k1m+=m;k1k+=k;} else if(o===10){k10m+=m;k10k+=k;} else if(o===20){k20m+=m;k20k+=k;}
+      });
+      const fisOzet = sonuclar.find(s => s.kontrol_turu === 'fis_ozeti');
+      if (fisOzet?.sonuc_data?.kkeg) kkegT = fisOzet.sonuc_data.kkeg.matrah + fisOzet.sonuc_data.kkeg.kdv;
+      const sonKayit = fisOzet ? new Date(fisOzet.olusturma).toLocaleDateString('tr-TR') : '—';
+
+      html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="font-weight:600;color:var(--accent2);margin-bottom:8px;">🧾 Fiş Özeti (${fisler.length} fiş) <span style="font-size:11px;color:var(--text3);font-weight:400;">Son kayıt: ${sonKayit}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px;">
+          <div style="text-align:center;padding:6px;background:rgba(16,185,129,0.08);border-radius:6px;">
+            <div style="color:#10b981;font-size:10px;">%1 KDV</div><div style="font-weight:700;">${_f(k1k)} ₺</div></div>
+          <div style="text-align:center;padding:6px;background:rgba(245,158,11,0.08);border-radius:6px;">
+            <div style="color:#f59e0b;font-size:10px;">%10 KDV</div><div style="font-weight:700;">${_f(k10k)} ₺</div></div>
+          <div style="text-align:center;padding:6px;background:rgba(59,130,246,0.08);border-radius:6px;">
+            <div style="color:#3b82f6;font-size:10px;">%20 KDV</div><div style="font-weight:700;">${_f(k20k)} ₺</div></div>
+          <div style="text-align:center;padding:6px;background:rgba(245,158,11,0.08);border-radius:6px;">
+            <div style="color:#d97706;font-size:10px;">🚗 KKEG</div><div style="font-weight:700;">${_f(kkegT)} ₺</div></div>
+        </div></div>`;
+    }
+
+    // ── Fatura Mutabakat Özetleri ──
+    const mutabakatlar = sonuclar.filter(s => s.kontrol_turu === 'fatura_mutabakat');
+    mutabakatlar.forEach(mb => {
+      const d = mb.sonuc_data || {};
+      const durumRenk = d.durum === 'mutabik' ? '#10b981' : '#ef4444';
+      const durumIcon = d.durum === 'mutabik' ? '✅' : '⚠️';
+      html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-weight:600;color:var(--accent);">📄 ${d.tur==='alis'?'Alış':'Satış'} Fatura Mutabakatı ${d.donem ? '('+d.donem+')' : ''}</span>
+          <span style="color:${durumRenk};font-weight:600;font-size:12px;">${durumIcon} ${d.durum === 'mutabik' ? 'Mutabık' : 'Uyumsuz'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);">
+          Toplam: ${d.toplam||0} fatura | Eşleşen: <span style="color:#10b981">${d.eslesen||0}</span> | Sorunlu: <span style="color:#ef4444">${d.sorunlu||0}</span>
+          <span style="float:right;font-size:11px;color:var(--text3);">${new Date(mb.olusturma).toLocaleDateString('tr-TR')}</span>
+        </div></div>`;
+    });
+
+    // ── Mizan Özeti ──
+    if (mizanlar.length > 0) {
+      html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="font-weight:600;color:var(--accent);margin-bottom:8px;">📊 Mizanlar (${mizanlar.length} dönem)</div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:4px;">
+          ${mizanlar.map(m => `<div style="display:flex;justify-content:space-between;padding:4px 8px;background:var(--bg);border-radius:6px;">
+            <span style="font-weight:600;color:var(--accent);">${m.donem || '—'}</span>
+            <span style="color:var(--text3);">${m.firma_adi || ''} · ${m.dosya_adi || ''}</span>
+            <span style="color:var(--text3);font-size:11px;">${m.created_at ? new Date(m.created_at).toLocaleDateString('tr-TR') : ''}</span>
+          </div>`).join('')}
+        </div></div>`;
+    }
+
+    // ── Beyanname Hazırlık (Hesaplanan - İndirilecek) ──
+    if (fisler.length > 0 || faturalar.length > 0) {
+      const satisFat = faturalar.filter(f => f.tur === 'satis');
+      const alisFat = faturalar.filter(f => f.tur === 'alis');
+      const hesaplananKdv = satisFat.reduce((s,f) => s + parseFloat(f.kdv_tutari||0), 0);
+      const indirilecekKdv = alisFat.reduce((s,f) => s + parseFloat(f.kdv_tutari||0), 0) + fisler.reduce((s,f) => s + parseFloat(f.kdv_tutari||0), 0);
+      const odenecek = hesaplananKdv - indirilecekKdv;
+
+      html += `<div style="background:linear-gradient(135deg,rgba(102,126,234,0.08),rgba(52,211,153,0.08));border:1px solid var(--accent);border-radius:10px;padding:14px;">
+        <div style="font-weight:600;color:var(--accent);margin-bottom:8px;">🧮 Beyanname Hazırlık</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;font-size:13px;">
+          <div><div style="font-size:10px;color:var(--text3);">Hesaplanan KDV</div><div style="font-weight:700;color:#ef4444;">${_f(hesaplananKdv)} ₺</div></div>
+          <div><div style="font-size:10px;color:var(--text3);">İndirilecek KDV</div><div style="font-weight:700;color:#10b981;">${_f(indirilecekKdv)} ₺</div></div>
+          <div><div style="font-size:10px;color:var(--text3);">Ödenecek KDV</div><div style="font-weight:700;color:${odenecek>=0?'#ef4444':'#10b981'};font-size:16px;">${_f(odenecek)} ₺</div></div>
+        </div></div>`;
+    }
+
+    icerikDiv.innerHTML = html || '<span style="color:var(--text3);">Henüz kayıtlı kontrol sonucu yok.</span>';
+  } catch(e) {
+    console.warn('[Kart] Supabase özet hatası:', e.message);
+    icerikDiv.innerHTML = '<span style="color:var(--text3);">Veri yüklenemedi.</span>';
+  }
 
 function kartModalKapat() {
   document.getElementById('kartModal').style.display = 'none';
