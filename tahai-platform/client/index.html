@@ -11260,6 +11260,9 @@ function gmFiltrele(val) {
   });
 }
 
+// ── Aktif mükellef state ──
+window.aktifMukellef = null; // { id, ad, ... } Supabase kaydı
+
 function gmSec(ad) {
   _gmSecili = ad;
   // Butonu güncelle
@@ -11273,6 +11276,113 @@ function gmSec(ad) {
   // Tüm modül alanlarını doldur
   globalMukellefAlanlariDoldur(ad);
   showNotif('✅ Mükellef seçildi: ' + ad, 'success');
+  // Supabase'den mükellef verilerini yükle
+  _aktifMukellefiYukle(ad);
+}
+
+// Mükellef değiştiğinde: ekranları temizle + Supabase'den veri çek
+async function _aktifMukellefiYukle(mukellefAd) {
+  // 1. Ekranları temizle
+  _mukellefEkranTemizle();
+
+  if (!mukellefAd) { window.aktifMukellef = null; return; }
+
+  // 2. UUID çözümle
+  const mukId = await _getMukellefIdByAd(mukellefAd);
+  if (!mukId) {
+    // Supabase'de yok — localStorage verileriyle devam et
+    window.aktifMukellef = { id: null, ad: mukellefAd };
+    return;
+  }
+
+  window.aktifMukellef = { id: mukId, ad: mukellefAd };
+
+  // 3. Paralel veri çekme
+  try {
+    const [fisler, faturalar, mizanlar] = await Promise.all([
+      fisleriGetir(mukId),
+      faturalariGetir(mukId),
+      mukellefMizanlariGetir(mukId)
+    ]);
+
+    // Fişleri yükle (mevcut fisData'ya ekle değil, değiştir)
+    if (fisler.length > 0) {
+      // API alanlarını frontend formatına dönüştür
+      fisData = fisler.map(f => ({
+        tarih: f.tarih || '',
+        fis_turu: f.fis_turu || '',
+        satici: f.satici || '',
+        kdv_orani: parseFloat(f.kdv_orani || 0),
+        matrah: parseFloat(f.matrah || 0),
+        kdv_tutari: parseFloat(f.kdv_tutari || 0),
+        toplam: parseFloat(f.toplam || 0),
+        muhasebe_kodu: f.hesap_kodu || '',
+        mukellef: mukellefAd,
+        donem: f.donem || '',
+        _supabase_id: f.id
+      }));
+      renderFisTable();
+      document.getElementById('statFis').textContent = fisData.length;
+    }
+
+    // Faturaları yükle
+    if (faturalar.length > 0) {
+      faturaData = faturalar.map(f => ({
+        durum: f.durum === 'normal' ? 'Tamam' : f.durum === 'iptal' ? 'HATA' : (f.durum || 'Tamam'),
+        fatura_no: f.belge_no || '',
+        tarih: f.tarih || '',
+        firma: f.satici_alici || '',
+        vkn_tckn: f.vkn || '',
+        kdv_orani: parseFloat(f.kdv_orani || 0),
+        matrah: parseFloat(f.matrah || 0),
+        kdv: parseFloat(f.kdv_tutari || 0),
+        toplam: parseFloat(f.toplam || 0),
+        not: f.not || '',
+        _supabase_id: f.id
+      }));
+      renderFaturaTable();
+      document.getElementById('statFatura').textContent = faturaData.length;
+    }
+
+    // Mizan arşivini güncelle
+    if (mizanlar.length > 0) {
+      mizanArsivGoster(mukellefAd);
+    }
+
+    console.log(`[GM] ${mukellefAd}: ${fisler.length} fiş, ${faturalar.length} fatura, ${mizanlar.length} mizan yüklendi`);
+  } catch(e) {
+    console.warn('[GM] Veri yükleme hatası:', e.message);
+  }
+}
+
+// Tüm modül ekranlarını temizle (mükellef değişimi öncesi)
+function _mukellefEkranTemizle() {
+  // Fiş verisi ve grupları
+  fisData = [];
+  ['1','10','20','Diger'].forEach(g => {
+    const el = document.getElementById('fisGrup' + g);
+    if (el) el.style.display = 'none';
+    const tbody = document.getElementById('fisGrup' + g + 'Body');
+    if (tbody) tbody.innerHTML = '';
+  });
+  const kkegC = document.getElementById('fisKKEGContainer');
+  if (kkegC) kkegC.style.display = 'none';
+  const fisResult = document.getElementById('fisResult');
+  if (fisResult) fisResult.classList.remove('visible');
+  document.getElementById('statFis').textContent = '0';
+  if (typeof fisSecimTemizle === 'function') fisSecimTemizle();
+  if (typeof updateFisTotals === 'function') updateFisTotals();
+
+  // Fatura verisi
+  faturaData = [];
+  const faturaBody = document.getElementById('faturaTableBody');
+  if (faturaBody) faturaBody.innerHTML = '';
+  const faturaResult = document.getElementById('faturaResult');
+  if (faturaResult) faturaResult.classList.remove('visible');
+  document.getElementById('statFatura').textContent = '0';
+
+  // Z Raporu (session bazlı, temizlenmez — zaten ayrı yükleniyor)
+  // Mizan (tablolar arşiv bazlı, mizanArsivGoster yeniden çağrılacak)
 }
 
 function _etiketGuncelle(id, ad) {
@@ -11349,7 +11459,11 @@ function gmYukle() {
     const btnAd = document.getElementById('gmBtnAd');
     if (btnAd) btnAd.textContent = kayitli;
     // Kısa gecikme: tüm listeler render olduktan sonra doldur
-    setTimeout(() => globalMukellefAlanlariDoldur(kayitli), 400);
+    setTimeout(() => {
+      globalMukellefAlanlariDoldur(kayitli);
+      // Supabase'den mükellef verilerini yükle
+      _aktifMukellefiYukle(kayitli);
+    }, 400);
   }
 }
 
