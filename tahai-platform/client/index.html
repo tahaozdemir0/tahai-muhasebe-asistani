@@ -549,6 +549,13 @@
   .fatura-filtre.ff-sorunlu   { border-color: var(--danger); }
   .fatura-filtre.ff-sorunlu.aktif   { background: var(--danger); border-color: var(--danger); }
 
+  /* ── Fiş satır seçimi ──────────────────────────────────────── */
+  .fis-satir { cursor: pointer; transition: background 0.15s; }
+  .fis-satir:hover:not(.secili) { background: rgba(255,255,255,0.03); }
+  .fis-satir.secili { background: rgba(102,126,234,0.15) !important; }
+  .fis-satir .fis-secim-gosterge { width:4px; padding:0; transition: background 0.15s; }
+  .fis-satir.secili .fis-secim-gosterge { background: var(--accent) !important; }
+
   .bey-kontrol-satir {
     display: flex; align-items: flex-start; gap: 12px;
     padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
@@ -1791,7 +1798,9 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div>
                   <div style="font-size:16px;font-weight:700;">🟢 %1 KDV'Lİ FİŞLER</div>
-                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup1Sayi">0</span> adet fiş</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup1Sayi">0</span> adet fiş
+                    <button onclick="fisGrubuSec('1')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px;margin-left:8px;">☐ Tümünü Seç</button>
+                  </div>
                 </div>
                 <div style="text-align:right;font-size:13px;line-height:1.6;">
                   <div>Matrah: <strong id="fisGrup1Matrah">0 ₺</strong></div>
@@ -1803,7 +1812,7 @@
             <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;">
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
-                  <th style="padding:8px 6px;width:30px;text-align:center;"><input type="checkbox" onchange="fisGrupTumunuSec(this,this.closest('.fis-grup').id)" title="Tümünü seç"></th>
+                  <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
@@ -1824,7 +1833,9 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div>
                   <div style="font-size:16px;font-weight:700;">🟡 %10 KDV'Lİ FİŞLER</div>
-                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup10Sayi">0</span> adet fiş</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup10Sayi">0</span> adet fiş
+                    <button onclick="fisGrubuSec('10')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px;margin-left:8px;">☐ Tümünü Seç</button>
+                  </div>
                 </div>
                 <div style="text-align:right;font-size:13px;line-height:1.6;">
                   <div>Matrah: <strong id="fisGrup10Matrah">0 ₺</strong></div>
@@ -1836,7 +1847,7 @@
             <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;">
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
-                  <th style="padding:8px 6px;width:30px;text-align:center;"><input type="checkbox" onchange="fisGrupTumunuSec(this,this.closest('.fis-grup').id)" title="Tümünü seç"></th>
+                  <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
@@ -1857,7 +1868,9 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div>
                   <div style="font-size:16px;font-weight:700;">🔵 %20 KDV'Lİ FİŞLER</div>
-                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup20Sayi">0</span> adet fiş</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrup20Sayi">0</span> adet fiş
+                    <button onclick="fisGrubuSec('20')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px;margin-left:8px;">☐ Tümünü Seç</button>
+                  </div>
                 </div>
                 <div style="text-align:right;font-size:13px;line-height:1.6;">
                   <div>Matrah: <strong id="fisGrup20Matrah">0 ₺</strong></div>
@@ -1869,7 +1882,7 @@
             <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;">
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
-                  <th style="padding:8px 6px;width:30px;text-align:center;"><input type="checkbox" onchange="fisGrupTumunuSec(this,this.closest('.fis-grup').id)" title="Tümünü seç"></th>
+                  <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
@@ -1890,7 +1903,9 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div>
                   <div style="font-size:16px;font-weight:700;">⚪ DİĞER / KDV YOK</div>
-                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrupDigerSayi">0</span> adet fiş</div>
+                  <div style="font-size:12px;opacity:.9;margin-top:3px;"><span id="fisGrupDigerSayi">0</span> adet fiş
+                    <button onclick="fisGrubuSec('Diger')" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px;margin-left:8px;">☐ Tümünü Seç</button>
+                  </div>
                 </div>
                 <div style="text-align:right;font-size:13px;line-height:1.6;">
                   <div style="font-size:15px;">Toplam: <strong id="fisGrupDigerToplam">0 ₺</strong></div>
@@ -1900,7 +1915,7 @@
             <div style="background:var(--card);border-radius:0 0 10px 10px;overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;">
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
-                  <th style="padding:8px 6px;width:30px;text-align:center;"><input type="checkbox" onchange="fisGrupTumunuSec(this,this.closest('.fis-grup').id)" title="Tümünü seç"></th>
+                  <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
@@ -1935,7 +1950,7 @@
           <div style="background:var(--card); border-radius:0 0 10px 10px; overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse;">
               <thead><tr style="background:var(--bg); font-size:12px; color:var(--text3);">
-                <th style="padding:8px 6px;width:30px;text-align:center;"><input type="checkbox" onchange="fisGrupTumunuSec(this,'fisKKEGContainer')" title="Tümünü seç"></th>
+                <th style="width:4px;padding:0;"></th>
                 <th style="padding:8px 10px;text-align:left;">Tarih</th>
                 <th style="padding:8px 10px;text-align:left;">Tür</th>
                 <th style="padding:8px 10px;text-align:left;">Satıcı</th>
@@ -5662,24 +5677,54 @@ function fisSil(idx) {
   showNotif('🗑️ Fiş silindi.', 'success');
 }
 
-// ── Toplu Seçim ve Silme ──────────────────────────────────────
+// ── Toplu Seçim (satır tıklama) ve Silme ──────────────────────
 let _fisSecilenIdxler = new Set();
 
-function _fisSecimDegisti() {
-  _fisSecilenIdxler.clear();
-  document.querySelectorAll('.fis-secim-chk:checked').forEach(chk => {
-    _fisSecilenIdxler.add(parseInt(chk.dataset.fisIdx));
-  });
+// Tarih parse — sıralama için
+function _fisTarihKey(tarih) {
+  if (!tarih) return 0;
+  const str = String(tarih).trim();
+  // ISO: 2026-02-15
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str).getTime();
+  // TR: 15.02.2026 veya 15/02/2026
+  const m = str.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})/);
+  if (m) {
+    let [_, g, a, y] = m;
+    if (y.length === 2) y = '20' + y;
+    return new Date(`${y}-${a.padStart(2,'0')}-${g.padStart(2,'0')}`).getTime();
+  }
+  return 0;
+}
+
+// Satır tıklama → seç/bırak
+function _fisSatirTikla(tr, idx, event) {
+  if (event.target.closest('button') || event.target.closest('select')) return;
+  tr.classList.toggle('secili');
+  if (tr.classList.contains('secili')) {
+    _fisSecilenIdxler.add(idx);
+  } else {
+    _fisSecilenIdxler.delete(idx);
+  }
   _fisSecimBarGuncelle();
 }
 
-function fisGrupTumunuSec(masterChk, grupId) {
-  const container = document.getElementById(grupId);
-  if (!container) return;
-  container.querySelectorAll('.fis-secim-chk').forEach(chk => {
-    chk.checked = masterChk.checked;
+// Grup toplu seçme (başlık butonu)
+function fisGrubuSec(grupAdi) {
+  const tbody = document.getElementById('fisGrup' + grupAdi + 'Body');
+  if (!tbody) return;
+  const satirlar = tbody.querySelectorAll('.fis-satir');
+  const hepsiSecili = Array.from(satirlar).every(s => s.classList.contains('secili'));
+  satirlar.forEach(s => {
+    const idx = parseInt(s.dataset.fisIdx);
+    if (hepsiSecili) {
+      s.classList.remove('secili');
+      _fisSecilenIdxler.delete(idx);
+    } else {
+      s.classList.add('secili');
+      _fisSecilenIdxler.add(idx);
+    }
   });
-  _fisSecimDegisti();
+  _fisSecimBarGuncelle();
 }
 
 function _fisSecimBarGuncelle() {
@@ -5696,17 +5741,13 @@ function _fisSecimBarGuncelle() {
 
 function fisSecimTemizle() {
   _fisSecilenIdxler.clear();
-  document.querySelectorAll('.fis-secim-chk').forEach(c => c.checked = false);
-  document.querySelectorAll('th input[type="checkbox"]').forEach(c => {
-    if (c.closest('#fisGruplarContainer') || c.closest('#fisKKEGContainer')) c.checked = false;
-  });
+  document.querySelectorAll('.fis-satir.secili').forEach(s => s.classList.remove('secili'));
   _fisSecimBarGuncelle();
 }
 
 function fisSecilenleriSil() {
   if (_fisSecilenIdxler.size === 0) return;
   if (!confirm(_fisSecilenIdxler.size + ' fiş silinecek. Emin misiniz?')) return;
-  // Büyükten küçüğe sırala ki splice index bozmasın
   const sortedIdxler = Array.from(_fisSecilenIdxler).sort((a, b) => b - a);
   sortedIdxler.forEach(idx => fisData.splice(idx, 1));
   _fisSecilenIdxler.clear();
@@ -5754,14 +5795,18 @@ function _fisKKEGTabloRender() {
   if (kkegFisler.length === 0) { container.style.display = 'none'; return; }
   container.style.display = 'block';
 
+  // Tarih sıralaması
+  kkegFisler.sort((a, b) => _fisTarihKey(a.r.tarih) - _fisTarihKey(b.r.tarih));
+
   let tMatrah = 0, tGider = 0, tKKEG = 0, tKdvKKEG = 0;
   const _f = n => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   tbody.innerHTML = kkegFisler.map(({ r, idx, tur }) => {
     const h = _fisKKEGHesapla(r);
     tMatrah += h.toplam_matrah; tGider += h.gider_matrah; tKKEG += h.kkeg_matrah; tKdvKKEG += h.kkeg_kdv;
-    return `<tr style="border-top:1px solid var(--border);">
-      <td style="padding:9px 6px;text-align:center;"><input type="checkbox" class="fis-secim-chk" data-fis-idx="${idx}" onchange="_fisSecimDegisti()"></td>
+    const secili = _fisSecilenIdxler.has(idx) ? ' secili' : '';
+    return `<tr class="fis-satir${secili}" data-fis-idx="${idx}" onclick="_fisSatirTikla(this,${idx},event)" style="border-top:1px solid var(--border);">
+      <td class="fis-secim-gosterge"></td>
       <td style="padding:9px 10px;font-size:13px;">${r.tarih || '-'}</td>
       <td style="padding:9px 10px;font-size:13px;"><span style="background:#f59e0b;color:white;padding:2px 8px;border-radius:10px;font-size:10px;">${tur.toUpperCase()}</span></td>
       <td style="padding:9px 10px;font-size:13px;">${r.satici || '-'}</td>
@@ -5769,7 +5814,7 @@ function _fisKKEGTabloRender() {
       <td style="padding:9px 10px;text-align:right;font-size:13px;color:#10b981;">${_f(h.gider_matrah)} ₺</td>
       <td style="padding:9px 10px;text-align:right;font-size:13px;color:#f59e0b;font-weight:600;">${_f(h.kkeg_matrah)} ₺</td>
       <td style="padding:9px 10px;text-align:right;font-size:13px;color:#f59e0b;">${_f(h.kkeg_kdv)} ₺</td>
-      <td style="padding:9px 10px;text-align:center;"><button onclick="fisSil(${idx})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:14px;">🗑️</button></td>
+      <td style="padding:9px 10px;text-align:center;"><button onclick="event.stopPropagation();fisSil(${idx})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:14px;">🗑️</button></td>
     </tr>`;
   }).join('');
 
@@ -5914,6 +5959,9 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
   if (toplamEl) toplamEl.textContent = _f(totToplam);
 
   // Satır HTML — global idx kullanılıyor (fisSil/fisDuzenle uyumluluğu)
+  // Tarih sıralaması
+  satirlar.sort((a, b) => _fisTarihKey(a.r.tarih) - _fisTarihKey(b.r.tarih));
+
   tbody.innerHTML = satirlar.map(({ r, idx }) => {
     const renk     = getFisTuruRenk(r.fis_turu);
     const dupStyle = r._duplicate ? 'background:rgba(248,113,113,0.08);' : '';
@@ -5922,15 +5970,16 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
     const kdvUyari = r._kdvHata   ? '<span title="Tutarlar uyuşmuyor" style="color:#f59e0b;">⚠️</span>' : '';
     const kkegKontrol = _fisKKEGKontrolEt(r);
     const kkegBadge = kkegKontrol.kkeg ? `<span style="background:#f59e0b;color:white;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:6px;">🚗 KKEG</span>` : '';
-    const kdvDropdown = `<select class="kdv-select" onchange="kdvOranDegis(${idx},this.value)"
+    const secili = _fisSecilenIdxler.has(idx) ? ' secili' : '';
+    const kdvDropdown = `<select class="kdv-select" onclick="event.stopPropagation()" onchange="kdvOranDegis(${idx},this.value)"
         style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 5px;font-size:11px;cursor:pointer;">
       <option value="1"  ${r.kdv_orani==1  ?'selected':''}>%1</option>
       <option value="10" ${r.kdv_orani==10 ?'selected':''}>%10</option>
       <option value="20" ${r.kdv_orani==20 ?'selected':''}>%20</option>
     </select>`;
     return `
-    <tr id="fis_row_${idx}" style="${rowStyle}border-top:1px solid var(--border);">
-      <td style="padding:9px 6px;text-align:center;"><input type="checkbox" class="fis-secim-chk" data-fis-idx="${idx}" onchange="_fisSecimDegisti()"></td>
+    <tr id="fis_row_${idx}" class="fis-satir${secili}" data-fis-idx="${idx}" onclick="_fisSatirTikla(this,${idx},event)" style="${rowStyle}border-top:1px solid var(--border);">
+      <td class="fis-secim-gosterge"></td>
       <td style="padding:9px 10px;font-size:13px;" id="fis_tarih_${idx}">${r.tarih}</td>
       <td style="padding:9px 10px;font-size:13px;">
         <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>${kkegBadge}
@@ -5943,8 +5992,8 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
       <td style="padding:9px 10px;font-size:12px;"><code style="color:var(--accent3)">${r.muhasebe_kodu}</code></td>
       <td style="padding:9px 10px;text-align:center;">
         <div style="display:flex;gap:4px;justify-content:center;">
-          <button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="fisDuzenle(${idx})">✏️</button>
-          <button class="btn" style="padding:3px 8px;font-size:11px;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:6px;" onclick="fisSil(${idx})">🗑️</button>
+          <button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();fisDuzenle(${idx})">✏️</button>
+          <button class="btn" style="padding:3px 8px;font-size:11px;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:6px;" onclick="event.stopPropagation();fisSil(${idx})">🗑️</button>
         </div>
       </td>
     </tr>`;
