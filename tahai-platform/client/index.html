@@ -5645,12 +5645,13 @@ async function fisMukellefKaydet() {
         tarih: f.tarih || '',
         fis_turu: f.fis_turu || '',
         satici: f.satici || '',
-        kdv_orani: f.kdv_orani || 0,
-        matrah: f.matrah || 0,
-        kdv_tutari: f.kdv_tutari || 0,
-        toplam: f.toplam || 0,
+        kdv_orani: _fisKalemler(f)[0]?.oran || f.kdv_orani || 0,
+        matrah: _fisToplamMatrah(f),
+        kdv_tutari: _fisToplamKdv(f),
+        toplam: _fisToplamTutar(f),
         donem: donem || (f.tarih || '').slice(0, 7),
-        hesap_kodu: f.muhasebe_kodu || ''
+        hesap_kodu: f.muhasebe_kodu || '',
+        ai_verisi: { kalemler: _fisKalemler(f), dosya: f.dosya }
       }));
       const sonuc = await fislerTopluKaydet(mukId, apiFisler);
       kaydedilen = sonuc.length;
@@ -5672,27 +5673,24 @@ async function fisMukellefKaydet() {
   }
 }
 
-// KDV özeti hesapla ve kontrol_sonuclari tablosuna kaydet
+// KDV özeti hesapla ve kontrol_sonuclari tablosuna kaydet (kalemler destekli)
 async function _fisKdvOzetiKaydet(mukId, donem) {
   const ozet = { kdv1: { matrah: 0, kdv: 0, sayi: 0 }, kdv10: { matrah: 0, kdv: 0, sayi: 0 }, kdv20: { matrah: 0, kdv: 0, sayi: 0 }, kkeg: { matrah: 0, kdv: 0, sayi: 0 }, genel: { matrah: 0, kdv: 0, toplam: 0, sayi: 0 } };
 
   fisData.forEach(r => {
-    const oran = parseInt(r.kdv_orani || 0);
-    const matrah = parseFloat(r.matrah || 0);
-    const kdv = parseFloat(r.kdv_tutari || 0);
-    const toplam = parseFloat(r.toplam || 0);
-
-    ozet.genel.matrah += matrah; ozet.genel.kdv += kdv; ozet.genel.toplam += toplam; ozet.genel.sayi++;
+    const fisMat = _fisToplamMatrah(r), fisKdv = _fisToplamKdv(r), fisTop = _fisToplamTutar(r);
+    ozet.genel.matrah += fisMat; ozet.genel.kdv += fisKdv; ozet.genel.toplam += fisTop; ozet.genel.sayi++;
 
     if (_fisKKEGKontrolEt(r).kkeg) {
-      ozet.kkeg.matrah += matrah; ozet.kkeg.kdv += kdv; ozet.kkeg.sayi++;
-    } else if (oran === 1) {
-      ozet.kdv1.matrah += matrah; ozet.kdv1.kdv += kdv; ozet.kdv1.sayi++;
-    } else if (oran === 10) {
-      ozet.kdv10.matrah += matrah; ozet.kdv10.kdv += kdv; ozet.kdv10.sayi++;
-    } else if (oran === 20) {
-      ozet.kdv20.matrah += matrah; ozet.kdv20.kdv += kdv; ozet.kdv20.sayi++;
+      ozet.kkeg.matrah += fisMat; ozet.kkeg.kdv += fisKdv; ozet.kkeg.sayi++;
+      return;
     }
+    // Her kalemi kendi KDV grubuna ekle
+    _fisKalemler(r).forEach(k => {
+      if      (k.oran === 1)  { ozet.kdv1.matrah += k.matrah;  ozet.kdv1.kdv += k.kdv;  ozet.kdv1.sayi++; }
+      else if (k.oran === 10) { ozet.kdv10.matrah += k.matrah; ozet.kdv10.kdv += k.kdv; ozet.kdv10.sayi++; }
+      else if (k.oran === 20) { ozet.kdv20.matrah += k.matrah; ozet.kdv20.kdv += k.kdv; ozet.kdv20.sayi++; }
+    });
   });
 
   try {
@@ -5716,10 +5714,12 @@ function _fisKaydetPanelGuncelle() {
   const _f = n => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   let k1 = 0, k10 = 0, k20 = 0, kkeg = 0;
   fisData.forEach(r => {
-    const kdv = parseFloat(r.kdv_tutari || 0);
-    if (_fisKKEGKontrolEt(r).kkeg) { kkeg += parseFloat(r.toplam || 0); return; }
-    const oran = parseInt(r.kdv_orani || 0);
-    if (oran === 1) k1 += kdv; else if (oran === 10) k10 += kdv; else if (oran === 20) k20 += kdv;
+    if (_fisKKEGKontrolEt(r).kkeg) { kkeg += _fisToplamTutar(r); return; }
+    _fisKalemler(r).forEach(kalem => {
+      if      (kalem.oran === 1)  k1  += kalem.kdv;
+      else if (kalem.oran === 10) k10 += kalem.kdv;
+      else if (kalem.oran === 20) k20 += kalem.kdv;
+    });
   });
 
   document.getElementById('fisKaydetMukAd').textContent = _gmSecili || '—';
@@ -5768,9 +5768,16 @@ function getMukellefFisOzet(ad, donem) {
   return arsiv.filter(r => !donem || (r.donem||r.tarih||'').slice(0,7) === donem);
 }
 
-// Fiş sil
+// Fiş sil — karma KDV'li fişlerde uyarı ver
 function fisSil(idx) {
-  if (!confirm('Bu fişi silmek istediğinize emin misiniz?')) return;
+  const r = fisData[idx];
+  if (!r) return;
+  const kalemler = _fisKalemler(r);
+  const karma = kalemler.length > 1;
+  const msg = karma
+    ? `Bu fiş ${kalemler.length} KDV grubunda birden yer alıyor. Hepsini silmek istediğinize emin misiniz?`
+    : 'Bu fişi silmek istediğinize emin misiniz?';
+  if (!confirm(msg)) return;
   fisData.splice(idx, 1);
   autoSave();
   renderFisTable();
@@ -5857,6 +5864,28 @@ function fisSecilenleriSil() {
   document.getElementById('statFis').textContent = fisData.length;
   showNotif('🗑️ ' + sortedIdxler.length + ' fiş silindi.', 'success');
 }
+
+// ── Karma KDV desteği: kalemler helper ───────────────────────
+function _fisKalemler(r) {
+  if (Array.isArray(r.kalemler) && r.kalemler.length > 0) {
+    return r.kalemler.map(k => ({
+      oran: parseInt(k.oran || 0),
+      matrah: parseFloat(k.matrah || 0),
+      kdv: parseFloat(k.kdv || 0),
+      toplam: parseFloat(k.toplam || (parseFloat(k.matrah||0) + parseFloat(k.kdv||0)))
+    }));
+  }
+  return [{
+    oran: parseInt(r.kdv_orani || 0),
+    matrah: parseFloat(r.matrah || 0),
+    kdv: parseFloat(r.kdv_tutari || 0),
+    toplam: parseFloat(r.toplam || 0)
+  }];
+}
+function _fisKarma(r) { return Array.isArray(r.kalemler) && r.kalemler.length > 1; }
+function _fisToplamMatrah(r) { return _fisKalemler(r).reduce((s,k)=>s+k.matrah,0); }
+function _fisToplamKdv(r)    { return _fisKalemler(r).reduce((s,k)=>s+k.kdv,0); }
+function _fisToplamTutar(r)  { return _fisKalemler(r).reduce((s,k)=>s+k.toplam,0); }
 
 // ── KKEG Tespit ve Tablo ──────────────────────────────────────
 function _fisKKEGKontrolEt(fis) {
@@ -6013,15 +6042,20 @@ function getFisTuruRenk(tur) {
 // ─── Fişleri KDV oranına göre grupla ve render et ──────────────────────────
 function renderFisTable() {
   // Fişleri 4 gruba ayır (global index'i koruyarak) — KKEG fişleri hariç
+  // Karma KDV'li fişler birden fazla grupta görünür
   const gruplar = { '1': [], '10': [], '20': [], 'Diger': [] };
   fisData.forEach((r, idx) => {
-    // KKEG fişlerini ana gruplardan çıkar (sadece KKEG tablosunda gösterilecek)
     if (_fisKKEGKontrolEt(r).kkeg) return;
-    const oran = parseInt(r.kdv_orani || 0);
-    if      (oran === 1)  gruplar['1'].push({ r, idx });
-    else if (oran === 10) gruplar['10'].push({ r, idx });
-    else if (oran === 20) gruplar['20'].push({ r, idx });
-    else                  gruplar['Diger'].push({ r, idx });
+    const kalemler = _fisKalemler(r);
+    const karma = kalemler.length > 1;
+    kalemler.forEach(kalem => {
+      const oran = parseInt(kalem.oran || 0);
+      const rec = { r, idx, kalem, karma };
+      if      (oran === 1)  gruplar['1'].push(rec);
+      else if (oran === 10) gruplar['10'].push(rec);
+      else if (oran === 20) gruplar['20'].push(rec);
+      else                  gruplar['Diger'].push(rec);
+    });
   });
 
   _renderFisGrubu('1',     gruplar['1'],     true);
@@ -6046,10 +6080,10 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
   if (satirlar.length === 0) { container.style.display = 'none'; return; }
   container.style.display = 'block';
 
-  // Grup toplamlari
-  const totMatrah = satirlar.reduce((a, {r}) => a + (r.matrah     || 0), 0);
-  const totKdv    = satirlar.reduce((a, {r}) => a + (r.kdv_tutari || 0), 0);
-  const totToplam = satirlar.reduce((a, {r}) => a + (r.toplam     || 0), 0);
+  // Grup toplamları (sadece bu gruba ait kalemler)
+  const totMatrah = satirlar.reduce((a, s) => a + (s.kalem?.matrah || 0), 0);
+  const totKdv    = satirlar.reduce((a, s) => a + (s.kalem?.kdv    || 0), 0);
+  const totToplam = satirlar.reduce((a, s) => a + (s.kalem?.toplam || 0), 0);
   const _f = n => n.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
 
   const sayiEl   = document.getElementById('fisGrup' + grupAdi + 'Sayi');
@@ -6066,13 +6100,26 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
   // Tarih sıralaması
   satirlar.sort((a, b) => _fisTarihKey(a.r.tarih) - _fisTarihKey(b.r.tarih));
 
-  tbody.innerHTML = satirlar.map(({ r, idx }) => {
+  tbody.innerHTML = satirlar.map(({ r, idx, kalem, karma }) => {
     const renk     = getFisTuruRenk(r.fis_turu);
     const dupStyle = r._duplicate ? 'background:rgba(248,113,113,0.08);' : '';
     const kdvStyle = r._kdvHata   ? 'background:rgba(251,191,36,0.10);'  : '';
     const rowStyle = dupStyle || kdvStyle;
     const kdvUyari = r._kdvHata   ? '<span title="Tutarlar uyuşmuyor" style="color:#f59e0b;">⚠️</span>' : '';
     const secili = _fisSecilenIdxler.has(idx) ? ' secili' : '';
+
+    // Karma KDV badge + tooltip
+    let karmaBadge = '';
+    if (karma) {
+      const tipDetay = _fisKalemler(r).map(k => `%${k.oran}: ${k.matrah.toLocaleString('tr-TR')}₺ matrah / ${k.kdv.toLocaleString('tr-TR')}₺ KDV`).join('\n');
+      karmaBadge = `<span title="${tipDetay}" style="background:#8b5cf6;color:white;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:6px;cursor:help;">🔀 Karma KDV</span>`;
+    }
+
+    // Kalem verileri (karma ise sadece bu orana ait, değilse tüm fiş)
+    const kMatrah = kalem ? kalem.matrah : (r.matrah || 0);
+    const kKdv    = kalem ? kalem.kdv    : (r.kdv_tutari || 0);
+    const kToplam = kalem ? kalem.toplam : (r.toplam || 0);
+
     const kdvDropdown = `<select class="kdv-select" onclick="event.stopPropagation()" onchange="kdvOranDegis(${idx},this.value)"
         style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 5px;font-size:11px;cursor:pointer;">
       <option value="1"  ${r.kdv_orani==1  ?'selected':''}>%1</option>
@@ -6080,17 +6127,17 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
       <option value="20" ${r.kdv_orani==20 ?'selected':''}>%20</option>
     </select>`;
     return `
-    <tr id="fis_row_${idx}" class="fis-satir${secili}" data-fis-idx="${idx}" onclick="_fisSatirTikla(this,${idx},event)" style="${rowStyle}border-top:1px solid var(--border);">
+    <tr class="fis-satir${secili}" data-fis-idx="${idx}" onclick="_fisSatirTikla(this,${idx},event)" style="${rowStyle}border-top:1px solid var(--border);">
       <td class="fis-secim-gosterge"></td>
-      <td style="padding:9px 10px;font-size:13px;" id="fis_tarih_${idx}">${r.tarih}</td>
+      <td style="padding:9px 10px;font-size:13px;">${r.tarih}</td>
       <td style="padding:9px 10px;font-size:13px;">
-        <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>
-        ${!kdvGoster ? '<br>' + kdvDropdown : ''}
+        <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>${karmaBadge}
+        ${!kdvGoster && !karma ? '<br>' + kdvDropdown : ''}
       </td>
       <td style="padding:9px 10px;font-size:13px;">${r.satici}</td>
-      <td style="padding:9px 10px;font-size:13px;text-align:right;" id="fis_matrah_${idx}">${(r.matrah||0).toLocaleString('tr-TR')} ₺</td>
-      <td style="padding:9px 10px;font-size:13px;text-align:right;" id="fis_kdv_${idx}">${(r.kdv_tutari||0).toLocaleString('tr-TR')} ₺${kdvUyari}</td>
-      <td style="padding:9px 10px;font-size:13px;text-align:right;font-weight:600;" id="fis_toplam_${idx}">${(r.toplam||0).toLocaleString('tr-TR')} ₺</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right;">${kMatrah.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right;">${kKdv.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺${kdvUyari}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right;font-weight:600;">${kToplam.toLocaleString('tr-TR',{minimumFractionDigits:2})} ₺</td>
       <td style="padding:9px 10px;font-size:12px;"><code style="color:var(--accent3)">${r.muhasebe_kodu}</code></td>
       <td style="padding:9px 10px;text-align:center;">
         <div style="display:flex;gap:4px;justify-content:center;">
@@ -6186,22 +6233,29 @@ async function processFisler() {
 
       try {
         const prompt = `Bu görselde harcama fişleri (market, akaryakıt, restoran, ofis malzemesi vb.) var.
-Görseldeki HER fişi ayrı ayrı oku ve SADECE JSON array olarak döndür, başka hiçbir metin yazma:
+Görseldeki HER fişi ayrı ayrı oku ve SADECE JSON array olarak döndür, başka hiçbir metin yazma.
+
+ÖNEMLİ — KARMA KDV: Bir fişte birden fazla KDV oranı olabilir (ör: restoran fişinde %10 yemek + %20 içecek, veya market fişinde %1 gıda + %20 temizlik). Bu durumda HER ORANI ayrı bir kalem olarak çıkar.
+
+JSON formatı:
 [
   {
     "tarih": "GG.AA.YYYY formatında",
     "fis_turu": "Market / Akaryakıt / Restoran / Kırtasiye / Diğer",
     "satici": "satıcı firma adı",
-    "kdv_orani": 20,
-    "matrah": 0,
-    "kdv_tutari": 0,
-    "toplam": 0
+    "kalemler": [
+      { "oran": 10, "matrah": 200.00, "kdv": 20.00, "toplam": 220.00 },
+      { "oran": 20, "matrah": 100.00, "kdv": 20.00, "toplam": 120.00 }
+    ]
   }
 ]
+
 KURALLAR:
 - Her fişi ayrı obje olarak yaz
-- kdv_orani: 1, 10 veya 20 — eğer belli değilse 20 yaz
-- matrah = toplam - kdv_tutari (eğer matrah ayrıca yazılmamışsa)
+- Tek oranlı fişlerde kalemler tek elemanlı olsun: [{"oran":20,"matrah":100,"kdv":20,"toplam":120}]
+- Karma KDV'li fişlerde HER oranı ayrı kalem olarak yaz
+- oran: 1, 10 veya 20 — belli değilse 20
+- Her kalem için matrah + kdv = toplam olmalı
 - Tüm sayıları noktalı ondalık sayı olarak ver (örn: 125.50)
 - Tarih yoksa bugünün tarihini yaz`;
 
@@ -6215,6 +6269,34 @@ KURALLAR:
           r.donem = donem;
           r.dosya = f.name;
           r.fis_turu = normalizeFisTuru(r.fis_turu || '');
+
+          // ── Kalemler normalizasyonu ──
+          if (Array.isArray(r.kalemler) && r.kalemler.length > 0) {
+            // AI'dan gelen kalemleri normalize et
+            r.kalemler = r.kalemler.map(k => {
+              const oran = parseInt(k.oran || k.kdv_orani || 0);
+              const matrah = parseFloat(k.matrah || 0);
+              const kdv = parseFloat(k.kdv || k.kdv_tutari || 0);
+              const toplam = parseFloat(k.toplam || (matrah + kdv));
+              return { oran, matrah, kdv, toplam };
+            });
+            // Toplam alanları kalemlerden hesapla (geriye uyumluluk)
+            r.matrah = r.kalemler.reduce((s,k) => s + k.matrah, 0);
+            r.kdv_tutari = r.kalemler.reduce((s,k) => s + k.kdv, 0);
+            r.toplam = r.kalemler.reduce((s,k) => s + k.toplam, 0);
+            // kdv_orani: en büyük matraha sahip kalemin oranı (özet için)
+            const enBuyuk = r.kalemler.reduce((a,k) => k.matrah > a.matrah ? k : a, r.kalemler[0]);
+            r.kdv_orani = enBuyuk.oran;
+          } else {
+            // Eski yapı: tek kalem olarak normalize et
+            r.kalemler = [{
+              oran: parseInt(r.kdv_orani || 0),
+              matrah: parseFloat(r.matrah || 0),
+              kdv: parseFloat(r.kdv_tutari || 0),
+              toplam: parseFloat(r.toplam || 0)
+            }];
+          }
+
           // Mükellefe özel öğrenilen kodları kullan (varsa)
           const _ogKodlar = getMukellefHesapKodlari ? getMukellefHesapKodlari(mukellef) : null;
           const _ogEsleme = _ogKodlar && _ogKodlar.ai_esleme ? _ogKodlar.ai_esleme : null;
@@ -6490,10 +6572,9 @@ function downloadExcel(type) {
     });
     downloadCSV(headers, rows, filename);
   } else if (type === 'fis') {
-    filename = 'luca_fisler.csv';
-    headers = ['Mükellef','Tarih','Fiş Türü','Satıcı / Yer','KDV Oranı (%)','Matrah (₺)','KDV Tutarı (₺)','Toplam (₺)','Muhasebe Kodu'];
-    const fisSatirlar = fisData.map(r => [r.mukellef, _fmtTarih(r.tarih), r.fis_turu, r.satici, r.kdv_orani, formatSayi(r.matrah), formatSayi(r.kdv_tutari), formatSayi(r.toplam), r.muhasebe_kodu]);
-    downloadCSV(headers, fisSatirlar, filename);
+    // Renkli XLSX (xlsx-js-style) — lazy load
+    _fisXLSXIndir();
+    return;
   } else if (type === 'fatura') {
     data = faturaData;
     filename = 'luca_faturalar.csv';
@@ -7227,6 +7308,180 @@ function clearFisResult() {
   document.getElementById('statFis').textContent = '0';
   updateFisTotals();
   autoSave();
+}
+
+// ── Renkli XLSX Export (xlsx-js-style) ──
+// xlsx-js-style CDN'ini lazy yükle (cell styling desteği için)
+function _ensureXLSXStyle() {
+  return new Promise((resolve, reject) => {
+    if (window.XLSX && window.XLSX._styleLoaded) return resolve();
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    s.onload = () => { if (window.XLSX) window.XLSX._styleLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('xlsx-js-style yüklenemedi'));
+    document.head.appendChild(s);
+  });
+}
+
+// Tarih string'ini Excel Date'e çevir (GG.AA.YYYY veya YYYY-MM-DD)
+function _fisTarihExcel(tarih) {
+  if (!tarih) return null;
+  const str = String(tarih).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str);
+  const m = str.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})/);
+  if (m) {
+    let [_, g, a, y] = m;
+    if (y.length === 2) y = '20' + y;
+    return new Date(+y, +a - 1, +g);
+  }
+  return null;
+}
+
+async function _fisXLSXIndir() {
+  if (fisData.length === 0) { showNotif('⚠️ İndirilecek fiş yok.', 'error'); return; }
+
+  try {
+    await _ensureXLSXStyle();
+  } catch(e) {
+    showNotif('⚠️ Stil kütüphanesi yüklenemedi, düz CSV indiriliyor.', 'warn');
+    const headers = ['Mükellef','Tarih','Fiş Türü','Satıcı / Yer','KDV Oranı (%)','Matrah (₺)','KDV Tutarı (₺)','Toplam (₺)','Muhasebe Kodu'];
+    const rows = fisData.map(r => [r.mukellef, _fmtTarih(r.tarih), r.fis_turu, r.satici, r.kdv_orani, formatSayi(r.matrah), formatSayi(r.kdv_tutari), formatSayi(r.toplam), r.muhasebe_kodu]);
+    downloadCSV(headers, rows, 'luca_fisler.csv');
+    return;
+  }
+
+  // Grupları hazırla (kalemler bazlı, KKEG ayrı)
+  const gruplar = {
+    '1':    { ad:'%1 KDV\'Lİ FİŞLER',  rows:[], bantBg:'388E3C', satirBg:'E8F5E9', yaziRenk:'FFFFFF' },
+    '10':   { ad:'%10 KDV\'Lİ FİŞLER', rows:[], bantBg:'F57C00', satirBg:'FFF3E0', yaziRenk:'FFFFFF' },
+    '20':   { ad:'%20 KDV\'Lİ FİŞLER', rows:[], bantBg:'1976D2', satirBg:'E3F2FD', yaziRenk:'FFFFFF' },
+    'kkeg': { ad:'🚗 BİNEK ARAÇ KKEG (Akaryakıt + Otopark)', rows:[], bantBg:'D84315', satirBg:'FBE9E7', yaziRenk:'FFFFFF' }
+  };
+
+  fisData.forEach(r => {
+    const tarih = _fisTarihExcel(r.tarih);
+    if (_fisKKEGKontrolEt(r).kkeg) {
+      // KKEG — tüm tutar tek satır
+      gruplar['kkeg'].rows.push([tarih, r.fis_turu || '', r.satici || '', _fisKalemler(r)[0]?.oran || 20, _fisToplamMatrah(r), _fisToplamKdv(r), _fisToplamTutar(r), r.muhasebe_kodu || '']);
+      return;
+    }
+    // Her kalemi kendi grubuna ekle
+    _fisKalemler(r).forEach(k => {
+      const g = gruplar[String(k.oran)];
+      if (g) g.rows.push([tarih, r.fis_turu || '', r.satici || '', k.oran, k.matrah, k.kdv, k.toplam, r.muhasebe_kodu || '']);
+    });
+  });
+
+  // Workbook oluştur
+  const XLSX = window.XLSX;
+  const wb = XLSX.utils.book_new();
+  const aoa = [];
+
+  // Başlık (birleştirilmiş)
+  aoa.push(['TahAI — Fiş Listesi (KDV Gruplu)', '', '', '', '', '', '', '']);
+  aoa.push([]);
+
+  // Stil yardımcıları
+  const border = { top:{style:'thin',color:{rgb:'BDBDBD'}}, bottom:{style:'thin',color:{rgb:'BDBDBD'}}, left:{style:'thin',color:{rgb:'BDBDBD'}}, right:{style:'thin',color:{rgb:'BDBDBD'}} };
+  const baslikHucre = { font:{bold:true,sz:16,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'667EEA'}}, alignment:{horizontal:'center',vertical:'center'}, border };
+  const tabloBaslik = { font:{bold:true,sz:11,color:{rgb:'311B92'}}, fill:{fgColor:{rgb:'EDE7F6'}}, alignment:{horizontal:'center',vertical:'center'}, border };
+  const toplamStyle = { font:{bold:true,sz:11,color:{rgb:'0D47A1'}}, fill:{fgColor:{rgb:'FFF59D'}}, alignment:{horizontal:'right',vertical:'center'}, border, numFmt:'#,##0.00' };
+  const merges = [{ s:{r:0,c:0}, e:{r:0,c:7} }];
+  const colored = {}; // satır indeksi → { bantBg, satirBg, yaziRenk, tip }
+
+  const grupSira = ['1','10','20','kkeg'];
+  grupSira.forEach(key => {
+    const g = gruplar[key];
+    if (g.rows.length === 0) return;
+    // Bant başlığı (birleştirilmiş)
+    const bantR = aoa.length;
+    aoa.push([g.ad + '  (' + g.rows.length + ' kayıt)', '', '', '', '', '', '', '']);
+    merges.push({ s:{r:bantR,c:0}, e:{r:bantR,c:7} });
+    colored[bantR] = { tip:'bant', bantBg:g.bantBg, yaziRenk:g.yaziRenk };
+
+    // Tablo başlıkları
+    const tblR = aoa.length;
+    aoa.push(['Tarih','Fiş Türü','Satıcı / Yer','KDV %','Matrah','KDV','Toplam','Hesap Kodu']);
+    colored[tblR] = { tip:'tblbas' };
+
+    // Satırlar — tarihe göre sıralı
+    g.rows.sort((a,b) => (a[0]?.getTime?.() || 0) - (b[0]?.getTime?.() || 0));
+    g.rows.forEach(row => {
+      const satirR = aoa.length;
+      aoa.push(row);
+      colored[satirR] = { tip:'satir', satirBg:g.satirBg };
+    });
+
+    // Grup toplam
+    const toplamR = aoa.length;
+    const totMat = g.rows.reduce((s,r) => s + (r[4]||0), 0);
+    const totKdv = g.rows.reduce((s,r) => s + (r[5]||0), 0);
+    const totTop = g.rows.reduce((s,r) => s + (r[6]||0), 0);
+    aoa.push(['GRUP TOPLAM', '', '', '', totMat, totKdv, totTop, '']);
+    colored[toplamR] = { tip:'toplam' };
+    aoa.push([]); // boş satır ayraç
+  });
+
+  // Sheet oluştur
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Sütun genişlikleri
+  ws['!cols'] = [
+    {wch:14},{wch:14},{wch:50},{wch:8},{wch:16},{wch:16},{wch:16},{wch:16}
+  ];
+  ws['!merges'] = merges;
+  ws['!rows'] = [];
+  ws['!rows'][0] = { hpt: 28 }; // Başlık yüksekliği
+
+  // Başlık hücresi stili (A1)
+  if (ws['A1']) ws['A1'].s = baslikHucre;
+
+  // Her satırı stile
+  Object.keys(colored).forEach(rowIdxStr => {
+    const rowIdx = parseInt(rowIdxStr);
+    const meta = colored[rowIdxStr];
+    for (let c = 0; c < 8; c++) {
+      const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
+      if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+
+      if (meta.tip === 'bant') {
+        ws[addr].s = { font:{bold:true,sz:12,color:{rgb:meta.yaziRenk}}, fill:{fgColor:{rgb:meta.bantBg}}, alignment:{horizontal:'left',vertical:'center'}, border };
+      } else if (meta.tip === 'tblbas') {
+        ws[addr].s = tabloBaslik;
+      } else if (meta.tip === 'satir') {
+        const isNum = c === 3 || c === 4 || c === 5 || c === 6;
+        const isDate = c === 0;
+        ws[addr].s = {
+          font:{sz:10,color:{rgb:'212121'}},
+          fill:{fgColor:{rgb:meta.satirBg}},
+          alignment:{horizontal: isNum?'right':(c===0?'center':'left'), vertical:'center'},
+          border,
+          numFmt: isDate ? 'dd.mm.yyyy' : (isNum && c !== 3 ? '#,##0.00' : undefined)
+        };
+        // Type: tarih ise d, sayı ise n
+        if (isDate && ws[addr].v instanceof Date) ws[addr].t = 'd';
+        else if (c === 3 && typeof ws[addr].v === 'number') ws[addr].t = 'n';
+        else if (isNum && typeof ws[addr].v === 'number') ws[addr].t = 'n';
+      } else if (meta.tip === 'toplam') {
+        ws[addr].s = toplamStyle;
+        if (c >= 4 && c <= 6 && typeof ws[addr].v === 'number') ws[addr].t = 'n';
+      }
+    }
+  });
+
+  // Yatay yön + sığdır
+  ws['!pageSetup'] = { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 };
+  ws['!margins'] = { left: 0.5, right: 0.5, top: 0.7, bottom: 0.7, header: 0.3, footer: 0.3 };
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Fiş Listesi');
+
+  // Dosya adı: mükellef + dönem
+  const mukAd = (_gmSecili || 'TahAI').replace(/[^A-Za-z0-9_-]/g, '_');
+  const donem = document.getElementById('fisDonem')?.value || new Date().toISOString().slice(0,7);
+  const filename = `${mukAd}_Fisler_${donem}.xlsx`;
+
+  XLSX.writeFile(wb, filename);
+  showNotif(`✅ ${filename} indirildi!`, 'success');
 }
 
 // Gruplandırılmış CSV indir (her KDV grubu ayrı bölüm)
@@ -11537,20 +11792,28 @@ async function _aktifMukellefiYukle(mukellefAd) {
 
     // Fişleri yükle (mevcut fisData'ya ekle değil, değiştir)
     if (fisler.length > 0) {
-      // API alanlarını frontend formatına dönüştür
-      fisData = fisler.map(f => ({
-        tarih: f.tarih || '',
-        fis_turu: f.fis_turu || '',
-        satici: f.satici || '',
-        kdv_orani: parseFloat(f.kdv_orani || 0),
-        matrah: parseFloat(f.matrah || 0),
-        kdv_tutari: parseFloat(f.kdv_tutari || 0),
-        toplam: parseFloat(f.toplam || 0),
-        muhasebe_kodu: f.hesap_kodu || '',
-        mukellef: mukellefAd,
-        donem: f.donem || '',
-        _supabase_id: f.id
-      }));
+      // API alanlarını frontend formatına dönüştür (ai_verisi'nden kalemler reconstruct)
+      fisData = fisler.map(f => {
+        const base = {
+          tarih: f.tarih || '',
+          fis_turu: f.fis_turu || '',
+          satici: f.satici || '',
+          kdv_orani: parseFloat(f.kdv_orani || 0),
+          matrah: parseFloat(f.matrah || 0),
+          kdv_tutari: parseFloat(f.kdv_tutari || 0),
+          toplam: parseFloat(f.toplam || 0),
+          muhasebe_kodu: f.hesap_kodu || '',
+          mukellef: mukellefAd,
+          donem: f.donem || '',
+          _supabase_id: f.id
+        };
+        // Eğer ai_verisi içinde kalemler varsa geri yükle (karma KDV desteği)
+        if (f.ai_verisi && Array.isArray(f.ai_verisi.kalemler)) {
+          base.kalemler = f.ai_verisi.kalemler;
+          base.dosya = f.ai_verisi.dosya || '';
+        }
+        return base;
+      });
       renderFisTable();
       document.getElementById('statFis').textContent = fisData.length;
     }
