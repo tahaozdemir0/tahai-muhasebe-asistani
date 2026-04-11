@@ -8015,29 +8015,355 @@ function faturaKarsDosyaSec(hangisi, files) {
   document.getElementById('faturaKarsBtn').disabled = !(_faturaKarsEntFile && _faturaKarsLucaFile);
 }
 
-// Dosyayı XLSX ile parse edip düz metin/tablo halinde AI'a gönderilebilecek formata çevir
-async function _faturaKarsDosyaOku(file) {
+// XLSX kütüphanesini yükle (yoksa)
+async function _faturaKarsEnsureXLSX() {
+  if (typeof XLSX !== 'undefined') return;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('XLSX kütüphanesi yüklenemedi'));
+    document.head.appendChild(s);
+  });
+}
+
+// Dosyayı XLSX ile parse et, HAM satırları dön (array-of-arrays)
+async function _faturaKarsDosyaParse(file) {
+  await _faturaKarsEnsureXLSX();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
       try {
-        if (typeof XLSX === 'undefined') {
-          reject(new Error('XLSX kütüphanesi yüklü değil'));
-          return;
-        }
         const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
+        // raw:false → sayılar string geliyor (TR formatı korunur)
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-        // Metin haline getir (ilk 400 satır, 25 sütun) — büyük dosyaları sınırla
-        const kirpilmis = rows.slice(0, 400).map(row =>
-          (Array.isArray(row) ? row.slice(0, 25) : []).map(c => String(c||'').trim()).join(' | ')
-        ).filter(l => l.length > 2).join('\n');
-        resolve(kirpilmis);
+        resolve(rows);
       } catch(err) { reject(err); }
     };
     reader.onerror = () => reject(new Error('Dosya okunamadı'));
     reader.readAsArrayBuffer(file);
   });
+}
+
+// Türkçe sayı formatını parse et: "1.234,56" → 1234.56
+function _faturaKarsSayiParse(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  let s = String(val).trim();
+  if (!s) return 0;
+  // Negatif parantez: (123,45) → -123.45
+  const negatif = /^\(.*\)$/.test(s);
+  s = s.replace(/[()]/g, '').replace(/[^\d,.\-]/g, '');
+  // TR formatı: 1.234,56 — nokta binlik, virgül ondalık
+  if (s.indexOf(',') > -1) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  }
+  const n = parseFloat(s) || 0;
+  return negatif ? -n : n;
+}
+
+// Header + örnek satırları AI'a sun, sütun haritası iste
+async function _faturaKarsSutunHaritasi(rows, tip) {
+  // İlk 3 satır: header + 2 örnek (veya ne varsa)
+  const ornek = rows.slice(0, 3)
+    .map(row => (Array.isArray(row) ? row : []).map(c => String(c||'').trim()).join(' | '))
+    .join('\n');
+
+  const prompt = tip === 'entegrator'
+    ? `Bu bir e-fatura entegratör dosyasının ilk 3 satırı (header + örnekler). Uyumsoft genelde şu sütun isimlerini kullanır: "Fatura No", "Alıcı", "Alıcı VKN/TCKN", "Fatura Tarihi", "Fatura Durumu", "%1 KDV Matrah Tutar", "KDV %1 Tutar", "%10 KDV Matrah Tutar", "KDV %10 Tutar", "%20 KDV Matrah Tutar", "KDV %20 Tutar", "Ödenecek Tutar", "Toplam KDV".
+
+İlk 3 satır:
+\`\`\`
+${ornek}
+\`\`\`
+
+Her alan için header satırındaki TAM sütun ismini döndür. Yoksa null yaz. SADECE bu JSON, başka hiçbir açıklama:
+{
+  "fatura_no": "...",
+  "firma": "...",
+  "vkn": "...",
+  "tarih": "...",
+  "durum": "...",
+  "matrah_1": "...",
+  "kdv_1": "...",
+  "matrah_10": "...",
+  "kdv_10": "...",
+  "matrah_20": "...",
+  "kdv_20": "...",
+  "toplam": "...",
+  "toplam_kdv": "..."
+}`
+    : `Bu bir Luca muavin defter dosyasının ilk 15 satırı. Muavin defterde hesap kodu blokları vardır (ör: 391.01.001, 391.01.010, 391.01.020 veya 191.01.xxx). Her bloğun hareketleri listelenir, sonunda toplam satırı gelir.
+
+İlk 15 satır:
+\`\`\`
+${rows.slice(0, 15).map(row => (Array.isArray(row)?row:[]).map(c => String(c||'').trim()).join(' | ')).join('\n')}
+\`\`\`
+
+Görevin: Sütun isimlerini ve kolon indekslerini (0 bazlı) döndür. Hesap kodu, açıklama, borç, alacak, evrak no sütunlarını bul. Ayrıca kaçıncı satırdan itibaren gerçek hareket verilerinin başladığını söyle.
+
+SADECE bu JSON, başka hiçbir açıklama:
+{
+  "hesap_kodu_col": 0,
+  "aciklama_col": 0,
+  "borc_col": 0,
+  "alacak_col": 0,
+  "evrak_no_col": 0,
+  "veri_baslangic_satir": 0
+}`;
+
+  const raw = await callClaude(prompt);
+  let harita;
+  try { harita = safeParseJSON(raw); }
+  catch(e) { throw new Error('AI sütun haritası JSON olarak okunamadı'); }
+  if (!harita || typeof harita !== 'object') throw new Error('AI geçersiz sütun haritası döndü');
+  console.log('[FaturaKars] ' + tip + ' sütun haritası:', harita);
+  return harita;
+}
+
+// Entegratör: JavaScript ile KDV toplamları + iptal ayrımı
+function _faturaKarsEntegratorHesapla(rows, harita) {
+  if (rows.length < 2) throw new Error('Entegratör dosyası boş');
+  const header = rows[0].map(h => String(h||'').trim());
+  const idx = {};
+  ['fatura_no','firma','vkn','tarih','durum','matrah_1','kdv_1','matrah_10','kdv_10','matrah_20','kdv_20','toplam','toplam_kdv'].forEach(k => {
+    const kol = harita[k];
+    if (!kol) { idx[k] = -1; return; }
+    // Case-insensitive, trim
+    const i = header.findIndex(h => h.toLowerCase() === String(kol).toLowerCase().trim());
+    idx[k] = i;
+  });
+  console.log('[FaturaKars] entegratör sütun indeksleri:', idx);
+
+  const ozet = {
+    toplam_fatura: 0, gecerli_fatura: 0, iptal_fatura: 0,
+    oranlar: {
+      '1':  { kdv_toplam: 0, matrah_toplam: 0, sayi: 0 },
+      '10': { kdv_toplam: 0, matrah_toplam: 0, sayi: 0 },
+      '20': { kdv_toplam: 0, matrah_toplam: 0, sayi: 0 }
+    },
+    gecerliler: [],
+    iptaller: []
+  };
+
+  const iptalRegex = /iptal|red|iade|rejected|cancel/i;
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!Array.isArray(row) || row.every(c => !String(c||'').trim())) continue;
+
+    const faturaNo = idx.fatura_no >= 0 ? String(row[idx.fatura_no]||'').trim() : '';
+    if (!faturaNo) continue; // Boş satır atla
+
+    const firma    = idx.firma >= 0    ? String(row[idx.firma]||'').trim() : '';
+    const vkn      = idx.vkn >= 0      ? String(row[idx.vkn]||'').trim() : '';
+    const tarih    = idx.tarih >= 0    ? String(row[idx.tarih]||'').trim() : '';
+    const durum    = idx.durum >= 0    ? String(row[idx.durum]||'').trim() : '';
+
+    const m1  = idx.matrah_1 >= 0  ? _faturaKarsSayiParse(row[idx.matrah_1])  : 0;
+    const k1  = idx.kdv_1 >= 0     ? _faturaKarsSayiParse(row[idx.kdv_1])     : 0;
+    const m10 = idx.matrah_10 >= 0 ? _faturaKarsSayiParse(row[idx.matrah_10]) : 0;
+    const k10 = idx.kdv_10 >= 0    ? _faturaKarsSayiParse(row[idx.kdv_10])    : 0;
+    const m20 = idx.matrah_20 >= 0 ? _faturaKarsSayiParse(row[idx.matrah_20]) : 0;
+    const k20 = idx.kdv_20 >= 0    ? _faturaKarsSayiParse(row[idx.kdv_20])    : 0;
+    const top = idx.toplam >= 0    ? _faturaKarsSayiParse(row[idx.toplam])    : 0;
+
+    ozet.toplam_fatura++;
+
+    const iptalMi = iptalRegex.test(durum);
+    if (iptalMi) {
+      ozet.iptal_fatura++;
+      const toplamKdv = k1 + k10 + k20;
+      ozet.iptaller.push({ fatura_no: faturaNo, firma, vkn, tarih, durum, kdv_tutar: toplamKdv, toplam: top });
+      continue;
+    }
+
+    ozet.gecerli_fatura++;
+    if (m1 > 0 || k1 > 0) { ozet.oranlar['1'].kdv_toplam += k1; ozet.oranlar['1'].matrah_toplam += m1; ozet.oranlar['1'].sayi++; }
+    if (m10 > 0 || k10 > 0) { ozet.oranlar['10'].kdv_toplam += k10; ozet.oranlar['10'].matrah_toplam += m10; ozet.oranlar['10'].sayi++; }
+    if (m20 > 0 || k20 > 0) { ozet.oranlar['20'].kdv_toplam += k20; ozet.oranlar['20'].matrah_toplam += m20; ozet.oranlar['20'].sayi++; }
+
+    ozet.gecerliler.push({ fatura_no: faturaNo, firma, vkn, tarih, kdv_tutar: k1+k10+k20, toplam: top });
+  }
+
+  return ozet;
+}
+
+// Luca muavin: hesap kodu blokları + alacak/borç toplamı
+function _faturaKarsLucaHesapla(rows, harita, tur) {
+  const baslangic = parseInt(harita.veri_baslangic_satir || 1);
+  const hkCol = parseInt(harita.hesap_kodu_col);
+  const borcCol = parseInt(harita.borc_col);
+  const alacakCol = parseInt(harita.alacak_col);
+  const evrakCol = parseInt(harita.evrak_no_col);
+  const aciklamaCol = parseInt(harita.aciklama_col);
+
+  if (isNaN(hkCol) || (isNaN(borcCol) && isNaN(alacakCol))) {
+    throw new Error('Luca sütun haritası eksik');
+  }
+
+  // İlgili hesap prefix'i
+  const prefix = tur === 'satis' ? '391.01' : '191.01';
+  const hesaplar = {}; // '391.01.020' → { toplam, sayi, faturalar: [] }
+  const faturalar = []; // genel liste
+
+  for (let r = baslangic; r < rows.length; r++) {
+    const row = rows[r];
+    if (!Array.isArray(row)) continue;
+
+    const hk = (hkCol >= 0 && hkCol < row.length) ? String(row[hkCol]||'').trim() : '';
+    const aciklama = (aciklamaCol >= 0 && aciklamaCol < row.length) ? String(row[aciklamaCol]||'').trim() : '';
+
+    // Nakli yekün / toplam / devir satırlarını atla
+    if (/nakli|devir|toplam|yek[uü]n/i.test(aciklama) || /nakli|devir|toplam|yek[uü]n/i.test(hk)) continue;
+
+    // Sadece ilgili prefix bloklarındaki satırlar
+    if (!hk.startsWith(prefix)) continue;
+
+    const borc = borcCol >= 0 ? _faturaKarsSayiParse(row[borcCol]) : 0;
+    const alacak = alacakCol >= 0 ? _faturaKarsSayiParse(row[alacakCol]) : 0;
+    const evrakNo = (evrakCol >= 0 && evrakCol < row.length) ? String(row[evrakCol]||'').trim() : '';
+
+    // Satış için alacak, alış için borç KDV tutarıdır
+    const kdvTutar = tur === 'satis' ? alacak : borc;
+    if (kdvTutar <= 0) continue;
+
+    if (!hesaplar[hk]) hesaplar[hk] = { toplam: 0, sayi: 0, faturalar: [] };
+    hesaplar[hk].toplam += kdvTutar;
+    hesaplar[hk].sayi++;
+
+    // Fatura no'yu evrak veya açıklamadan çıkar (BKU/EAR vs)
+    const faturaNoMatch = (evrakNo + ' ' + aciklama).match(/\b(BKU|EAR|GIB|ABC|DEF)[\w\d]+\b/i) || (evrakNo + ' ' + aciklama).match(/\b\d{3,}\b/);
+    const faturaNo = faturaNoMatch ? faturaNoMatch[0] : (evrakNo || aciklama.substring(0, 30));
+
+    hesaplar[hk].faturalar.push({ fatura_no: faturaNo, aciklama, kdv_tutar: kdvTutar });
+    faturalar.push({ hesap_kodu: hk, fatura_no: faturaNo, kdv_tutar: kdvTutar, aciklama });
+  }
+
+  return { hesaplar, faturalar };
+}
+
+// Hesap kodu → KDV oranı eşlemesi (son 3 hane)
+function _faturaKarsHesapOran(hesapKodu) {
+  const m = String(hesapKodu||'').match(/\.(\d{3})$/);
+  if (!m) return null;
+  const s = m[1];
+  if (s === '001') return 1;
+  if (s === '010') return 10;
+  if (s === '020') return 20;
+  return null;
+}
+
+// Fatura no'ları normalize et (eşleştirme için)
+function _faturaKarsNoNormalize(no) {
+  return String(no||'').trim().toUpperCase().replace(/[\s\-_./\\]/g, '');
+}
+
+// Entegratör + Luca → eşleşenler/eksik/fazla kategorileri
+function _faturaKarsKarsilastir(entOzet, lucaData) {
+  const eslesenler = [], eksik = [], fazla = [];
+
+  // Entegratör geçerli faturaları → key (no + vkn)
+  const entMap = {};
+  entOzet.gecerliler.forEach(f => {
+    const key = _faturaKarsNoNormalize(f.fatura_no);
+    if (key) entMap[key] = f;
+  });
+
+  // Luca faturaları → key
+  const lucaMap = {};
+  lucaData.faturalar.forEach(f => {
+    const key = _faturaKarsNoNormalize(f.fatura_no);
+    if (key) lucaMap[key] = f;
+  });
+
+  // Eşleşenler ve eksik
+  Object.keys(entMap).forEach(key => {
+    const ent = entMap[key];
+    if (lucaMap[key]) {
+      const luca = lucaMap[key];
+      const fark = Math.abs(ent.kdv_tutar - luca.kdv_tutar);
+      eslesenler.push({
+        fatura_no: ent.fatura_no, firma: ent.firma, vkn: ent.vkn,
+        kdv_tutar: ent.kdv_tutar, luca_kdv: luca.kdv_tutar, fark
+      });
+    } else {
+      eksik.push({ fatura_no: ent.fatura_no, firma: ent.firma, vkn: ent.vkn, kdv_tutar: ent.kdv_tutar });
+    }
+  });
+
+  // Fazla: Luca'da var ama entegratörde yok
+  Object.keys(lucaMap).forEach(key => {
+    if (!entMap[key]) {
+      const l = lucaMap[key];
+      fazla.push({ fatura_no: l.fatura_no, firma: l.aciklama || '-', kdv_tutar: l.kdv_tutar });
+    }
+  });
+
+  // Luca hesap kodu → oran bazlı toplamlar
+  const lucaOranlar = { '1': 0, '10': 0, '20': 0 };
+  Object.keys(lucaData.hesaplar).forEach(hk => {
+    const oran = _faturaKarsHesapOran(hk);
+    if (oran) lucaOranlar[String(oran)] += lucaData.hesaplar[hk].toplam;
+  });
+
+  // Oran bazlı karşılaştırma
+  const oran_bazli = [1, 10, 20].map(oran => {
+    const ent = entOzet.oranlar[String(oran)].kdv_toplam;
+    const luca = lucaOranlar[String(oran)] || 0;
+    const fark = ent - luca;
+    return {
+      oran,
+      entegrator: ent,
+      luca,
+      fark,
+      durum: Math.abs(fark) < 0.01 ? 'esit' : 'farkli'
+    };
+  });
+
+  const genel_fark = oran_bazli.reduce((s, o) => s + o.fark, 0);
+  const durum = Math.abs(genel_fark) < 0.01 ? 'mutabik' : 'uyumsuz';
+
+  // İptal listesi (sebep notu ekle)
+  const iptal = entOzet.iptaller.map(f => ({
+    fatura_no: f.fatura_no, firma: f.firma, vkn: f.vkn,
+    kdv_tutar: f.kdv_tutar,
+    sebep: f.durum + ' — Luca\'ya girmemesi DOĞRU'
+  }));
+
+  return {
+    tur: _faturaKarsTur,
+    entegrator: {
+      toplam_fatura: entOzet.toplam_fatura,
+      gecerli_fatura: entOzet.gecerli_fatura,
+      iptal_fatura: entOzet.iptal_fatura,
+      oranlar: {
+        '1':  { kdv_toplam: entOzet.oranlar['1'].kdv_toplam,  sayi: entOzet.oranlar['1'].sayi },
+        '10': { kdv_toplam: entOzet.oranlar['10'].kdv_toplam, sayi: entOzet.oranlar['10'].sayi },
+        '20': { kdv_toplam: entOzet.oranlar['20'].kdv_toplam, sayi: entOzet.oranlar['20'].sayi }
+      }
+    },
+    luca: {
+      hesaplar: Object.keys(lucaData.hesaplar).reduce((acc, hk) => {
+        acc[hk] = { toplam: lucaData.hesaplar[hk].toplam, sayi: lucaData.hesaplar[hk].sayi };
+        return acc;
+      }, {})
+    },
+    karsilastirma: { oran_bazli, genel_fark, durum },
+    eslesenler,
+    iptal,
+    eksik,
+    fazla,
+    beyanname_ozeti: {
+      hesaplanan_kdv: {
+        '1':  entOzet.oranlar['1'].kdv_toplam,
+        '10': entOzet.oranlar['10'].kdv_toplam,
+        '20': entOzet.oranlar['20'].kdv_toplam,
+        toplam: entOzet.oranlar['1'].kdv_toplam + entOzet.oranlar['10'].kdv_toplam + entOzet.oranlar['20'].kdv_toplam
+      }
+    }
+  };
 }
 
 async function faturaKarsAnalizEt() {
@@ -8054,107 +8380,44 @@ async function faturaKarsAnalizEt() {
   const spinner = document.getElementById('faturaKarsSpinner');
   btn.disabled = true;
   spinner.style.display = 'inline-block';
+  spinner.textContent = '📄 Dosyalar parse ediliyor...';
 
   try {
-    // Dosyaları oku
-    const entMetin = await _faturaKarsDosyaOku(_faturaKarsEntFile);
-    const lucaMetin = await _faturaKarsDosyaOku(_faturaKarsLucaFile);
+    // ─── ADIM 1: Dosyaları parse et (ham array-of-arrays) ───
+    const entRows = await _faturaKarsDosyaParse(_faturaKarsEntFile);
+    const lucaRows = await _faturaKarsDosyaParse(_faturaKarsLucaFile);
+    console.log('[FaturaKars] Entegratör satır sayısı:', entRows.length);
+    console.log('[FaturaKars] Luca satır sayısı:', lucaRows.length);
 
-    const turAdi = _faturaKarsTur === 'satis' ? 'SATIŞ (391.01.xxx)' : 'ALIŞ (191.01.xxx)';
-    const lucaTarafi = _faturaKarsTur === 'satis' ? 'ALACAK toplamı' : 'BORÇ toplamı';
+    // ─── ADIM 2: AI'dan sütun haritalarını al (paralel) ───
+    spinner.textContent = '🤖 AI sütunları tanıyor...';
+    const [entHarita, lucaHarita] = await Promise.all([
+      _faturaKarsSutunHaritasi(entRows, 'entegrator'),
+      _faturaKarsSutunHaritasi(lucaRows, 'luca')
+    ]);
 
-    const prompt = `Sen muhasebe uzmanısın. Sana iki dosya vereceğim ve ${turAdi} faturaları için KDV MUTABAKATI yapacaksın.
+    // ─── ADIM 3: JavaScript ile hesapla ───
+    spinner.textContent = '🧮 Hesaplanıyor...';
+    const entOzet = _faturaKarsEntegratorHesapla(entRows, entHarita);
+    console.log('[FaturaKars] Entegratör özeti:', entOzet);
 
-⚠️ ÖNEMLİ: SADECE KDV TUTARLARI karşılaştırılacak, MATRAH karşılaştırılmıyor.
+    const lucaData = _faturaKarsLucaHesapla(lucaRows, lucaHarita, _faturaKarsTur);
+    console.log('[FaturaKars] Luca verisi:', lucaData);
 
-DOSYA 1 — E-fatura entegratör listesi (Uyumsoft / İşNet / Logo / NES):
-\`\`\`
-${entMetin}
-\`\`\`
-
-DOSYA 2 — Luca muavin defter (${turAdi}):
-\`\`\`
-${lucaMetin}
-\`\`\`
-
-GÖREVLER:
-
-DOSYA 1 için:
-- Sütunları otomatik tanı: fatura no, firma, tarih, KDV oranı, KDV tutarı, fatura durumu
-- "Fatura Durumu" sütununu bul
-- İptal/red/iade durumlarını ayır (İptal, e-Arşiv İptal, Reddedildi, İade)
-- Her KDV oranı için (%1, %10, %20) sadece KDV TUTARI toplamını çıkar
-- İptal olanları geçerli toplam dışı bırak
-
-DOSYA 2 için:
-- Hesap kodu bloklarını tespit et (${_faturaKarsTur === 'satis' ? '391.01.001, 391.01.010, 391.01.020' : '191.01.001, 191.01.010, 191.01.020'} gibi)
-- Her bloğun ${lucaTarafi}nı çıkar (bu zaten KDV tutarı)
-- "Nakli Yekün", "Devir", "Toplam" gibi ara satırları ATLA
-
-KARŞILAŞTIRMA:
-- eslesenler: her iki kaynakta var, KDV tutarı tutuyor
-- iptal: entegratörde iptal, Luca'ya girmemesi NORMAL
-- eksik: entegratörde var, Luca'da yok (AKSİYON GEREKLİ)
-- fazla: Luca'da var, entegratörde yok
-
-SADECE bu JSON formatında döndür, başka hiçbir açıklama yazma:
-{
-  "tur": "${_faturaKarsTur}",
-  "entegrator": {
-    "toplam_fatura": 0,
-    "gecerli_fatura": 0,
-    "iptal_fatura": 0,
-    "oranlar": {
-      "1":  { "kdv_toplam": 0, "sayi": 0 },
-      "10": { "kdv_toplam": 0, "sayi": 0 },
-      "20": { "kdv_toplam": 0, "sayi": 0 }
-    }
-  },
-  "luca": {
-    "hesaplar": {
-      "${_faturaKarsTur === 'satis' ? '391.01.001' : '191.01.001'}": { "toplam": 0, "sayi": 0 },
-      "${_faturaKarsTur === 'satis' ? '391.01.010' : '191.01.010'}": { "toplam": 0, "sayi": 0 },
-      "${_faturaKarsTur === 'satis' ? '391.01.020' : '191.01.020'}": { "toplam": 0, "sayi": 0 }
-    }
-  },
-  "karsilastirma": {
-    "oran_bazli": [
-      { "oran": 1,  "entegrator": 0, "luca": 0, "fark": 0, "durum": "esit" },
-      { "oran": 10, "entegrator": 0, "luca": 0, "fark": 0, "durum": "esit" },
-      { "oran": 20, "entegrator": 0, "luca": 0, "fark": 0, "durum": "esit" }
-    ],
-    "genel_fark": 0,
-    "durum": "mutabik"
-  },
-  "eslesenler": [],
-  "iptal": [{ "fatura_no": "", "firma": "", "kdv_tutar": 0, "sebep": "e-Arşiv İptal — Luca'ya girmemesi DOĞRU" }],
-  "eksik": [{ "fatura_no": "", "firma": "", "kdv_tutar": 0 }],
-  "fazla": [{ "fatura_no": "", "firma": "", "kdv_tutar": 0 }],
-  "beyanname_ozeti": {
-    "hesaplanan_kdv": { "1": 0, "10": 0, "20": 0, "toplam": 0 }
-  }
-}`;
-
-    const raw = await callClaude(prompt);
-    let sonuc;
-    try {
-      sonuc = safeParseJSON(raw);
-    } catch(parseErr) {
-      throw new Error('AI cevabı JSON olarak okunamadı. Dosyaları kontrol edin.');
-    }
-    if (!sonuc || typeof sonuc !== 'object') {
-      throw new Error('AI geçersiz yanıt döndü.');
-    }
+    // ─── ADIM 4: Karşılaştırma ───
+    const sonuc = _faturaKarsKarsilastir(entOzet, lucaData);
+    console.log('[FaturaKars] Karşılaştırma sonucu:', sonuc);
 
     _faturaKarsSonucData = sonuc;
     _faturaKarsSonucRender(sonuc);
-    showNotif('✅ Analiz tamamlandı!', 'success');
+    showNotif('✅ Analiz tamamlandı! ' + entOzet.gecerli_fatura + ' geçerli, ' + entOzet.iptal_fatura + ' iptal.', 'success');
   } catch(e) {
-    console.error('[Fatura Kars] Hata:', e);
+    console.error('[FaturaKars] Hata:', e);
     showNotif('❌ ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     spinner.style.display = 'none';
+    spinner.textContent = '🤖 AI dosyaları analiz ediyor...';
   }
 }
 
@@ -10204,12 +10467,16 @@ let _mukellefIdCache = {};  // ad → id mapping
 async function _getMukellefIdByAd(ad) {
   if (!ad) return null;
   if (_mukellefIdCache[ad]) return _mukellefIdCache[ad];
+  // data-manager.js yüklü mü kontrolü
+  if (typeof mukellefleriGetir !== 'function') {
+    return null; // data-manager hazır değil, sessizce null dön
+  }
   try {
     const liste = await mukellefleriGetir();
-    liste.forEach(m => { _mukellefIdCache[m.ad] = m.id; });
+    if (Array.isArray(liste)) liste.forEach(m => { if (m && m.ad) _mukellefIdCache[m.ad] = m.id; });
     return _mukellefIdCache[ad] || null;
   } catch(e) {
-    console.error('[Mizan] UUID çözümleme hatası:', e.message);
+    console.warn('[UUID] çözümleme hatası:', e.message);
     return null;
   }
 }
