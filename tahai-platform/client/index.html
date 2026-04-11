@@ -2040,6 +2040,7 @@
           <button class="tab active" onclick="switchFaturaTab('excel')">Excel / CSV Yükle</button>
           <button class="tab" onclick="switchFaturaTab('gorsel')">Görsel / PDF</button>
           <button class="tab" onclick="switchFaturaTab('karsilastir')" style="color:var(--accent2);">🔄 Luca ↔ Fatura Entegratörü Karşılaştır</button>
+          <button class="tab" onclick="switchFaturaTab('aimutabakat')" style="color:#8b5cf6;">📊 AI KDV Mutabakat</button>
           <button class="tab" onclick="switchFaturaTab('isle')" style="color:var(--accent3);">📋 Fatura İşle</button>
           <button class="tab" onclick="switchFaturaTab('kdvtevkifat')" style="color:#f59e0b;">🔍 KDV & Tevkifat Kontrolü</button>
         </div>
@@ -2063,6 +2064,95 @@
         </div>
 
         
+        <!-- ===== AI KDV MUTABAKAT TAB ===== -->
+        <div id="faturaAiMutabakatTab" style="display:none;">
+          <div style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(102,126,234,0.08)); border:1px solid #8b5cf6; border-radius:12px; padding:16px; margin-top:8px; margin-bottom:16px;">
+            <div style="font-size:14px; font-weight:700; color:#8b5cf6; margin-bottom:6px;">📊 AI Tabanlı KDV Mutabakatı</div>
+            <div style="font-size:12px; color:var(--text2); line-height:1.6;">
+              Entegratör dosyası (Uyumsoft/İşNet/Logo/NES) ile Luca muavin defter (391.01.xxx satış / 191.01.xxx alış) arasında <strong>sadece KDV tutarları</strong> üzerinden mutabakat.
+              Matrah karşılaştırılmıyor — KDV beyannamesi için doğrudan kullanılabilir rapor üretilir.
+            </div>
+          </div>
+
+          <!-- Tür seçici -->
+          <div style="display:flex; gap:10px; margin-bottom:16px;">
+            <button id="faturaKarsTurSatis" class="btn btn-primary" onclick="faturaKarsTurSec('satis')" style="flex:1; padding:12px;">📤 Satış Faturaları (391.01.xxx)</button>
+            <button id="faturaKarsTurAlis" class="btn" onclick="faturaKarsTurSec('alis')" style="flex:1; padding:12px; background:var(--card2); color:var(--text2);">📥 Alış Faturaları (191.01.xxx)</button>
+          </div>
+
+          <!-- 2 dosya yükleme -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+              <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px; text-transform:uppercase;">1️⃣ Entegratör Dosyası (Uyumsoft / İşNet / Logo / NES)</div>
+              <div class="upload-zone" style="padding:20px;" id="faturaKarsEntZone" onclick="document.getElementById('faturaKarsEntFile').click()">
+                <input type="file" id="faturaKarsEntFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="faturaKarsDosyaSec('ent',this.files)" />
+                <div class="upload-icon" style="font-size:28px;">📋</div>
+                <div class="upload-text" style="font-size:13px;">E-fatura entegratör listesi — <span>tıkla</span></div>
+              </div>
+              <div id="faturaKarsEntBilgi" style="font-size:12px; color:#8b5cf6; margin-top:6px;"></div>
+            </div>
+            <div>
+              <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:8px; text-transform:uppercase;">2️⃣ Luca Muavin Defter (391.01.xxx veya 191.01.xxx)</div>
+              <div class="upload-zone" style="padding:20px;" id="faturaKarsLucaZone" onclick="document.getElementById('faturaKarsLucaFile').click()">
+                <input type="file" id="faturaKarsLucaFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="faturaKarsDosyaSec('luca',this.files)" />
+                <div class="upload-icon" style="font-size:28px;">📊</div>
+                <div class="upload-text" style="font-size:13px;">Luca muavin defter — <span>tıkla</span></div>
+              </div>
+              <div id="faturaKarsLucaBilgi" style="font-size:12px; color:#8b5cf6; margin-top:6px;"></div>
+            </div>
+          </div>
+
+          <!-- Analiz butonu -->
+          <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+            <button class="btn btn-primary" onclick="faturaKarsAnalizEt()" id="faturaKarsBtn" disabled style="background:linear-gradient(135deg,#8b5cf6,#667eea); padding:14px 28px; font-size:14px; font-weight:700;">
+              🔍 AI ile Karşılaştır ve Analiz Et
+            </button>
+            <button class="btn btn-outline" onclick="faturaKarsTemizle()">🗑️ Temizle</button>
+            <span id="faturaKarsSpinner" style="display:none; color:#8b5cf6; font-size:13px;">🤖 AI dosyaları analiz ediyor...</span>
+          </div>
+
+          <!-- Sonuç ekranı -->
+          <div id="faturaKarsSonuc" style="display:none; margin-top:24px;">
+            <!-- 3 Oran Kartı -->
+            <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px;">📊 KDV Oranı Bazlı Karşılaştırma</div>
+            <div id="faturaKarsOranKartlari" style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;"></div>
+
+            <!-- Genel durum -->
+            <div id="faturaKarsGenelDurum" style="padding:14px 18px; border-radius:10px; margin-bottom:20px; font-size:14px; font-weight:600;"></div>
+
+            <!-- 4 Kategori -->
+            <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px;">📋 Kategorili Detay</div>
+            <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;">
+              <div class="fatura-kars-kategori" data-kategori="eslesenler" onclick="faturaKarsKategoriGoster('eslesenler')" style="background:var(--surface2); border:2px solid #10b981; border-radius:10px; padding:14px; cursor:pointer;">
+                <div style="font-size:11px; color:#10b981; font-weight:700;">✅ EŞLEŞENLER</div>
+                <div style="font-size:22px; font-weight:700; color:var(--text);" id="faturaKarsSayiEslesen">0</div>
+                <div style="font-size:11px; color:var(--text3);">Her iki kaynakta var, tutuyor</div>
+              </div>
+              <div class="fatura-kars-kategori" data-kategori="iptal" onclick="faturaKarsKategoriGoster('iptal')" style="background:var(--surface2); border:2px solid #f59e0b; border-radius:10px; padding:14px; cursor:pointer;">
+                <div style="font-size:11px; color:#f59e0b; font-weight:700;">⚠️ İPTAL</div>
+                <div style="font-size:22px; font-weight:700; color:var(--text);" id="faturaKarsSayiIptal">0</div>
+                <div style="font-size:11px; color:var(--text3);">Entegratörde iptal — Luca'ya girmemesi doğru</div>
+              </div>
+              <div class="fatura-kars-kategori" data-kategori="eksik" onclick="faturaKarsKategoriGoster('eksik')" style="background:var(--surface2); border:2px solid #ef4444; border-radius:10px; padding:14px; cursor:pointer;">
+                <div style="font-size:11px; color:#ef4444; font-weight:700;">❌ EKSİK — AKSİYON GEREKLİ</div>
+                <div style="font-size:22px; font-weight:700; color:var(--text);" id="faturaKarsSayiEksik">0</div>
+                <div style="font-size:11px; color:var(--text3);">Entegratörde var, Luca'da yok</div>
+              </div>
+              <div class="fatura-kars-kategori" data-kategori="fazla" onclick="faturaKarsKategoriGoster('fazla')" style="background:var(--surface2); border:2px solid #ef4444; border-radius:10px; padding:14px; cursor:pointer;">
+                <div style="font-size:11px; color:#ef4444; font-weight:700;">❌ FAZLA</div>
+                <div style="font-size:22px; font-weight:700; color:var(--text);" id="faturaKarsSayiFazla">0</div>
+                <div style="font-size:11px; color:var(--text3);">Luca'da var, entegratörde yok</div>
+              </div>
+            </div>
+
+            <!-- Kategori detay alanı -->
+            <div id="faturaKarsKategoriDetay" style="display:none; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:20px;"></div>
+
+            <!-- Beyanname Hazırlık Özeti -->
+            <div id="faturaKarsBeyanname" style="background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(102,126,234,0.08)); border:2px solid #10b981; border-radius:12px; padding:18px;"></div>
+          </div>
+        </div>
+
         <!-- FATURA İŞLE TAB -->
         <div id="faturaIsleTab" style="display:none;">
           <div class="card" style="margin-bottom:12px;">
@@ -7874,16 +7964,328 @@ function switchFaturaTab(tab) {
   document.getElementById('faturaExcelTab').style.display = tab === 'excel' ? 'block' : 'none';
   document.getElementById('faturaGorselTab').style.display = tab === 'gorsel' ? 'block' : 'none';
   document.getElementById('faturaKarsilastirTab').style.display = tab === 'karsilastir' ? 'block' : 'none';
+  const aiMutabakatEl = document.getElementById('faturaAiMutabakatTab');
+  if (aiMutabakatEl) aiMutabakatEl.style.display = tab === 'aimutabakat' ? 'block' : 'none';
   document.getElementById('faturaIsleTab').style.display = tab === 'isle' ? 'block' : 'none';
   document.getElementById('faturaKdvTab').style.display = tab === 'kdvtevkifat' ? 'block' : 'none';
   // KDV/Tevkifat veya Karşılaştırma veya İşle sekmesindeyken normal fatura butonlarını gizle
   const faturaAlt = document.getElementById('faturaFileList');
   const faturaBtn = document.getElementById('faturaBtn');
-  const hideBtn = tab === 'karsilastir' || tab === 'isle' || tab === 'kdvtevkifat';
+  const hideBtn = tab === 'karsilastir' || tab === 'aimutabakat' || tab === 'isle' || tab === 'kdvtevkifat';
   if (faturaAlt) faturaAlt.style.display = hideBtn ? 'none' : '';
   if (faturaBtn) faturaBtn.parentElement.style.display = hideBtn ? 'none' : '';
   // İşle sekmesi açılınca mükellef listesini güncelle
   if (tab === 'isle') faturaIsleMukellefDoldur();
+}
+
+// ===================== AI KDV MUTABAKAT (Luca ↔ Entegratör) =====================
+// Yeni sekme — mevcut "karsilastir" sekmesinden bağımsız, sadece KDV bazlı AI analizi
+let _faturaKarsTur = 'satis'; // 'satis' veya 'alis'
+let _faturaKarsEntFile = null;
+let _faturaKarsLucaFile = null;
+let _faturaKarsSonucData = null;
+
+function faturaKarsTurSec(tur) {
+  _faturaKarsTur = tur;
+  const satBtn = document.getElementById('faturaKarsTurSatis');
+  const alBtn  = document.getElementById('faturaKarsTurAlis');
+  if (tur === 'satis') {
+    satBtn.className = 'btn btn-primary';
+    satBtn.style.cssText = 'flex:1; padding:12px;';
+    alBtn.className = 'btn';
+    alBtn.style.cssText = 'flex:1; padding:12px; background:var(--card2); color:var(--text2);';
+  } else {
+    alBtn.className = 'btn btn-primary';
+    alBtn.style.cssText = 'flex:1; padding:12px;';
+    satBtn.className = 'btn';
+    satBtn.style.cssText = 'flex:1; padding:12px; background:var(--card2); color:var(--text2);';
+  }
+}
+
+function faturaKarsDosyaSec(hangisi, files) {
+  if (!files || files.length === 0) return;
+  const f = files[0];
+  if (hangisi === 'ent') {
+    _faturaKarsEntFile = f;
+    document.getElementById('faturaKarsEntBilgi').textContent = '✓ ' + f.name + ' (' + Math.round(f.size/1024) + ' KB)';
+  } else {
+    _faturaKarsLucaFile = f;
+    document.getElementById('faturaKarsLucaBilgi').textContent = '✓ ' + f.name + ' (' + Math.round(f.size/1024) + ' KB)';
+  }
+  document.getElementById('faturaKarsBtn').disabled = !(_faturaKarsEntFile && _faturaKarsLucaFile);
+}
+
+// Dosyayı XLSX ile parse edip düz metin/tablo halinde AI'a gönderilebilecek formata çevir
+async function _faturaKarsDosyaOku(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        if (typeof XLSX === 'undefined') {
+          reject(new Error('XLSX kütüphanesi yüklü değil'));
+          return;
+        }
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+        // Metin haline getir (ilk 400 satır, 25 sütun) — büyük dosyaları sınırla
+        const kirpilmis = rows.slice(0, 400).map(row =>
+          (Array.isArray(row) ? row.slice(0, 25) : []).map(c => String(c||'').trim()).join(' | ')
+        ).filter(l => l.length > 2).join('\n');
+        resolve(kirpilmis);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('Dosya okunamadı'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function faturaKarsAnalizEt() {
+  if (!_faturaKarsEntFile || !_faturaKarsLucaFile) {
+    showNotif('⚠️ Önce her iki dosyayı yükleyin!', 'error');
+    return;
+  }
+  if (!_checkSession()) {
+    showNotif('⚠️ Önce giriş yapın!', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('faturaKarsBtn');
+  const spinner = document.getElementById('faturaKarsSpinner');
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+
+  try {
+    // Dosyaları oku
+    const entMetin = await _faturaKarsDosyaOku(_faturaKarsEntFile);
+    const lucaMetin = await _faturaKarsDosyaOku(_faturaKarsLucaFile);
+
+    const turAdi = _faturaKarsTur === 'satis' ? 'SATIŞ (391.01.xxx)' : 'ALIŞ (191.01.xxx)';
+    const lucaTarafi = _faturaKarsTur === 'satis' ? 'ALACAK toplamı' : 'BORÇ toplamı';
+
+    const prompt = `Sen muhasebe uzmanısın. Sana iki dosya vereceğim ve ${turAdi} faturaları için KDV MUTABAKATI yapacaksın.
+
+⚠️ ÖNEMLİ: SADECE KDV TUTARLARI karşılaştırılacak, MATRAH karşılaştırılmıyor.
+
+DOSYA 1 — E-fatura entegratör listesi (Uyumsoft / İşNet / Logo / NES):
+\`\`\`
+${entMetin}
+\`\`\`
+
+DOSYA 2 — Luca muavin defter (${turAdi}):
+\`\`\`
+${lucaMetin}
+\`\`\`
+
+GÖREVLER:
+
+DOSYA 1 için:
+- Sütunları otomatik tanı: fatura no, firma, tarih, KDV oranı, KDV tutarı, fatura durumu
+- "Fatura Durumu" sütununu bul
+- İptal/red/iade durumlarını ayır (İptal, e-Arşiv İptal, Reddedildi, İade)
+- Her KDV oranı için (%1, %10, %20) sadece KDV TUTARI toplamını çıkar
+- İptal olanları geçerli toplam dışı bırak
+
+DOSYA 2 için:
+- Hesap kodu bloklarını tespit et (${_faturaKarsTur === 'satis' ? '391.01.001, 391.01.010, 391.01.020' : '191.01.001, 191.01.010, 191.01.020'} gibi)
+- Her bloğun ${lucaTarafi}nı çıkar (bu zaten KDV tutarı)
+- "Nakli Yekün", "Devir", "Toplam" gibi ara satırları ATLA
+
+KARŞILAŞTIRMA:
+- eslesenler: her iki kaynakta var, KDV tutarı tutuyor
+- iptal: entegratörde iptal, Luca'ya girmemesi NORMAL
+- eksik: entegratörde var, Luca'da yok (AKSİYON GEREKLİ)
+- fazla: Luca'da var, entegratörde yok
+
+SADECE bu JSON formatında döndür, başka hiçbir açıklama yazma:
+{
+  "tur": "${_faturaKarsTur}",
+  "entegrator": {
+    "toplam_fatura": 0,
+    "gecerli_fatura": 0,
+    "iptal_fatura": 0,
+    "oranlar": {
+      "1":  { "kdv_toplam": 0, "sayi": 0 },
+      "10": { "kdv_toplam": 0, "sayi": 0 },
+      "20": { "kdv_toplam": 0, "sayi": 0 }
+    }
+  },
+  "luca": {
+    "hesaplar": {
+      "${_faturaKarsTur === 'satis' ? '391.01.001' : '191.01.001'}": { "toplam": 0, "sayi": 0 },
+      "${_faturaKarsTur === 'satis' ? '391.01.010' : '191.01.010'}": { "toplam": 0, "sayi": 0 },
+      "${_faturaKarsTur === 'satis' ? '391.01.020' : '191.01.020'}": { "toplam": 0, "sayi": 0 }
+    }
+  },
+  "karsilastirma": {
+    "oran_bazli": [
+      { "oran": 1,  "entegrator": 0, "luca": 0, "fark": 0, "durum": "esit" },
+      { "oran": 10, "entegrator": 0, "luca": 0, "fark": 0, "durum": "esit" },
+      { "oran": 20, "entegrator": 0, "luca": 0, "fark": 0, "durum": "esit" }
+    ],
+    "genel_fark": 0,
+    "durum": "mutabik"
+  },
+  "eslesenler": [],
+  "iptal": [{ "fatura_no": "", "firma": "", "kdv_tutar": 0, "sebep": "e-Arşiv İptal — Luca'ya girmemesi DOĞRU" }],
+  "eksik": [{ "fatura_no": "", "firma": "", "kdv_tutar": 0 }],
+  "fazla": [{ "fatura_no": "", "firma": "", "kdv_tutar": 0 }],
+  "beyanname_ozeti": {
+    "hesaplanan_kdv": { "1": 0, "10": 0, "20": 0, "toplam": 0 }
+  }
+}`;
+
+    const raw = await callClaude(prompt);
+    let sonuc;
+    try {
+      sonuc = safeParseJSON(raw);
+    } catch(parseErr) {
+      throw new Error('AI cevabı JSON olarak okunamadı. Dosyaları kontrol edin.');
+    }
+    if (!sonuc || typeof sonuc !== 'object') {
+      throw new Error('AI geçersiz yanıt döndü.');
+    }
+
+    _faturaKarsSonucData = sonuc;
+    _faturaKarsSonucRender(sonuc);
+    showNotif('✅ Analiz tamamlandı!', 'success');
+  } catch(e) {
+    console.error('[Fatura Kars] Hata:', e);
+    showNotif('❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+function _faturaKarsSonucRender(sonuc) {
+  const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // 3 oran kartı
+  const oranlar = (sonuc.karsilastirma && sonuc.karsilastirma.oran_bazli) || [];
+  const oranRenk = { 1: '#10b981', 10: '#f59e0b', 20: '#3b82f6' };
+  const kartHtml = [1, 10, 20].map(oran => {
+    const o = oranlar.find(x => Number(x.oran) === oran) || { oran, entegrator:0, luca:0, fark:0, durum:'esit' };
+    const ent = parseFloat(o.entegrator || 0);
+    const luc = parseFloat(o.luca || 0);
+    const fark = parseFloat(o.fark || (ent - luc));
+    const esit = Math.abs(fark) < 0.01;
+    const renk = esit ? '#10b981' : '#ef4444';
+    const icon = esit ? '✅' : '❌';
+    return `<div style="background:var(--surface2); border:1px solid var(--border); border-left:4px solid ${renk}; border-radius:10px; padding:14px;">
+      <div style="font-size:13px; font-weight:700; color:${oranRenk[oran]}; margin-bottom:8px;">%${oran} KDV</div>
+      <div style="font-size:11px; color:var(--text3); margin-bottom:2px;">Entegratör</div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--text);">${_f(ent)} ₺</div>
+      <div style="font-size:11px; color:var(--text3); margin-top:8px; margin-bottom:2px;">Luca</div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--text);">${_f(luc)} ₺</div>
+      <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:var(--text3);">Fark</span>
+        <span style="font-family:'IBM Plex Mono',monospace; font-weight:700; color:${renk}; font-size:13px;">${_f(fark)} ₺ ${icon}</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('faturaKarsOranKartlari').innerHTML = kartHtml;
+
+  // Genel durum
+  const mutabik = (sonuc.karsilastirma && sonuc.karsilastirma.durum === 'mutabik');
+  const genelFark = parseFloat((sonuc.karsilastirma && sonuc.karsilastirma.genel_fark) || 0);
+  const durumEl = document.getElementById('faturaKarsGenelDurum');
+  if (mutabik || Math.abs(genelFark) < 0.01) {
+    durumEl.style.cssText = 'padding:14px 18px; border-radius:10px; margin-bottom:20px; font-size:14px; font-weight:600; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981;';
+    durumEl.textContent = '✅ MUTABIK — Entegratör ile Luca arasında KDV farkı yok. Beyanname güvenle hazırlanabilir.';
+  } else {
+    durumEl.style.cssText = 'padding:14px 18px; border-radius:10px; margin-bottom:20px; font-size:14px; font-weight:600; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid #ef4444;';
+    durumEl.textContent = '❌ UYUMSUZ — Toplam fark: ' + _f(genelFark) + ' ₺. Aşağıdaki kategorilerde detayları kontrol edin.';
+  }
+
+  // Kategori sayıları
+  const eslesen = Array.isArray(sonuc.eslesenler) ? sonuc.eslesenler.filter(x => x && (x.fatura_no || x.firma)) : [];
+  const iptal   = Array.isArray(sonuc.iptal)      ? sonuc.iptal.filter(x => x && (x.fatura_no || x.firma)) : [];
+  const eksik   = Array.isArray(sonuc.eksik)      ? sonuc.eksik.filter(x => x && (x.fatura_no || x.firma)) : [];
+  const fazla   = Array.isArray(sonuc.fazla)      ? sonuc.fazla.filter(x => x && (x.fatura_no || x.firma)) : [];
+  document.getElementById('faturaKarsSayiEslesen').textContent = eslesen.length;
+  document.getElementById('faturaKarsSayiIptal').textContent   = iptal.length;
+  document.getElementById('faturaKarsSayiEksik').textContent   = eksik.length;
+  document.getElementById('faturaKarsSayiFazla').textContent   = fazla.length;
+
+  // Beyanname özeti
+  const bo = (sonuc.beyanname_ozeti && sonuc.beyanname_ozeti.hesaplanan_kdv) || {};
+  const k1 = parseFloat(bo['1']||0), k10 = parseFloat(bo['10']||0), k20 = parseFloat(bo['20']||0);
+  const kt = parseFloat(bo.toplam || (k1 + k10 + k20));
+  const beyBaslik = _faturaKarsTur === 'satis' ? 'KDV-1 BEYANNAMESİ İÇİN HAZIR' : 'KDV-1 İNDİRİLECEK KDV İÇİN HAZIR';
+  const beyKdvLabel = _faturaKarsTur === 'satis' ? 'Hesaplanan KDV' : 'İndirilecek KDV';
+  document.getElementById('faturaKarsBeyanname').innerHTML = `
+    <div style="font-size:14px; font-weight:700; color:#10b981; margin-bottom:12px;">📋 ${beyBaslik}</div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; line-height:2;">
+      <div style="display:flex; justify-content:space-between; border-bottom:1px dashed var(--border); padding:4px 0;">
+        <span>%1 ${beyKdvLabel}:</span><span style="font-weight:600;">${_f(k1)} ₺</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; border-bottom:1px dashed var(--border); padding:4px 0;">
+        <span>%10 ${beyKdvLabel}:</span><span style="font-weight:600;">${_f(k10)} ₺</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; border-bottom:1px dashed var(--border); padding:4px 0;">
+        <span>%20 ${beyKdvLabel}:</span><span style="font-weight:600;">${_f(k20)} ₺</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; border-top:2px solid #10b981; padding-top:8px; margin-top:6px;">
+        <span style="font-weight:700;">TOPLAM:</span><span style="font-weight:700; color:#10b981; font-size:16px;">${_f(kt)} ₺</span>
+      </div>
+    </div>
+    <div style="margin-top:12px; font-size:11px; color:var(--text3);">✅ Bu rakam doğrudan GİB beyanname formuna girilebilir.</div>
+  `;
+
+  document.getElementById('faturaKarsSonuc').style.display = 'block';
+  document.getElementById('faturaKarsKategoriDetay').style.display = 'none';
+}
+
+function faturaKarsKategoriGoster(kategori) {
+  if (!_faturaKarsSonucData) return;
+  const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const list = (_faturaKarsSonucData[kategori] || []).filter(x => x && (x.fatura_no || x.firma));
+  const detayEl = document.getElementById('faturaKarsKategoriDetay');
+  const baslik = {
+    eslesenler: '✅ Eşleşen Faturalar',
+    iptal:      '⚠️ İptal / Reddedilen Faturalar (Luca\'ya girmemesi doğru)',
+    eksik:      '❌ Eksik Faturalar — Luca\'ya işlenmemiş (AKSİYON GEREKLİ)',
+    fazla:      '❌ Fazla Faturalar — Luca\'da var, entegratörde yok'
+  }[kategori] || kategori;
+
+  if (list.length === 0) {
+    detayEl.innerHTML = `<div style="font-weight:600; margin-bottom:8px;">${baslik}</div><div style="color:var(--text3); font-size:13px;">Bu kategoride kayıt yok.</div>`;
+  } else {
+    const ekstra = kategori === 'iptal' ? '<th style="text-align:left;padding:6px 10px;">Sebep</th>' : '';
+    const rowsHtml = list.map(r => `<tr style="border-top:1px solid var(--border);">
+      <td style="padding:6px 10px;font-size:12px;">${r.fatura_no || '-'}</td>
+      <td style="padding:6px 10px;font-size:12px;">${r.firma || '-'}</td>
+      <td style="padding:6px 10px;font-size:12px;text-align:right;font-family:'IBM Plex Mono',monospace;">${_f(r.kdv_tutar)} ₺</td>
+      ${kategori === 'iptal' ? `<td style="padding:6px 10px;font-size:11px;color:var(--text3);">${r.sebep || ''}</td>` : ''}
+    </tr>`).join('');
+    detayEl.innerHTML = `<div style="font-weight:600; margin-bottom:10px;">${baslik} <span style="color:var(--text3);font-weight:400;">(${list.length})</span></div>
+      <div style="max-height:320px; overflow-y:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+          <thead><tr style="background:var(--bg); font-size:11px; color:var(--text3);">
+            <th style="text-align:left;padding:6px 10px;">Fatura No</th>
+            <th style="text-align:left;padding:6px 10px;">Firma</th>
+            <th style="text-align:right;padding:6px 10px;">KDV Tutarı</th>
+            ${ekstra}
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+  }
+  detayEl.style.display = 'block';
+}
+
+function faturaKarsTemizle() {
+  _faturaKarsEntFile = null;
+  _faturaKarsLucaFile = null;
+  _faturaKarsSonucData = null;
+  document.getElementById('faturaKarsEntFile').value = '';
+  document.getElementById('faturaKarsLucaFile').value = '';
+  document.getElementById('faturaKarsEntBilgi').textContent = '';
+  document.getElementById('faturaKarsLucaBilgi').textContent = '';
+  document.getElementById('faturaKarsBtn').disabled = true;
+  document.getElementById('faturaKarsSonuc').style.display = 'none';
+  document.getElementById('faturaKarsKategoriDetay').style.display = 'none';
 }
 
 // ===================== KDV & TEVKİFAT KONTROL MODÜLİ =====================
