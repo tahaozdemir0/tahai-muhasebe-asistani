@@ -3059,19 +3059,19 @@
             <div id="kartSupabaseOzetIcerik" style="font-size:12px; color:var(--text2);"></div>
           </div>
 
-          <!-- Satış Fatura Mutabakatı -->
+          <!-- Satış Fatura Mutabakatı (Luca 391) -->
           <div id="kartSatisMutabakat" style="display:none; background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(52,211,153,0.06)); border:1px solid #10b981; border-radius:10px; padding:14px 16px; margin-bottom:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div style="font-size:13px; font-weight:700; color:#10b981;">📤 Satış Faturaları</div>
+              <div style="font-size:13px; font-weight:700; color:#10b981;">📤 Satış Faturaları <span style="font-size:10px; font-weight:500; color:var(--text3);">(Luca 391)</span></div>
               <div style="font-size:11px; color:var(--text3);" id="kartSatisTarih">—</div>
             </div>
             <div id="kartSatisIcerik" style="font-size:12px; color:var(--text2);"></div>
           </div>
 
-          <!-- Alış Fatura Mutabakatı -->
+          <!-- Alış Fatura Mutabakatı (Luca 191) -->
           <div id="kartAlisMutabakat" style="display:none; background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(37,99,235,0.06)); border:1px solid #3b82f6; border-radius:10px; padding:14px 16px; margin-bottom:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div style="font-size:13px; font-weight:700; color:#3b82f6;">📥 Alış Faturaları</div>
+              <div style="font-size:13px; font-weight:700; color:#3b82f6;">📥 Alış Faturaları <span style="font-size:10px; font-weight:500; color:var(--text3);">(Luca 191)</span></div>
               <div style="font-size:11px; color:var(--text3);" id="kartAlisTarih">—</div>
             </div>
             <div id="kartAlisIcerik" style="font-size:12px; color:var(--text2);"></div>
@@ -10098,7 +10098,7 @@ async function _kartFaturaMutabakatRender(mukellefId) {
   }
 }
 
-// Satış mutabakat özetini render et
+// Satış mutabakat özetini render et — Luca 391.01.xxx hesaplarından
 function _kartSatisRender(kayit) {
   const div = document.getElementById('kartSatisMutabakat');
   const icerik = document.getElementById('kartSatisIcerik');
@@ -10117,11 +10117,17 @@ function _kartSatisRender(kayit) {
   if (tarihEl) tarihEl.textContent = 'Son güncelleme: ' + olusturma;
 
   const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const oranlar = (d.entegrator && d.entegrator.oranlar) || {};
-  const k1 = parseFloat((oranlar['1'] && oranlar['1'].kdv_toplam) || (oranlar['1'] && oranlar['1'].kdv) || 0);
-  const k10 = parseFloat((oranlar['10'] && oranlar['10'].kdv_toplam) || (oranlar['10'] && oranlar['10'].kdv) || 0);
-  const k20 = parseFloat((oranlar['20'] && oranlar['20'].kdv_toplam) || (oranlar['20'] && oranlar['20'].kdv) || 0);
-  const toplam = k1 + k10 + k20;
+
+  // LUCA satış hesapları (391.01.xxx)
+  const lucaHes = (d.luca && d.luca.hesaplar) || {};
+  const _lucaToplam = (kod) => parseFloat((lucaHes[kod] && lucaHes[kod].toplam) || 0);
+  const k1  = _lucaToplam('391.01.001');
+  const k8  = _lucaToplam('391.01.008');
+  const k10 = _lucaToplam('391.01.010');
+  const k18 = _lucaToplam('391.01.018');
+  const k20 = _lucaToplam('391.01.020');
+  // Toplam: öncelik luca.toplam, yoksa oranların toplamı
+  const toplam = parseFloat((d.luca && d.luca.toplam) || (k1 + k8 + k10 + k18 + k20));
 
   const durum = (d.karsilastirma && d.karsilastirma.durum) || 'mutabik';
   const durumIcon = durum === 'mutabik' ? '✅' : '⚠️';
@@ -10132,12 +10138,18 @@ function _kartSatisRender(kayit) {
   const iptal = (d.karsilastirma && d.karsilastirma.iptal) || 0;
   const eksik = (d.karsilastirma && d.karsilastirma.eksik) || 0;
 
+  // Sadece değeri olan oranları göster
+  const oranSatirlari = [];
+  if (k1 > 0)  oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%1 KDV <span style="color:var(--text3);font-size:10px;">(391.01.001)</span>:</span><span>${_f(k1)} ₺</span></div>`);
+  if (k8 > 0)  oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%8 KDV <span style="color:var(--text3);font-size:10px;">(391.01.008)</span>:</span><span>${_f(k8)} ₺</span></div>`);
+  if (k10 > 0) oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%10 KDV <span style="color:var(--text3);font-size:10px;">(391.01.010)</span>:</span><span>${_f(k10)} ₺</span></div>`);
+  if (k18 > 0) oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%18 KDV <span style="color:var(--text3);font-size:10px;">(391.01.018)</span>:</span><span>${_f(k18)} ₺</span></div>`);
+  if (k20 > 0) oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%20 KDV <span style="color:var(--text3);font-size:10px;">(391.01.020)</span>:</span><span>${_f(k20)} ₺</span></div>`);
+
   div.style.display = 'block';
   icerik.innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace; line-height:1.8;">
-      <div style="display:flex;justify-content:space-between;"><span>%1 KDV:</span><span>${_f(k1)} ₺</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>%10 KDV:</span><span>${_f(k10)} ₺</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>%20 KDV:</span><span>${_f(k20)} ₺</span></div>
+      ${oranSatirlari.join('') || '<div style="color:var(--text3);">Luca 391.01.xxx hesaplarında kayıt bulunamadı.</div>'}
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700;">
         <span>TOPLAM:</span><span style="color:#10b981;">${_f(toplam)} ₺</span>
       </div>
@@ -10149,7 +10161,7 @@ function _kartSatisRender(kayit) {
   `;
 }
 
-// Alış mutabakat özetini render et
+// Alış mutabakat özetini render et — Luca 191.01.xxx hesaplarından
 function _kartAlisRender(kayit) {
   const div = document.getElementById('kartAlisMutabakat');
   const icerik = document.getElementById('kartAlisIcerik');
@@ -10168,11 +10180,16 @@ function _kartAlisRender(kayit) {
   if (tarihEl) tarihEl.textContent = 'Son güncelleme: ' + olusturma;
 
   const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const oranlar = (d.entegrator && d.entegrator.oranlar) || {};
-  const k1 = parseFloat((oranlar['1'] && oranlar['1'].kdv_toplam) || (oranlar['1'] && oranlar['1'].kdv) || 0);
-  const k10 = parseFloat((oranlar['10'] && oranlar['10'].kdv_toplam) || (oranlar['10'] && oranlar['10'].kdv) || 0);
-  const k20 = parseFloat((oranlar['20'] && oranlar['20'].kdv_toplam) || (oranlar['20'] && oranlar['20'].kdv) || 0);
-  const toplam = k1 + k10 + k20;
+
+  // LUCA alış hesapları (191.01.xxx)
+  const lucaHes = (d.luca && d.luca.hesaplar) || {};
+  const _lucaToplam = (kod) => parseFloat((lucaHes[kod] && lucaHes[kod].toplam) || 0);
+  const k1  = _lucaToplam('191.01.001');
+  const k8  = _lucaToplam('191.01.008');
+  const k10 = _lucaToplam('191.01.010');
+  const k18 = _lucaToplam('191.01.018');
+  const k20 = _lucaToplam('191.01.020');
+  const toplam = parseFloat((d.luca && d.luca.toplam) || (k1 + k8 + k10 + k18 + k20));
 
   const durum = (d.karsilastirma && d.karsilastirma.durum) || 'mutabik';
   const durumIcon = durum === 'mutabik' ? '✅' : '⚠️';
@@ -10183,12 +10200,18 @@ function _kartAlisRender(kayit) {
   const iptal = (d.karsilastirma && d.karsilastirma.iptal) || 0;
   const eksik = (d.karsilastirma && d.karsilastirma.eksik) || 0;
 
+  // Sadece değeri olan oranları göster
+  const oranSatirlari = [];
+  if (k1 > 0)  oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%1 KDV <span style="color:var(--text3);font-size:10px;">(191.01.001)</span>:</span><span>${_f(k1)} ₺</span></div>`);
+  if (k8 > 0)  oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%8 KDV <span style="color:var(--text3);font-size:10px;">(191.01.008)</span>:</span><span>${_f(k8)} ₺</span></div>`);
+  if (k10 > 0) oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%10 KDV <span style="color:var(--text3);font-size:10px;">(191.01.010)</span>:</span><span>${_f(k10)} ₺</span></div>`);
+  if (k18 > 0) oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%18 KDV <span style="color:var(--text3);font-size:10px;">(191.01.018)</span>:</span><span>${_f(k18)} ₺</span></div>`);
+  if (k20 > 0) oranSatirlari.push(`<div style="display:flex;justify-content:space-between;"><span>%20 KDV <span style="color:var(--text3);font-size:10px;">(191.01.020)</span>:</span><span>${_f(k20)} ₺</span></div>`);
+
   div.style.display = 'block';
   icerik.innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace; line-height:1.8;">
-      <div style="display:flex;justify-content:space-between;"><span>%1 KDV:</span><span>${_f(k1)} ₺</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>%10 KDV:</span><span>${_f(k10)} ₺</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>%20 KDV:</span><span>${_f(k20)} ₺</span></div>
+      ${oranSatirlari.join('') || '<div style="color:var(--text3);">Luca 191.01.xxx hesaplarında kayıt bulunamadı.</div>'}
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700;">
         <span>TOPLAM:</span><span style="color:#3b82f6;">${_f(toplam)} ₺</span>
       </div>
@@ -10222,38 +10245,49 @@ function _kartKdv1BeyannameRender(satis, alis) {
     return;
   }
 
-  // İkisi de var → KDV-1 hesapla
-  const _ozet = (kayit) => {
-    const oranlar = (kayit.sonuc_data && kayit.sonuc_data.entegrator && kayit.sonuc_data.entegrator.oranlar) || {};
-    const k1 = parseFloat((oranlar['1'] && oranlar['1'].kdv_toplam) || (oranlar['1'] && oranlar['1'].kdv) || 0);
-    const k10 = parseFloat((oranlar['10'] && oranlar['10'].kdv_toplam) || (oranlar['10'] && oranlar['10'].kdv) || 0);
-    const k20 = parseFloat((oranlar['20'] && oranlar['20'].kdv_toplam) || (oranlar['20'] && oranlar['20'].kdv) || 0);
-    return { k1, k10, k20, toplam: k1 + k10 + k20 };
+  // İkisi de var → KDV-1 hesapla — LUCA verilerinden
+  const _lucaOzet = (kayit, prefix) => {
+    const lucaHes = (kayit.sonuc_data && kayit.sonuc_data.luca && kayit.sonuc_data.luca.hesaplar) || {};
+    const _t = (kod) => parseFloat((lucaHes[kod] && lucaHes[kod].toplam) || 0);
+    const k1  = _t(prefix + '.01.001');
+    const k8  = _t(prefix + '.01.008');
+    const k10 = _t(prefix + '.01.010');
+    const k18 = _t(prefix + '.01.018');
+    const k20 = _t(prefix + '.01.020');
+    const lucaToplam = parseFloat((kayit.sonuc_data.luca && kayit.sonuc_data.luca.toplam) || (k1 + k8 + k10 + k18 + k20));
+    return { k1, k8, k10, k18, k20, toplam: lucaToplam };
   };
 
-  const hes = _ozet(satis);
-  const ind = _ozet(alis);
+  const hes = _lucaOzet(satis, '391'); // 391.01.xxx
+  const ind = _lucaOzet(alis,  '191'); // 191.01.xxx
   const odenecek = hes.toplam - ind.toplam;
   const odenecekRenk = odenecek >= 0 ? '#ef4444' : '#10b981';
   const odenecekLabel = odenecek >= 0 ? 'ÖDENECEK KDV' : 'DEVREDEN KDV';
 
+  // Sadece değeri olan oranları göster (5 oran: %1/%8/%10/%18/%20)
+  const _oranSatirlari = (ozet) => {
+    const sat = [];
+    if (ozet.k1  > 0) sat.push(`<div style="display:flex;justify-content:space-between;"><span>%1:</span><span>${_f(ozet.k1)} ₺</span></div>`);
+    if (ozet.k8  > 0) sat.push(`<div style="display:flex;justify-content:space-between;"><span>%8:</span><span>${_f(ozet.k8)} ₺</span></div>`);
+    if (ozet.k10 > 0) sat.push(`<div style="display:flex;justify-content:space-between;"><span>%10:</span><span>${_f(ozet.k10)} ₺</span></div>`);
+    if (ozet.k18 > 0) sat.push(`<div style="display:flex;justify-content:space-between;"><span>%18:</span><span>${_f(ozet.k18)} ₺</span></div>`);
+    if (ozet.k20 > 0) sat.push(`<div style="display:flex;justify-content:space-between;"><span>%20:</span><span>${_f(ozet.k20)} ₺</span></div>`);
+    return sat.join('');
+  };
+
   icerik.innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.8;">
-      <div style="color:#10b981; font-weight:700; margin-bottom:4px;">Hesaplanan KDV (Satış):</div>
+      <div style="color:#10b981; font-weight:700; margin-bottom:4px;">Hesaplanan KDV (Satış — Luca 391):</div>
       <div style="padding-left:12px;">
-        <div style="display:flex;justify-content:space-between;"><span>%1:</span><span>${_f(hes.k1)} ₺</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>%10:</span><span>${_f(hes.k10)} ₺</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>%20:</span><span>${_f(hes.k20)} ₺</span></div>
+        ${_oranSatirlari(hes) || '<div style="color:var(--text3);">Veri yok</div>'}
         <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:3px;margin-top:3px;">
           <span>Toplam:</span><span style="color:#10b981;font-weight:700;">${_f(hes.toplam)} ₺</span>
         </div>
       </div>
 
-      <div style="color:#3b82f6; font-weight:700; margin-top:10px; margin-bottom:4px;">İndirilecek KDV (Alış):</div>
+      <div style="color:#3b82f6; font-weight:700; margin-top:10px; margin-bottom:4px;">İndirilecek KDV (Alış — Luca 191):</div>
       <div style="padding-left:12px;">
-        <div style="display:flex;justify-content:space-between;"><span>%1:</span><span>${_f(ind.k1)} ₺</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>%10:</span><span>${_f(ind.k10)} ₺</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>%20:</span><span>${_f(ind.k20)} ₺</span></div>
+        ${_oranSatirlari(ind) || '<div style="color:var(--text3);">Veri yok</div>'}
         <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:3px;margin-top:3px;">
           <span>Toplam:</span><span style="color:#3b82f6;font-weight:700;">${_f(ind.toplam)} ₺</span>
         </div>
@@ -10264,7 +10298,7 @@ function _kartKdv1BeyannameRender(satis, alis) {
         <span style="font-weight:700; color:${odenecekRenk}; font-size:16px;">${_f(Math.abs(odenecek))} ₺</span>
       </div>
     </div>
-    <div style="margin-top:10px; font-size:11px; color:var(--text3);">✅ Bu rakam GİB beyannamesine direkt girilebilir</div>
+    <div style="margin-top:10px; font-size:11px; color:var(--text3);">✅ Bu rakam GİB beyannamesine direkt girilebilir (Luca muavin defterinden hesaplanmıştır)</div>
   `;
 }
 
