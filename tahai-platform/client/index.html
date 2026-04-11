@@ -5346,6 +5346,20 @@ function showPage(id) {
   if (id === 'hatirlatici') hatirRender();
   if (id === 'mukellef-kart') mukellefKartListesiRender();
   if (id === 'beyanname-takvim') takvimiGoster();
+
+  // Mükellef Kartı sayfasına girerken aktif mükellef varsa onun kartını otomatik aç
+  if (id === 'mukellef-kart') {
+    const _aktifAd = (window.aktifMukellef && window.aktifMukellef.ad) || _gmSecili;
+    if (_aktifAd && Array.isArray(mukellefKartlari)) {
+      const _idx = mukellefKartlari.findIndex(k => k && k.ad && (
+        k.ad === _aktifAd ||
+        String(k.ad).toLocaleLowerCase('tr-TR') === String(_aktifAd).toLocaleLowerCase('tr-TR')
+      ));
+      if (_idx >= 0) {
+        setTimeout(() => { try { kartAc(_idx); } catch(e) { console.warn('[Mükellef Kartı] Otomatik açma hatası:', e.message); } }, 100);
+      }
+    }
+  }
 }
 
 // ===================== FILE HANDLING =====================
@@ -9929,10 +9943,33 @@ async function _kartSupabaseOzetYukle(mukAd) {
   const icerikDiv = document.getElementById('kartSupabaseOzetIcerik');
   if (!ozetDiv || !icerikDiv) return;
 
-  const mukId = await _getMukellefIdByAd(mukAd);
-  if (!mukId) { ozetDiv.style.display = 'none'; return; }
+  // Aktif mükellefi Supabase'de oluştur/bul (_aktifMukellefiYukle aynı mantığı yapar)
+  // Bu sayede _getMukellefIdByAd null dönse bile Supabase'e auto-ekleme olur
+  let mukId = null;
+  try {
+    if (window.aktifMukellef && window.aktifMukellef.id &&
+        (window.aktifMukellef.ad === mukAd ||
+         String(window.aktifMukellef.ad||'').toLocaleLowerCase('tr-TR') === mukAd.toLocaleLowerCase('tr-TR'))) {
+      // Zaten aktif mükellef → ID kullan
+      mukId = window.aktifMukellef.id;
+    } else {
+      // _aktifMukellefiYukle Supabase'de yoksa otomatik oluşturur
+      await _aktifMukellefiYukle(mukAd);
+      if (window.aktifMukellef && window.aktifMukellef.id) mukId = window.aktifMukellef.id;
+    }
+  } catch(e) { console.warn('[Kart] Mükellef çözümleme hatası:', e.message); }
 
-  // Paralel olarak fatura mutabakat kayıtlarını da yükle
+  if (!mukId) {
+    ozetDiv.style.display = 'none';
+    // Fatura mutabakat bölümlerini de gizle
+    ['kartSatisMutabakat','kartAlisMutabakat','kartKdv1Beyanname'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    return;
+  }
+
+  // Paralel olarak fatura mutabakat kayıtlarını yükle
   _kartFaturaMutabakatRender(mukId).catch(e => console.warn('[Kart] Mutabakat render hatası:', e.message));
 
   ozetDiv.style.display = 'block';
@@ -13196,7 +13233,15 @@ async function _aktifMukellefiYukle(mukellefAd) {
   // 1. Ekranları temizle
   _mukellefEkranTemizle();
 
-  if (!mukellefAd) { window.aktifMukellef = null; return; }
+  if (!mukellefAd) {
+    window.aktifMukellef = null;
+    // Fatura mutabakat bölümlerini de gizle
+    ['kartSatisMutabakat','kartAlisMutabakat','kartKdv1Beyanname'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    return;
+  }
 
   // 2. data-manager.js yüklü değilse (offline), sadece adı set et
   if (typeof mukellefleriGetir !== 'function') {
@@ -13341,6 +13386,14 @@ async function _aktifMukellefiYukle(mukellefAd) {
     } catch(e) {}
 
     console.log(`[GM] ${mukellefAd}: ${fisler.length} fiş, ${faturalar.length} fatura, ${mizanlar.length} mizan yüklendi`);
+
+    // Mükellef Kartı modal açıksa fatura mutabakat bölümlerini yenile
+    try {
+      const kartModal = document.getElementById('kartModal');
+      if (kartModal && kartModal.style.display === 'flex' && typeof _kartFaturaMutabakatRender === 'function') {
+        _kartFaturaMutabakatRender(mukId).catch(e => console.warn('[Kart] Auto-refresh hatası:', e.message));
+      }
+    } catch(e) {}
   } catch(e) {
     console.warn('[GM] Veri yükleme hatası:', e.message);
   }
