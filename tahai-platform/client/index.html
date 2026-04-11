@@ -8449,16 +8449,16 @@ function _faturaKarsLucaParse(rows, tur) {
     // Henüz hesap bloğu içinde değiliz
     if (!aktif_hesap) continue;
 
-    // Açıklama sütunu (index 3)
+    // Açıklama sütunu (index 3) — Türkçe locale lower
     const aciklama = String(row[3] || '').trim();
-    const aciklamaLower = aciklama.toLowerCase();
+    const aciklamaNorm = aciklama.toLocaleLowerCase('tr-TR');
+    const ilkKolonNorm = ilkKolon.toLocaleLowerCase('tr-TR');
+    const tipKolon = String(row[1] || '').trim();
 
-    // Nakli Yekün / Nakli Yekün Hariç / Genel Toplam / Devir / Dönem Başı satırlarını atla
-    if (/nakli\s*yek[uü]n/i.test(aciklama)   || /nakli\s*yek[uü]n/i.test(ilkKolon)   ||
-        /genel\s*toplam/i.test(aciklama)      || /genel\s*toplam/i.test(ilkKolon)      ||
-        /ara\s*toplam/i.test(aciklama)        || /ara\s*toplam/i.test(ilkKolon)        ||
-        /devir/i.test(aciklama)               || /devir/i.test(ilkKolon)               ||
-        /donem\s*basi|dönem\s*başı/i.test(aciklamaLower)) {
+    // Atlanacak ara/toplam/virman/tahakkuk satırları (tüm mükellefler için)
+    // Not: aciklama veya ilkKolon içinde bu ifadeler geçerse atla
+    const atlaRegex = /nakli\s*yek[uü]n|genel\s*toplam|ara\s*toplam|devir|d[öo]nem\s*ba[şs][ıi]|d[öo]nem\s*sonu|tahakkuk|virman/i;
+    if (atlaRegex.test(aciklama) || atlaRegex.test(ilkKolon)) {
       continue;
     }
 
@@ -8466,16 +8466,34 @@ function _faturaKarsLucaParse(rows, tur) {
     const borc = _faturaKarsSayiParse(row[4]);
     const alacak = _faturaKarsSayiParse(row[5]);
 
-    // BKU veya EAR içermeli (gerçek fatura satırı) — yoksa hareket satırı ama fatura değil
-    // Bu durumda hareket hesap toplamına etki ediyor olabilir (virman, tahakkuk vs)
-    const faturaNoMatch = aciklama.match(/(BKU|EAR)\d+/i);
+    // GİB standardı: 3 büyük harf + 13 rakam (ör. BKU2026000000074, EAR2026000000019, SGA...)
+    // Türkçe karakter uyumlu kelime sınırı: başlangıç veya non-alfanümerik karakter sonrası
+    // Capture group[1] gerçek fatura no'yu verir
+    let faturaNo = null;
+    let patternTipi = 'gib';
+    let m1 = aciklama.match(/(?:^|[^A-Za-zÇĞİÖŞÜçğıöşü0-9])([A-ZÇĞİÖŞÜ]{3}\d{13})(?![0-9])/);
+    if (m1) {
+      faturaNo = m1[1];
+    } else {
+      // Esnek fallback: 2-4 harf + 10-15 rakam (farklı entegratörler için)
+      const m2 = aciklama.match(/(?:^|[^A-Za-zÇĞİÖŞÜçğıöşü0-9])([A-ZÇĞİÖŞÜ]{2,4}\d{10,15})(?![0-9])/);
+      if (m2) {
+        faturaNo = m2[1];
+        patternTipi = 'esnek';
+      }
+    }
 
-    // 391.01.020 için satır bazlı debug log (ilk 5 satır)
-    if (aktif_hesap === '391.01.020' && faturaNoMatch && sonuc.hesaplar[aktif_hesap].fatura_sayisi < 5) {
-      console.log('[Luca Debug] 391.01.020 satır ' + i + ':',
-        'borc raw:', JSON.stringify(row[4]), '→', borc,
-        'alacak raw:', JSON.stringify(row[5]), '→', alacak,
-        'fatura:', faturaNoMatch[0]);
+    // Mahsup istisnası: fatura no yok ama hareket var + tip Mahsup → sentetik no
+    let sentetik = false;
+    if (!faturaNo) {
+      const borcVar = borc > 0;
+      const alacakVar = alacak > 0;
+      const tipLower = tipKolon.toLocaleLowerCase('tr-TR');
+      if ((borcVar || alacakVar) && tipLower === 'mahsup') {
+        faturaNo = 'MANUEL_' + aktif_hesap + '_' + i;
+        patternTipi = 'manuel';
+        sentetik = true;
+      }
     }
 
     // Her borç/alacak satırını hesap toplamına ekle (NET hesap için)
@@ -8483,7 +8501,15 @@ function _faturaKarsLucaParse(rows, tur) {
     sonuc.hesaplar[aktif_hesap].borc_top += borc;
 
     // Fatura satırı değilse (virman/tahakkuk vs) kayıt listesine ekleme
-    if (!faturaNoMatch) continue;
+    if (!faturaNo) continue;
+
+    // 391.01.020 için satır bazlı debug log (ilk 5 satır)
+    if (aktif_hesap === '391.01.020' && sonuc.hesaplar[aktif_hesap].fatura_sayisi < 5) {
+      console.log('[Luca Debug] 391.01.020 satır ' + i + ' [' + patternTipi + ']:',
+        'borc raw:', JSON.stringify(row[4]), '→', borc,
+        'alacak raw:', JSON.stringify(row[5]), '→', alacak,
+        'fatura:', faturaNo);
+    }
 
     // Satış için alacak, alış için borç kullanılır (fatura tutarı olarak)
     const tutar = (tur === 'satis') ? alacak : borc;
@@ -8494,18 +8520,24 @@ function _faturaKarsLucaParse(rows, tur) {
     if (tarih.includes(' ')) tarih = tarih.split(' ')[0];
 
     // Firma adını açıklamadan çıkar: "BKU2026000123 FIRMA ADI" → "FIRMA ADI"
+    // Fatura no'dan sonra gelen kısım firma adı
     let firma = '';
-    const firmaMatch = aciklama.match(/(BKU|EAR)\d+[\s\-]+(.+?)(?:\s*$)/i);
-    if (firmaMatch) firma = firmaMatch[2].trim();
+    if (!sentetik) {
+      const idx = aciklama.indexOf(faturaNo);
+      if (idx >= 0) {
+        firma = aciklama.substring(idx + faturaNo.length).replace(/^[\s\-:]+/, '').trim();
+      }
+    }
 
     const kayit = {
       tarih: tarih,
-      fatura_no: faturaNoMatch[0].toUpperCase(),
+      fatura_no: faturaNo.toUpperCase(),
       firma: firma,
       tutar: tutar,
       borc: borc,
       alacak: alacak,
-      hesap_kodu: aktif_hesap
+      hesap_kodu: aktif_hesap,
+      pattern: patternTipi
     };
 
     sonuc.hesaplar[aktif_hesap].kayitlar.push(kayit);
