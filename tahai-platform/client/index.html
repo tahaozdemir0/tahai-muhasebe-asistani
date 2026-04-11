@@ -2049,15 +2049,13 @@
         </div>
 
         <div class="tabs">
-          <button class="tab active" onclick="switchFaturaTab('excel')">Excel / CSV Yükle</button>
-          <button class="tab" onclick="switchFaturaTab('gorsel')">Görsel / PDF</button>
-          <button class="tab" onclick="switchFaturaTab('karsilastir')" style="color:var(--accent2);">🔄 Luca ↔ Fatura Entegratörü Karşılaştır</button>
-          <button class="tab" onclick="switchFaturaTab('aimutabakat')" style="color:#8b5cf6;">📊 AI KDV Mutabakat</button>
+          <button class="tab active" onclick="switchFaturaTab('aimutabakat')" style="color:#8b5cf6;">📊 KDV Mutabakat</button>
+          <button class="tab" onclick="switchFaturaTab('gorsel')">📸 Fatura Oku</button>
           <button class="tab" onclick="switchFaturaTab('isle')" style="color:var(--accent3);">📋 Fatura İşle</button>
-          <button class="tab" onclick="switchFaturaTab('kdvtevkifat')" style="color:#f59e0b;">🔍 KDV & Tevkifat Kontrolü</button>
+          <button class="tab" onclick="switchFaturaTab('kdvtevkifat')" style="color:#f59e0b;">🔍 Tevkifat Kontrolü</button>
         </div>
 
-        <div id="faturaExcelTab">
+        <div id="faturaExcelTab" style="display:none">
           <div class="upload-zone">
             <input type="file" id="faturaFiles" accept=".xlsx,.xls,.csv" multiple onchange="handleFaturaFiles(this.files)" />
             <div class="upload-icon">📊</div>
@@ -2076,8 +2074,8 @@
         </div>
 
         
-        <!-- ===== AI KDV MUTABAKAT TAB ===== -->
-        <div id="faturaAiMutabakatTab" style="display:none;">
+        <!-- ===== AI KDV MUTABAKAT TAB (Varsayılan aktif) ===== -->
+        <div id="faturaAiMutabakatTab" style="display:block;">
           <div style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(102,126,234,0.08)); border:1px solid #8b5cf6; border-radius:12px; padding:16px; margin-top:8px; margin-bottom:16px;">
             <div style="font-size:14px; font-weight:700; color:#8b5cf6; margin-bottom:6px;">📊 AI Tabanlı KDV Mutabakatı</div>
             <div style="font-size:12px; color:var(--text2); line-height:1.6;">
@@ -2435,9 +2433,9 @@
           </div><!-- /kdvOzetPanel -->
         </div><!-- /faturaKdvTab -->
 
-        <div class="file-list" id="faturaFileList"></div>
+        <div class="file-list" id="faturaFileList" style="display:none"></div>
 
-        <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
+        <div style="margin-top: 16px; gap: 10px; align-items: center; display: none;">
           <button class="btn btn-primary" onclick="processFaturalar()" id="faturaBtn" disabled>
             ⚡ Faturaları Kontrol Et
           </button>
