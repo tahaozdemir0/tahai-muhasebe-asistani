@@ -13198,15 +13198,76 @@ async function _aktifMukellefiYukle(mukellefAd) {
 
   if (!mukellefAd) { window.aktifMukellef = null; return; }
 
-  // 2. UUID çözümle
-  const mukId = await _getMukellefIdByAd(mukellefAd);
-  if (!mukId) {
-    // Supabase'de yok — localStorage verileriyle devam et
+  // 2. data-manager.js yüklü değilse (offline), sadece adı set et
+  if (typeof mukellefleriGetir !== 'function') {
     window.aktifMukellef = { id: null, ad: mukellefAd };
+    console.warn('[Mükellef] data-manager yüklü değil, ID çözümlenemedi');
     return;
   }
 
-  window.aktifMukellef = { id: mukId, ad: mukellefAd };
+  // 3. Supabase mükellef listesini çek ve ad eşleştir (cache'i yenile)
+  let mukellefObj = null;
+  try {
+    const liste = await mukellefleriGetir();
+    if (Array.isArray(liste)) {
+      // Önce tam eşleşme
+      mukellefObj = liste.find(m => m.ad === mukellefAd);
+      // Yoksa case-insensitive
+      if (!mukellefObj) {
+        const lowerAd = mukellefAd.toLocaleLowerCase('tr-TR');
+        mukellefObj = liste.find(m => String(m.ad||'').toLocaleLowerCase('tr-TR') === lowerAd);
+      }
+      // Cache'i güncelle
+      liste.forEach(m => { if (m && m.ad && m.id) _mukellefIdCache[m.ad] = m.id; });
+    }
+  } catch(e) { console.warn('[Mükellef] Liste çekme hatası:', e.message); }
+
+  // 4. Supabase'de yoksa otomatik oluştur (kart varsa ondan VKN vs al)
+  if (!mukellefObj) {
+    console.log('[Mükellef] Supabase\'de yok, otomatik oluşturuluyor:', mukellefAd);
+    // Kart listesinden detay bul
+    let kart = null;
+    try {
+      if (Array.isArray(mukellefKartlari)) {
+        kart = mukellefKartlari.find(k => k && k.ad && (k.ad === mukellefAd || k.ad.toLocaleLowerCase('tr-TR') === mukellefAd.toLocaleLowerCase('tr-TR')));
+      }
+    } catch(e) {}
+    try {
+      mukellefObj = await mukellefEkle({
+        ad: mukellefAd,
+        vkn: (kart && kart.vkn) || '',
+        vergi_dairesi: (kart && kart.vd) || '',
+        tur: (kart && kart.tur) || '',
+        adres: (kart && kart.adres) || '',
+        tel: (kart && kart.tel) || '',
+        email: (kart && kart.email) || '',
+        not: (kart && kart.not) || '',
+        kdv_periyot: (kart && kart.kdvPeriyot) || 'aylik'
+      });
+      if (mukellefObj && mukellefObj.id) {
+        _mukellefIdCache[mukellefAd] = mukellefObj.id;
+        console.log('[Mükellef] Oluşturuldu:', mukellefObj.id);
+      }
+    } catch(e) {
+      console.warn('[Mükellef] Otomatik oluşturma hatası:', e.message);
+    }
+  }
+
+  if (!mukellefObj || !mukellefObj.id) {
+    // Hâlâ yoksa: null ID ile devam et (hata değil, uyarı)
+    window.aktifMukellef = { id: null, ad: mukellefAd };
+    console.warn('[Mükellef] ID çözümlenemedi:', mukellefAd);
+    return;
+  }
+
+  // 5. Tam objeyi set et (tüm alanlar dahil)
+  window.aktifMukellef = Object.assign({}, mukellefObj, {
+    id: mukellefObj.id,
+    ad: mukellefObj.ad || mukellefAd
+  });
+  console.log('[Mükellef] Aktif:', window.aktifMukellef.ad, '→', window.aktifMukellef.id);
+
+  const mukId = mukellefObj.id;
 
   // 3. Paralel veri çekme
   try {
