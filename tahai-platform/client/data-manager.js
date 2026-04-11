@@ -289,6 +289,37 @@ async function kontrolSonuclariniGetir(mukellefId, donem, kontrolTuru) {
   }
 }
 
+// ── Fatura Mutabakat helper'ları (AI KDV Mutabakat için) ─────
+// Tüm fatura mutabakat kayıtlarını getir
+async function faturaMutabakatlariniGetir(mukellefId) {
+  const kayitlar = await kontrolSonuclariniGetir(mukellefId, null, 'fatura_mutabakat');
+  return Array.isArray(kayitlar) ? kayitlar : [];
+}
+
+// En son satış mutabakatını getir (sonuc_data.mutabakat_turu === 'satis')
+async function sonSatisMutabakatiGetir(mukellefId) {
+  const tum = await faturaMutabakatlariniGetir(mukellefId);
+  const satis = tum.filter(k => k.sonuc_data && k.sonuc_data.mutabakat_turu === 'satis');
+  if (satis.length === 0) return null;
+  return satis.sort((a, b) => {
+    const ta = new Date((a.sonuc_data && a.sonuc_data.kayit_tarihi) || a.olusturma || 0).getTime();
+    const tb = new Date((b.sonuc_data && b.sonuc_data.kayit_tarihi) || b.olusturma || 0).getTime();
+    return tb - ta;
+  })[0];
+}
+
+// En son alış mutabakatını getir (sonuc_data.mutabakat_turu === 'alis')
+async function sonAlisMutabakatiGetir(mukellefId) {
+  const tum = await faturaMutabakatlariniGetir(mukellefId);
+  const alis = tum.filter(k => k.sonuc_data && k.sonuc_data.mutabakat_turu === 'alis');
+  if (alis.length === 0) return null;
+  return alis.sort((a, b) => {
+    const ta = new Date((a.sonuc_data && a.sonuc_data.kayit_tarihi) || a.olusturma || 0).getTime();
+    const tb = new Date((b.sonuc_data && b.sonuc_data.kayit_tarihi) || b.olusturma || 0).getTime();
+    return tb - ta;
+  })[0];
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DÖNEM KAPANIŞ
 // ═══════════════════════════════════════════════════════════════
@@ -545,7 +576,7 @@ async function localStorageMigration() {
 // ═══════════════════════════════════════════════════════════════
 // INIT LOG
 // ═══════════════════════════════════════════════════════════════
-console.log('[DataManager] v1.0 yüklendi — ' + Object.keys({
+console.log('[DataManager] v1.1 yüklendi — ' + Object.keys({
   mukellefleriGetir, mukellefEkle, mukellefGuncelle, mukellefSil,
   mizanKaydet, mizanGetir, mukellefMizanlariGetir, mizanSil,
   hesapEslemeGetir, hesapEslemeTumuGetir, hesapEslemeKaydet, hesapEslemeSil,
@@ -553,6 +584,7 @@ console.log('[DataManager] v1.0 yüklendi — ' + Object.keys({
   faturaKaydet, faturalarTopluKaydet, faturalariGetir, faturaSil,
   zRaporlariGetir, zRaporuKaydet, zRaporuSil,
   kontrolSonucuKaydet, kontrolSonuclariniGetir,
+  faturaMutabakatlariniGetir, sonSatisMutabakatiGetir, sonAlisMutabakatiGetir,
   donemKapanisKaydet, donemKapanisGetir,
   mukellefOzetiGetir, dmCloudLoad, dmCloudSave
 }).length + ' fonksiyon hazır');

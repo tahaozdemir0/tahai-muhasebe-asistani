@@ -2113,6 +2113,22 @@
 
           <!-- Sonuç ekranı -->
           <div id="faturaKarsSonuc" style="display:none; margin-top:24px;">
+            <!-- Mükellefe Kaydet Paneli -->
+            <div id="faturaKarsKaydetPaneli" style="background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(5,150,105,0.08)); border:2px solid #10b981; border-radius:12px; padding:16px 20px; margin-bottom:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+                <div style="flex:1; min-width:220px;">
+                  <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px;">AKTİF MÜKELLEF</div>
+                  <div style="font-size:16px; font-weight:700; color:#10b981; margin-top:2px;" id="faturaKarsAktifMukAd">— Mükellef seçilmedi —</div>
+                  <div style="font-size:12px; color:var(--text2); margin-top:4px;">
+                    <span id="faturaKarsAktifTur">Satış</span> • <span id="faturaKarsAktifDonem">2026-02</span>
+                  </div>
+                </div>
+                <button id="faturaKarsKaydetBtn" onclick="faturaKarsKaydetSupabase()" style="background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; padding:14px 26px; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3); white-space:nowrap;">
+                  💾 Mükellefe Kaydet
+                </button>
+              </div>
+            </div>
+
             <!-- AI Yorum Kutusu (sonuç ekranının en üstü) -->
             <div id="faturaKarsAIYorumKutu" style="display:none; background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(102,126,234,0.1)); border-left:4px solid #8b5cf6; border-radius:10px; padding:14px 18px; margin-bottom:20px;">
               <div style="font-size:11px; font-weight:700; color:#8b5cf6; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px;">🤖 AI Analiz Yorumu</div>
@@ -3041,6 +3057,30 @@
           <div id="kartSupabaseOzet" style="display:none; margin-bottom:16px;">
             <div style="font-size:12px; font-weight:600; margin-bottom:10px; color:var(--accent);">📋 Kayıtlı Kontrol Sonuçları</div>
             <div id="kartSupabaseOzetIcerik" style="font-size:12px; color:var(--text2);"></div>
+          </div>
+
+          <!-- Satış Fatura Mutabakatı -->
+          <div id="kartSatisMutabakat" style="display:none; background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(52,211,153,0.06)); border:1px solid #10b981; border-radius:10px; padding:14px 16px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-size:13px; font-weight:700; color:#10b981;">📤 Satış Faturaları</div>
+              <div style="font-size:11px; color:var(--text3);" id="kartSatisTarih">—</div>
+            </div>
+            <div id="kartSatisIcerik" style="font-size:12px; color:var(--text2);"></div>
+          </div>
+
+          <!-- Alış Fatura Mutabakatı -->
+          <div id="kartAlisMutabakat" style="display:none; background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(37,99,235,0.06)); border:1px solid #3b82f6; border-radius:10px; padding:14px 16px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-size:13px; font-weight:700; color:#3b82f6;">📥 Alış Faturaları</div>
+              <div style="font-size:11px; color:var(--text3);" id="kartAlisTarih">—</div>
+            </div>
+            <div id="kartAlisIcerik" style="font-size:12px; color:var(--text2);"></div>
+          </div>
+
+          <!-- KDV-1 Beyanname Hazırlık -->
+          <div id="kartKdv1Beyanname" style="display:none; background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(102,126,234,0.08)); border:2px solid #8b5cf6; border-radius:12px; padding:16px 20px; margin-bottom:16px;">
+            <div style="font-size:13px; font-weight:700; color:#8b5cf6; margin-bottom:10px;">📋 KDV-1 BEYANNAMESİ HAZIR</div>
+            <div id="kartKdv1Icerik" style="font-size:12px; color:var(--text2);"></div>
           </div>
 
           <!-- FİŞ ARŞİVİ -->
@@ -8800,6 +8840,38 @@ async function faturaKarsAnalizEt() {
 function _faturaKarsSonucRender(sonuc) {
   const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Kaydet paneli — aktif mükellef bilgisi
+  const mukAdEl = document.getElementById('faturaKarsAktifMukAd');
+  const turEl = document.getElementById('faturaKarsAktifTur');
+  const donemEl = document.getElementById('faturaKarsAktifDonem');
+  const kaydetBtn = document.getElementById('faturaKarsKaydetBtn');
+  if (mukAdEl) {
+    if (window.aktifMukellef && window.aktifMukellef.ad) {
+      mukAdEl.textContent = window.aktifMukellef.ad;
+      if (kaydetBtn) {
+        kaydetBtn.disabled = false;
+        kaydetBtn.style.opacity = '1';
+        kaydetBtn.style.cursor = 'pointer';
+      }
+    } else if (_gmSecili) {
+      mukAdEl.textContent = _gmSecili;
+      if (kaydetBtn) {
+        kaydetBtn.disabled = false;
+        kaydetBtn.style.opacity = '1';
+        kaydetBtn.style.cursor = 'pointer';
+      }
+    } else {
+      mukAdEl.textContent = '— Önce sol üstten mükellef seçin —';
+      if (kaydetBtn) {
+        kaydetBtn.disabled = true;
+        kaydetBtn.style.opacity = '0.5';
+        kaydetBtn.style.cursor = 'not-allowed';
+      }
+    }
+  }
+  if (turEl) turEl.textContent = sonuc.tur === 'satis' ? '📤 Satış' : '📥 Alış';
+  if (donemEl) donemEl.textContent = '2026-02';
+
   // AI Yorum kutusu (varsa göster)
   const yorumKutu = document.getElementById('faturaKarsAIYorumKutu');
   const yorumMetin = document.getElementById('faturaKarsAIYorumMetin');
@@ -8930,6 +9002,91 @@ function faturaKarsKategoriGoster(kategori) {
       </div>`;
   }
   detayEl.style.display = 'block';
+}
+
+// Fatura mutabakat sonucunu aktif mükellefe kaydet (kontrol_sonuclari.fatura_mutabakat)
+async function faturaKarsKaydetSupabase() {
+  if (!_faturaKarsSonucData) {
+    showNotif('⚠️ Önce karşılaştırma yap!', 'error');
+    return;
+  }
+
+  // Aktif mükellef belirle: window.aktifMukellef öncelikli, yoksa _gmSecili'den çöz
+  let mukId = window.aktifMukellef && window.aktifMukellef.id;
+  let mukAd = window.aktifMukellef && window.aktifMukellef.ad;
+  if (!mukId && _gmSecili) {
+    mukAd = _gmSecili;
+    try { mukId = await _getMukellefIdByAd(_gmSecili); } catch(e) {}
+  }
+  if (!mukId || !mukAd) {
+    showNotif('⚠️ Önce sol üstten mükellef seçin!', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('faturaKarsKaydetBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Kaydediliyor...'; }
+
+  try {
+    const sonuc = _faturaKarsSonucData;
+    const donem = document.getElementById('faturaKarsAktifDonem')?.textContent || '2026-02';
+
+    // sonuc_data payload
+    const sonucData = {
+      mutabakat_turu: sonuc.tur || _faturaKarsTur,
+      entegrator: {
+        toplam_kdv: (sonuc.entegrator && sonuc.entegrator.oranlar)
+          ? (parseFloat(sonuc.entegrator.oranlar['1'].kdv_toplam||0)
+             + parseFloat(sonuc.entegrator.oranlar['10'].kdv_toplam||0)
+             + parseFloat(sonuc.entegrator.oranlar['20'].kdv_toplam||0)) : 0,
+        gecerli: sonuc.entegrator ? (sonuc.entegrator.gecerli_fatura || 0) : 0,
+        iptal: sonuc.entegrator ? (sonuc.entegrator.iptal_fatura || 0) : 0,
+        oranlar: (sonuc.entegrator && sonuc.entegrator.oranlar) ? sonuc.entegrator.oranlar : {}
+      },
+      luca: {
+        toplam: (sonuc.luca && sonuc.luca.hesaplar)
+          ? Object.values(sonuc.luca.hesaplar).reduce((s,h) => s + parseFloat(h.toplam||0), 0) : 0,
+        hesaplar: (sonuc.luca && sonuc.luca.hesaplar) ? sonuc.luca.hesaplar : {}
+      },
+      karsilastirma: {
+        eslesen: Array.isArray(sonuc.eslesenler) ? sonuc.eslesenler.length : 0,
+        eksik: Array.isArray(sonuc.eksik) ? sonuc.eksik.length : 0,
+        fazla: Array.isArray(sonuc.fazla) ? sonuc.fazla.length : 0,
+        iptal: Array.isArray(sonuc.iptal) ? sonuc.iptal.length : 0,
+        oran_bazli: (sonuc.karsilastirma && sonuc.karsilastirma.oran_bazli) || [],
+        genel_fark: (sonuc.karsilastirma && sonuc.karsilastirma.genel_fark) || 0,
+        durum: (sonuc.karsilastirma && sonuc.karsilastirma.durum) || 'mutabik'
+      },
+      iptal_listesi: Array.isArray(sonuc.iptal) ? sonuc.iptal : [],
+      eksik_listesi: Array.isArray(sonuc.eksik) ? sonuc.eksik : [],
+      fazla_listesi: Array.isArray(sonuc.fazla) ? sonuc.fazla : [],
+      kayit_tarihi: new Date().toISOString()
+    };
+
+    // Risk: uyumsuzsa fark büyüklüğüne göre skor
+    let riskSkoru = 0;
+    if (sonucData.karsilastirma.durum !== 'mutabik') {
+      const fark = Math.abs(sonucData.karsilastirma.genel_fark);
+      if (fark > 10000) riskSkoru = 80;
+      else if (fark > 1000) riskSkoru = 50;
+      else if (fark > 10) riskSkoru = 25;
+      else riskSkoru = 10;
+    }
+
+    await kontrolSonucuKaydet(mukId, {
+      donem: donem,
+      kontrol_turu: 'fatura_mutabakat',
+      sonuc_data: sonucData,
+      risk_skoru: riskSkoru
+    });
+
+    console.log('[FaturaKars] Mutabakat kaydedildi:', mukAd, sonucData.mutabakat_turu);
+    showNotif('✅ ' + mukAd + ' mükellefine kaydedildi!', 'success');
+  } catch(e) {
+    console.error('[FaturaKars] Kayıt hatası:', e);
+    showNotif('❌ Kayıt hatası: ' + (e.message || e), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Mükellefe Kaydet'; }
+  }
 }
 
 function faturaKarsTemizle() {
@@ -9775,6 +9932,9 @@ async function _kartSupabaseOzetYukle(mukAd) {
   const mukId = await _getMukellefIdByAd(mukAd);
   if (!mukId) { ozetDiv.style.display = 'none'; return; }
 
+  // Paralel olarak fatura mutabakat kayıtlarını da yükle
+  _kartFaturaMutabakatRender(mukId).catch(e => console.warn('[Kart] Mutabakat render hatası:', e.message));
+
   ozetDiv.style.display = 'block';
   icerikDiv.innerHTML = '<span style="color:var(--text3)">Yükleniyor...</span>';
 
@@ -9866,6 +10026,209 @@ async function _kartSupabaseOzetYukle(mukAd) {
     console.warn('[Kart] Supabase özet hatası:', e.message);
     icerikDiv.innerHTML = '<span style="color:var(--text3);">Veri yüklenemedi.</span>';
   }
+}
+
+// ── Mükellef Kartı: Satış / Alış / KDV-1 Render ───────────────
+async function _kartFaturaMutabakatRender(mukellefId) {
+  const satisDiv = document.getElementById('kartSatisMutabakat');
+  const alisDiv = document.getElementById('kartAlisMutabakat');
+  const kdv1Div = document.getElementById('kartKdv1Beyanname');
+  if (!satisDiv || !alisDiv || !kdv1Div) return;
+
+  // Varsayılan: gizle
+  satisDiv.style.display = 'none';
+  alisDiv.style.display = 'none';
+  kdv1Div.style.display = 'none';
+
+  // data-manager.js yüklü değilse çık
+  if (typeof sonSatisMutabakatiGetir !== 'function' || typeof sonAlisMutabakatiGetir !== 'function') {
+    console.warn('[Kart] data-manager fonksiyonları yok');
+    return;
+  }
+
+  try {
+    const [satis, alis] = await Promise.all([
+      sonSatisMutabakatiGetir(mukellefId),
+      sonAlisMutabakatiGetir(mukellefId)
+    ]);
+    console.log('[Kart] Mutabakat yüklendi:', { satis: !!satis, alis: !!alis });
+
+    _kartSatisRender(satis);
+    _kartAlisRender(alis);
+    _kartKdv1BeyannameRender(satis, alis);
+  } catch(e) {
+    console.warn('[Kart] Mutabakat veri çekme hatası:', e.message);
+  }
+}
+
+// Satış mutabakat özetini render et
+function _kartSatisRender(kayit) {
+  const div = document.getElementById('kartSatisMutabakat');
+  const icerik = document.getElementById('kartSatisIcerik');
+  const tarihEl = document.getElementById('kartSatisTarih');
+  if (!div || !icerik) return;
+
+  if (!kayit || !kayit.sonuc_data) {
+    div.style.display = 'block';
+    icerik.innerHTML = '<span style="color:var(--text3);">Henüz satış mutabakatı yapılmamış. AI KDV Mutabakat sekmesinden yapabilirsiniz.</span>';
+    if (tarihEl) tarihEl.textContent = '';
+    return;
+  }
+
+  const d = kayit.sonuc_data;
+  const olusturma = kayit.olusturma ? new Date(kayit.olusturma).toLocaleString('tr-TR') : '—';
+  if (tarihEl) tarihEl.textContent = 'Son güncelleme: ' + olusturma;
+
+  const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const oranlar = (d.entegrator && d.entegrator.oranlar) || {};
+  const k1 = parseFloat((oranlar['1'] && oranlar['1'].kdv_toplam) || (oranlar['1'] && oranlar['1'].kdv) || 0);
+  const k10 = parseFloat((oranlar['10'] && oranlar['10'].kdv_toplam) || (oranlar['10'] && oranlar['10'].kdv) || 0);
+  const k20 = parseFloat((oranlar['20'] && oranlar['20'].kdv_toplam) || (oranlar['20'] && oranlar['20'].kdv) || 0);
+  const toplam = k1 + k10 + k20;
+
+  const durum = (d.karsilastirma && d.karsilastirma.durum) || 'mutabik';
+  const durumIcon = durum === 'mutabik' ? '✅' : '⚠️';
+  const durumMetin = durum === 'mutabik' ? 'MUTABIK' : 'UYUMSUZ';
+  const durumRenk = durum === 'mutabik' ? '#10b981' : '#ef4444';
+
+  const eslesen = (d.karsilastirma && d.karsilastirma.eslesen) || 0;
+  const iptal = (d.karsilastirma && d.karsilastirma.iptal) || 0;
+  const eksik = (d.karsilastirma && d.karsilastirma.eksik) || 0;
+
+  div.style.display = 'block';
+  icerik.innerHTML = `
+    <div style="font-family:'IBM Plex Mono',monospace; line-height:1.8;">
+      <div style="display:flex;justify-content:space-between;"><span>%1 KDV:</span><span>${_f(k1)} ₺</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>%10 KDV:</span><span>${_f(k10)} ₺</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>%20 KDV:</span><span>${_f(k20)} ₺</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700;">
+        <span>TOPLAM:</span><span style="color:#10b981;">${_f(toplam)} ₺</span>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+      Eşleşen: <strong>${eslesen}</strong> • İptal: <strong>${iptal}</strong> • Eksik: <strong>${eksik}</strong>
+    </div>
+    <div style="margin-top:8px;color:${durumRenk};font-weight:700;">Durum: ${durumIcon} ${durumMetin}</div>
+  `;
+}
+
+// Alış mutabakat özetini render et
+function _kartAlisRender(kayit) {
+  const div = document.getElementById('kartAlisMutabakat');
+  const icerik = document.getElementById('kartAlisIcerik');
+  const tarihEl = document.getElementById('kartAlisTarih');
+  if (!div || !icerik) return;
+
+  if (!kayit || !kayit.sonuc_data) {
+    div.style.display = 'block';
+    icerik.innerHTML = '<span style="color:var(--text3);">Henüz alış mutabakatı yapılmamış. AI KDV Mutabakat sekmesinden yapabilirsiniz.</span>';
+    if (tarihEl) tarihEl.textContent = '';
+    return;
+  }
+
+  const d = kayit.sonuc_data;
+  const olusturma = kayit.olusturma ? new Date(kayit.olusturma).toLocaleString('tr-TR') : '—';
+  if (tarihEl) tarihEl.textContent = 'Son güncelleme: ' + olusturma;
+
+  const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const oranlar = (d.entegrator && d.entegrator.oranlar) || {};
+  const k1 = parseFloat((oranlar['1'] && oranlar['1'].kdv_toplam) || (oranlar['1'] && oranlar['1'].kdv) || 0);
+  const k10 = parseFloat((oranlar['10'] && oranlar['10'].kdv_toplam) || (oranlar['10'] && oranlar['10'].kdv) || 0);
+  const k20 = parseFloat((oranlar['20'] && oranlar['20'].kdv_toplam) || (oranlar['20'] && oranlar['20'].kdv) || 0);
+  const toplam = k1 + k10 + k20;
+
+  const durum = (d.karsilastirma && d.karsilastirma.durum) || 'mutabik';
+  const durumIcon = durum === 'mutabik' ? '✅' : '⚠️';
+  const durumMetin = durum === 'mutabik' ? 'MUTABIK' : 'UYUMSUZ';
+  const durumRenk = durum === 'mutabik' ? '#3b82f6' : '#ef4444';
+
+  const eslesen = (d.karsilastirma && d.karsilastirma.eslesen) || 0;
+  const iptal = (d.karsilastirma && d.karsilastirma.iptal) || 0;
+  const eksik = (d.karsilastirma && d.karsilastirma.eksik) || 0;
+
+  div.style.display = 'block';
+  icerik.innerHTML = `
+    <div style="font-family:'IBM Plex Mono',monospace; line-height:1.8;">
+      <div style="display:flex;justify-content:space-between;"><span>%1 KDV:</span><span>${_f(k1)} ₺</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>%10 KDV:</span><span>${_f(k10)} ₺</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>%20 KDV:</span><span>${_f(k20)} ₺</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:700;">
+        <span>TOPLAM:</span><span style="color:#3b82f6;">${_f(toplam)} ₺</span>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+      Eşleşen: <strong>${eslesen}</strong> • İptal: <strong>${iptal}</strong> • Eksik: <strong>${eksik}</strong>
+    </div>
+    <div style="margin-top:8px;color:${durumRenk};font-weight:700;">Durum: ${durumIcon} ${durumMetin}</div>
+  `;
+}
+
+// KDV-1 Beyanname hazırlık özeti (satış + alış + ödenecek)
+function _kartKdv1BeyannameRender(satis, alis) {
+  const div = document.getElementById('kartKdv1Beyanname');
+  const icerik = document.getElementById('kartKdv1Icerik');
+  if (!div || !icerik) return;
+
+  // En az biri olmalı
+  if (!satis && !alis) { div.style.display = 'none'; return; }
+
+  div.style.display = 'block';
+  const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Sadece biri varsa uyarı
+  if (!alis && satis) {
+    icerik.innerHTML = '<div style="padding:10px;background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;border-radius:6px;font-size:12px;color:var(--text2);">⚠️ Alış mutabakatı henüz yapılmamış. KDV-1 hesabı için alış mutabakatını da yapın.</div>';
+    return;
+  }
+  if (!satis && alis) {
+    icerik.innerHTML = '<div style="padding:10px;background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;border-radius:6px;font-size:12px;color:var(--text2);">⚠️ Satış mutabakatı henüz yapılmamış. KDV-1 hesabı için satış mutabakatını da yapın.</div>';
+    return;
+  }
+
+  // İkisi de var → KDV-1 hesapla
+  const _ozet = (kayit) => {
+    const oranlar = (kayit.sonuc_data && kayit.sonuc_data.entegrator && kayit.sonuc_data.entegrator.oranlar) || {};
+    const k1 = parseFloat((oranlar['1'] && oranlar['1'].kdv_toplam) || (oranlar['1'] && oranlar['1'].kdv) || 0);
+    const k10 = parseFloat((oranlar['10'] && oranlar['10'].kdv_toplam) || (oranlar['10'] && oranlar['10'].kdv) || 0);
+    const k20 = parseFloat((oranlar['20'] && oranlar['20'].kdv_toplam) || (oranlar['20'] && oranlar['20'].kdv) || 0);
+    return { k1, k10, k20, toplam: k1 + k10 + k20 };
+  };
+
+  const hes = _ozet(satis);
+  const ind = _ozet(alis);
+  const odenecek = hes.toplam - ind.toplam;
+  const odenecekRenk = odenecek >= 0 ? '#ef4444' : '#10b981';
+  const odenecekLabel = odenecek >= 0 ? 'ÖDENECEK KDV' : 'DEVREDEN KDV';
+
+  icerik.innerHTML = `
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.8;">
+      <div style="color:#10b981; font-weight:700; margin-bottom:4px;">Hesaplanan KDV (Satış):</div>
+      <div style="padding-left:12px;">
+        <div style="display:flex;justify-content:space-between;"><span>%1:</span><span>${_f(hes.k1)} ₺</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>%10:</span><span>${_f(hes.k10)} ₺</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>%20:</span><span>${_f(hes.k20)} ₺</span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:3px;margin-top:3px;">
+          <span>Toplam:</span><span style="color:#10b981;font-weight:700;">${_f(hes.toplam)} ₺</span>
+        </div>
+      </div>
+
+      <div style="color:#3b82f6; font-weight:700; margin-top:10px; margin-bottom:4px;">İndirilecek KDV (Alış):</div>
+      <div style="padding-left:12px;">
+        <div style="display:flex;justify-content:space-between;"><span>%1:</span><span>${_f(ind.k1)} ₺</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>%10:</span><span>${_f(ind.k10)} ₺</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>%20:</span><span>${_f(ind.k20)} ₺</span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:3px;margin-top:3px;">
+          <span>Toplam:</span><span style="color:#3b82f6;font-weight:700;">${_f(ind.toplam)} ₺</span>
+        </div>
+      </div>
+
+      <div style="border-top:2px solid #8b5cf6; margin-top:10px; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700;">${odenecekLabel}:</span>
+        <span style="font-weight:700; color:${odenecekRenk}; font-size:16px;">${_f(Math.abs(odenecek))} ₺</span>
+      </div>
+    </div>
+    <div style="margin-top:10px; font-size:11px; color:var(--text3);">✅ Bu rakam GİB beyannamesine direkt girilebilir</div>
+  `;
 }
 
 function kartModalKapat() {
