@@ -8052,21 +8052,45 @@ async function _faturaKarsDosyaParse(file) {
   });
 }
 
-// Türkçe sayı formatını parse et: "1.234,56" → 1234.56
+// Sayı parse: number, Türkçe ("1.234,56"), İngilizce ("1,234.56"), sade ("1234")
 function _faturaKarsSayiParse(val) {
   if (val === null || val === undefined || val === '') return 0;
-  if (typeof val === 'number') return val;
+
+  // Zaten number ise direkt döndür
+  if (typeof val === 'number') {
+    return isNaN(val) ? 0 : val;
+  }
+
   let s = String(val).trim();
   if (!s) return 0;
+
   // Negatif parantez: (123,45) → -123.45
   const negatif = /^\(.*\)$/.test(s);
   s = s.replace(/[()]/g, '').replace(/[^\d,.\-]/g, '');
-  // TR formatı: 1.234,56 — nokta binlik, virgül ondalık
-  if (s.indexOf(',') > -1) {
-    s = s.replace(/\./g, '').replace(',', '.');
+
+  let sayi;
+  // Hem nokta hem virgül: TR binlik ayırıcı + virgül ondalık
+  if (s.includes(',') && s.includes('.')) {
+    // Hangisi son? Son gelen ondalık ayırıcıdır
+    const sonNokta = s.lastIndexOf('.');
+    const sonVirgul = s.lastIndexOf(',');
+    if (sonVirgul > sonNokta) {
+      // TR: "1.234,56"
+      sayi = parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    } else {
+      // EN: "1,234.56"
+      sayi = parseFloat(s.replace(/,/g, ''));
+    }
+  } else if (s.includes(',')) {
+    // Sadece virgül: TR ondalık "123,45"
+    sayi = parseFloat(s.replace(',', '.'));
+  } else {
+    // Sadece nokta veya sade sayı: "1234.56" / "1234"
+    sayi = parseFloat(s);
   }
-  const n = parseFloat(s) || 0;
-  return negatif ? -n : n;
+
+  if (isNaN(sayi)) return 0;
+  return negatif ? -sayi : sayi;
 }
 
 // Deterministik header tanıma — AI'a sormadan önce dene
@@ -8244,7 +8268,19 @@ Header'a bakarak sütun indekslerini bul. Sütun yoksa null. Indexler 0'dan baş
 
 // Entegratör işleme: sıkı iptal kontrolü + 5 oran desteği (%1, %8, %10, %18, %20)
 function _faturaKarsEntegratorIsle(rows, sutunHaritasi) {
-  const iptalKelimeleri = ['iptal','ıptal','red','reddedildi','iade','cancel','e-arşiv iptal','e-arsiv iptal'];
+  // İptal kelimeleri — hem Türkçe hem normalize edilmiş halleri
+  const iptalKelimeleri = [
+    'iptal',          // normal + normalize
+    'red',
+    'reddedildi',
+    'iade',
+    'cancel',
+    'arsiv iptal',    // normalize edilmiş "arşiv iptal"
+    'arşiv iptal',
+    'iptal edildi',
+    'iptal edilmis',
+    'iptal edilmiş'
+  ];
 
   const sonuc = {
     toplam_satir: Math.max(0, rows.length - 1),
@@ -8275,7 +8311,14 @@ function _faturaKarsEntegratorIsle(rows, sutunHaritasi) {
 
     const faturaNo = (fnIdx != null) ? _temizNo(row[fnIdx]) : '';
     const firma = (firmaIdx != null) ? String(row[firmaIdx]||'').trim() : '';
-    const durum = (durumIdx != null) ? String(row[durumIdx]||'').toLowerCase().trim() : '';
+    // Türkçe locale + NFKD normalize (İ→i combining sorunu için)
+    const durum = (durumIdx != null)
+      ? String(row[durumIdx] || '')
+          .toLocaleLowerCase('tr-TR')
+          .normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '') // combining karakterleri temizle
+          .trim()
+      : '';
     const vkn = (sutunHaritasi.vkn_idx != null) ? String(row[sutunHaritasi.vkn_idx]||'').trim() : '';
     const tarih = (sutunHaritasi.tarih_idx != null) ? String(row[sutunHaritasi.tarih_idx]||'').trim() : '';
 
@@ -8283,6 +8326,14 @@ function _faturaKarsEntegratorIsle(rows, sutunHaritasi) {
 
     // İptal kontrolü
     const iptal = iptalKelimeleri.some(k => durum.includes(k));
+
+    // GOYA / EAR2026000000019 için debug log
+    const firmaAltCase = firma.toLocaleLowerCase('tr-TR');
+    if (faturaNo.includes('EAR2026000000019') || firmaAltCase.includes('goya')) {
+      console.log('[GOYA Debug] row[durum_idx]:', JSON.stringify(durumIdx != null ? row[durumIdx] : null));
+      console.log('[GOYA Debug] durum (normalize):', JSON.stringify(durum));
+      console.log('[GOYA Debug] iptal kontrol sonucu:', iptal);
+    }
 
     if (iptal) {
       // Sebep belirle
@@ -8418,6 +8469,14 @@ function _faturaKarsLucaParse(rows, tur) {
     // BKU veya EAR içermeli (gerçek fatura satırı) — yoksa hareket satırı ama fatura değil
     // Bu durumda hareket hesap toplamına etki ediyor olabilir (virman, tahakkuk vs)
     const faturaNoMatch = aciklama.match(/(BKU|EAR)\d+/i);
+
+    // 391.01.020 için satır bazlı debug log (ilk 5 satır)
+    if (aktif_hesap === '391.01.020' && faturaNoMatch && sonuc.hesaplar[aktif_hesap].fatura_sayisi < 5) {
+      console.log('[Luca Debug] 391.01.020 satır ' + i + ':',
+        'borc raw:', JSON.stringify(row[4]), '→', borc,
+        'alacak raw:', JSON.stringify(row[5]), '→', alacak,
+        'fatura:', faturaNoMatch[0]);
+    }
 
     // Her borç/alacak satırını hesap toplamına ekle (NET hesap için)
     sonuc.hesaplar[aktif_hesap].alacak_top += alacak;
