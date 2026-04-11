@@ -404,6 +404,19 @@
     margin-top: 8px;
   }
 
+  /* Yeni kategori başlıkları (VERİ İŞLEME / KONTROL PANELİ / ARAÇLAR / ÇIKTI) */
+  .sidebar-kategori {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    padding: 8px 16px 4px;
+    margin-top: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .sidebar-kategori:first-child { margin-top: 8px; }
+
   .sidebar-item {
     display: flex;
     align-items: center;
@@ -1566,56 +1579,55 @@
 
 <main id="appMain" style="display:none">
   <div class="sidebar">
-    <div class="sidebar-label">Modüller</div>
+    <!-- ─── VERİ İŞLEME ─── -->
+    <div class="sidebar-kategori">Veri İşleme</div>
     <div class="sidebar-item active" onclick="showPage('z-raporu')">
-      <span class="sidebar-icon">🧾</span> Z Raporu
+      <span class="sidebar-icon">📊</span> Z Raporu
     </div>
     <div class="sidebar-item" onclick="showPage('fisler')">
-      <span class="sidebar-icon">🗂️</span> Fişler
+      <span class="sidebar-icon">🧾</span> Fişler
     </div>
     <div class="sidebar-item" onclick="showPage('faturalar')">
       <span class="sidebar-icon">📄</span> Faturalar
     </div>
     <div class="sidebar-item" onclick="showPage('mizan')">
-      <span class="sidebar-icon">📊</span> Mizan
+      <span class="sidebar-icon">📒</span> Mizan
     </div>
-    <div class="sidebar-label">Araçlar</div>
+
+    <!-- ─── KONTROL PANELİ ─── -->
+    <div class="sidebar-kategori">Kontrol Paneli</div>
+    <div class="sidebar-item" onclick="showPage('mukellef-kart')">
+      <span class="sidebar-icon">🏢</span> Mükellef Kartı
+    </div>
+    <div class="sidebar-item" onclick="showKontrolPaneli('beyanname-kontrol', this)">
+      <span class="sidebar-icon">📋</span> Beyanname Kontrol
+    </div>
+    <div class="sidebar-item" onclick="showKontrolPaneli('donem-kapanis', this)">
+      <span class="sidebar-icon">✅</span> Dönem Kapanış
+    </div>
+    <div class="sidebar-item" onclick="showKontrolPaneli('risk-raporu', this)">
+      <span class="sidebar-icon">⚠️</span> Risk Raporu
+    </div>
+
+    <!-- ─── ARAÇLAR ─── -->
+    <div class="sidebar-kategori">Araçlar</div>
     <div class="sidebar-item" onclick="showPage('hatirlatici')">
       <span class="sidebar-icon">🔔</span> Hatırlatıcı
-    </div>
-    <div class="sidebar-item" onclick="showPage('kamera')">
-      <span class="sidebar-icon">📷</span> Kamera
     </div>
     <div class="sidebar-item" onclick="showPage('hesaplamalar')">
       <span class="sidebar-icon">🧮</span> Hesaplamalar
     </div>
-    <div class="sidebar-item" onclick="showPage('mukellef-kart')">
-      <span class="sidebar-icon">👤</span> Mükellef Kartı
-    </div>
     <div class="sidebar-item" onclick="showPage('beyanname-takvim')">
       <span class="sidebar-icon">📅</span> Beyanname Takvimi
     </div>
-    <div class="sidebar-label">Çıktı</div>
+
+    <!-- ─── ÇIKTI ─── -->
+    <div class="sidebar-kategori">Çıktı</div>
     <div class="sidebar-item" onclick="showPage('sonuclar')">
       <span class="sidebar-icon">📊</span> Sonuçlar
     </div>
     <div class="sidebar-item" onclick="showPage('ayarlar')">
       <span class="sidebar-icon">⚙️</span> Ayarlar
-    </div>
-
-    <!-- Kontrol Paneli kategorisi -->
-    <div class="sidebar-label">Kontrol Paneli</div>
-    <div class="sidebar-subitem" onclick="showKontrolPaneli('beyanname-kontrol', this)">
-      <span class="sidebar-icon">📋</span> Beyanname Kontrol
-    </div>
-    <div class="sidebar-subitem" onclick="showKontrolPaneli('kdv-mutabakat', this)">
-      <span class="sidebar-icon">🔍</span> KDV Mutabakat
-    </div>
-    <div class="sidebar-subitem" onclick="showKontrolPaneli('donem-kapanis', this)">
-      <span class="sidebar-icon">✅</span> Dönem Kapanış
-    </div>
-    <div class="sidebar-subitem" onclick="showKontrolPaneli('risk-raporu', this)">
-      <span class="sidebar-icon">⚠️</span> Risk Raporu
     </div>
   </div>
 
