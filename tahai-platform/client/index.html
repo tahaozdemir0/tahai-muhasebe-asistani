@@ -8069,8 +8069,118 @@ function _faturaKarsSayiParse(val) {
   return negatif ? -n : n;
 }
 
-// AI'dan entegratör CSV için sütun haritası al (sadece ilk 5 satır)
+// Deterministik header tanıma — AI'a sormadan önce dene
+// Türkçe karakter normalize + sütun ismi eşleştirme
+function _faturaKarsHeaderTanima(headerRow) {
+  const harita = {};
+  const normalize = (s) => String(s || '')
+    .toLowerCase()
+    .replace(/ı/g, 'i').replace(/İ/g, 'i').replace(/i̇/g, 'i')
+    .replace(/ş/g, 's').replace(/Ş/g, 's')
+    .replace(/ö/g, 'o').replace(/Ö/g, 'o')
+    .replace(/ü/g, 'u').replace(/Ü/g, 'u')
+    .replace(/ğ/g, 'g').replace(/Ğ/g, 'g')
+    .replace(/ç/g, 'c').replace(/Ç/g, 'c')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  for (let i = 0; i < headerRow.length; i++) {
+    const baslik = normalize(headerRow[i]);
+    if (!baslik) continue;
+
+    // ── FATURA NO ──
+    if (baslik === 'fatura no' || baslik === 'fatura numarasi' || baslik === 'belge no' || baslik === 'belge numarasi') {
+      if (harita.fatura_no_idx === undefined) harita.fatura_no_idx = i;
+      continue;
+    }
+    // ── FİRMA / ALICI / MÜŞTERİ ──
+    if (baslik === 'alici' || baslik === 'firma' || baslik === 'musteri' || baslik === 'alici unvani' || baslik === 'firma adi' || baslik === 'unvan' || baslik === 'alici adi') {
+      if (harita.firma_idx === undefined) harita.firma_idx = i;
+      continue;
+    }
+    // ── VKN/TCKN ──
+    if (baslik.includes('vkn') || baslik.includes('vergi no') || baslik.includes('tckn') || baslik.includes('vergi kimlik')) {
+      if (harita.vkn_idx === undefined) harita.vkn_idx = i;
+      continue;
+    }
+    // ── FATURA DURUMU (KRİTİK! Tarihten ÖNCE kontrol et) ──
+    if (baslik === 'fatura durumu' || baslik === 'durum' || baslik === 'statu' || baslik === 'fatura statusu' || baslik === 'belge durumu') {
+      if (harita.durum_idx === undefined) harita.durum_idx = i;
+      continue;
+    }
+    // ── TARİH ──
+    if (baslik === 'fatura tarihi' || baslik === 'tarih' || baslik === 'belge tarihi' || baslik === 'duzenlenme tarihi') {
+      if (harita.tarih_idx === undefined) harita.tarih_idx = i;
+      continue;
+    }
+    // ── TOPLAM KDV ──
+    if (baslik === 'toplam kdv' || baslik === 'kdv toplam' || baslik === 'kdv tutari toplam') {
+      if (harita.toplam_kdv_idx === undefined) harita.toplam_kdv_idx = i;
+      continue;
+    }
+    // ── ÖDENECEK TUTAR ──
+    if (baslik === 'odenecek tutar' || baslik === 'toplam tutar' || baslik === 'genel toplam' || baslik === 'fatura tutari') {
+      if (harita.toplam_idx === undefined) harita.toplam_idx = i;
+      continue;
+    }
+
+    // ── KDV ORAN BAZLI ──
+    // "KDV %1 Tutar", "KDV %10 Tutar", "KDV %20 Tutar" — KDV (oran) Tutar
+    let kdvMatch = baslik.match(/^kdv\s*%?\s*(\d+)\s*tutar$/);
+    if (kdvMatch) {
+      const or = kdvMatch[1];
+      if (harita['kdv_' + or + '_idx'] === undefined) harita['kdv_' + or + '_idx'] = i;
+      continue;
+    }
+    // Alternatif: "%1 KDV Tutar" / "%20 KDV Tutar"
+    kdvMatch = baslik.match(/^%?\s*(\d+)\s*kdv\s*tutar$/);
+    if (kdvMatch) {
+      const or = kdvMatch[1];
+      if (harita['kdv_' + or + '_idx'] === undefined) harita['kdv_' + or + '_idx'] = i;
+      continue;
+    }
+
+    // "%1 KDV Matrah Tutar", "%20 KDV Matrah Tutar"
+    let matrahMatch = baslik.match(/^%?\s*(\d+)\s*kdv\s*matrah/);
+    if (matrahMatch) {
+      const or = matrahMatch[1];
+      if (harita['matrah_' + or + '_idx'] === undefined) harita['matrah_' + or + '_idx'] = i;
+      continue;
+    }
+    // Alternatif: "KDV %1 Matrah"
+    matrahMatch = baslik.match(/^kdv\s*%?\s*(\d+)\s*matrah/);
+    if (matrahMatch) {
+      const or = matrahMatch[1];
+      if (harita['matrah_' + or + '_idx'] === undefined) harita['matrah_' + or + '_idx'] = i;
+      continue;
+    }
+  }
+
+  console.log('[FaturaKars] Header tanıma sonucu:', harita);
+  return harita;
+}
+
+// Entegratör CSV için sütun haritası — önce deterministik, sonra AI fallback
 async function _faturaKarsSutunHaritasi(rows) {
+  // ─── AŞAMA A: Deterministik header tanıma (öncelikli) ───
+  const headerRow = Array.isArray(rows[0]) ? rows[0] : [];
+  const direktHarita = _faturaKarsHeaderTanima(headerRow);
+
+  // Kritik alanlar: fatura_no + durum + en az bir KDV sütunu
+  const kritikAlanlar = ['fatura_no_idx', 'durum_idx'];
+  const kdvAlanlar = ['kdv_1_idx', 'kdv_8_idx', 'kdv_10_idx', 'kdv_18_idx', 'kdv_20_idx'];
+
+  const eksikKritik = kritikAlanlar.filter(k => direktHarita[k] === undefined);
+  const kdvBulundu = kdvAlanlar.some(k => direktHarita[k] !== undefined);
+
+  if (eksikKritik.length === 0 && kdvBulundu) {
+    console.log('[FaturaKars] Deterministik tanıma başarılı, AI kullanılmadı');
+    return direktHarita;
+  }
+
+  console.log('[FaturaKars] Eksik alanlar var, AI\'ya soruluyor. Eksikler:', eksikKritik, 'KDV bulundu:', kdvBulundu);
+
+  // ─── AŞAMA B: AI fallback (deterministik yetersizse) ───
   const ilkSatirlar = rows.slice(0, 5)
     .map((row, i) => '[' + i + '] ' + (Array.isArray(row) ? row : []).map(c => String(c||'').trim()).join(' | '))
     .join('\n');
@@ -8117,12 +8227,19 @@ Header'a bakarak sütun indekslerini bul. Sütun yoksa null. Indexler 0'dan baş
 }`;
 
   const raw = await callClaude(prompt);
-  let harita;
-  try { harita = safeParseJSON(raw); }
+  let aiHarita;
+  try { aiHarita = safeParseJSON(raw); }
   catch(e) { throw new Error('AI sütun haritası JSON olarak okunamadı'); }
-  if (!harita || typeof harita !== 'object') throw new Error('AI geçersiz sütun haritası döndü');
-  console.log('[FaturaKars] Sütun haritası:', harita);
-  return harita;
+  if (!aiHarita || typeof aiHarita !== 'object') throw new Error('AI geçersiz sütun haritası döndü');
+
+  // Deterministik haritayı AI sonucuyla birleştir (deterministik öncelikli)
+  const birlesik = { ...aiHarita, ...direktHarita };
+  // null/0 garip değerleri temizle
+  Object.keys(birlesik).forEach(k => {
+    if (birlesik[k] === null) delete birlesik[k];
+  });
+  console.log('[FaturaKars] AI fallback sütun haritası:', birlesik);
+  return birlesik;
 }
 
 // Entegratör işleme: sıkı iptal kontrolü + 5 oran desteği (%1, %8, %10, %18, %20)
@@ -8236,10 +8353,11 @@ function _faturaKarsEntegratorIsle(rows, sutunHaritasi) {
 //  Satır 5: TARİH | TİP | FİŞ NO | AÇIKLAMA | BORÇ | ALACAK | BAKİYE | B/A
 //  Satır 6: Nakli Yekün (ATLA)
 //  Satır 7+: Hareketler
-// Bir dosyada birden fazla hesap bloğu olabilir
+// Bir dosyada birden fazla hesap bloğu olabilir (391.01.xxx, 391.04.xxx vs)
+// Her hesap için NET TUTAR = alacak_top - borc_top (satış), borc_top - alacak_top (alış)
 function _faturaKarsLucaParse(rows, tur) {
   const sonuc = {
-    hesaplar: {},           // '391.01.020' → { kod, ad, toplam, fatura_sayisi, kayitlar }
+    hesaplar: {},           // '391.01.020' → { kod, ad, toplam, alacak_top, borc_top, fatura_sayisi, kayitlar }
     tum_kayitlar: [],
     toplam: 0
   };
@@ -8252,9 +8370,10 @@ function _faturaKarsLucaParse(rows, tur) {
     if (!Array.isArray(row) || row.length === 0) continue;
 
     const ilkKolon = String(row[0] || '').trim();
+    const ilkKolonLower = ilkKolon.toLowerCase();
 
     // Hesap kodu satırı tespiti (sütun 0'da)
-    // Pattern: "391.01.020 Hesaplanan kdv %20"
+    // Pattern: "391.01.020 Hesaplanan kdv %20" veya "391.04.020 DEMİRBAŞ SATIŞ KDV %20"
     const hesapMatch = ilkKolon.match(/^(\d{3}\.\d{2}\.\d{3})\s+(.+)/);
     if (hesapMatch) {
       aktif_hesap = hesapMatch[1];
@@ -8264,6 +8383,8 @@ function _faturaKarsLucaParse(rows, tur) {
           kod: aktif_hesap,
           ad: aktif_hesap_adi,
           toplam: 0,
+          alacak_top: 0,
+          borc_top: 0,
           fatura_sayisi: 0,
           kayitlar: []
         };
@@ -8279,19 +8400,33 @@ function _faturaKarsLucaParse(rows, tur) {
 
     // Açıklama sütunu (index 3)
     const aciklama = String(row[3] || '').trim();
+    const aciklamaLower = aciklama.toLowerCase();
 
-    // Nakli Yekün / Toplam / Devir satırlarını atla
-    if (/nakli|yek[uü]n|devir/i.test(aciklama) || /nakli|yek[uü]n|devir/i.test(ilkKolon)) continue;
-
-    // BKU veya EAR içermeli (gerçek fatura satırı)
-    const faturaNoMatch = aciklama.match(/(BKU|EAR)\d+/i);
-    if (!faturaNoMatch) continue;
+    // Nakli Yekün / Nakli Yekün Hariç / Genel Toplam / Devir / Dönem Başı satırlarını atla
+    if (/nakli\s*yek[uü]n/i.test(aciklama)   || /nakli\s*yek[uü]n/i.test(ilkKolon)   ||
+        /genel\s*toplam/i.test(aciklama)      || /genel\s*toplam/i.test(ilkKolon)      ||
+        /ara\s*toplam/i.test(aciklama)        || /ara\s*toplam/i.test(ilkKolon)        ||
+        /devir/i.test(aciklama)               || /devir/i.test(ilkKolon)               ||
+        /donem\s*basi|dönem\s*başı/i.test(aciklamaLower)) {
+      continue;
+    }
 
     // Borç (sütun 4) ve Alacak (sütun 5)
     const borc = _faturaKarsSayiParse(row[4]);
     const alacak = _faturaKarsSayiParse(row[5]);
 
-    // Satış için alacak, alış için borç
+    // BKU veya EAR içermeli (gerçek fatura satırı) — yoksa hareket satırı ama fatura değil
+    // Bu durumda hareket hesap toplamına etki ediyor olabilir (virman, tahakkuk vs)
+    const faturaNoMatch = aciklama.match(/(BKU|EAR)\d+/i);
+
+    // Her borç/alacak satırını hesap toplamına ekle (NET hesap için)
+    sonuc.hesaplar[aktif_hesap].alacak_top += alacak;
+    sonuc.hesaplar[aktif_hesap].borc_top += borc;
+
+    // Fatura satırı değilse (virman/tahakkuk vs) kayıt listesine ekleme
+    if (!faturaNoMatch) continue;
+
+    // Satış için alacak, alış için borç kullanılır (fatura tutarı olarak)
     const tutar = (tur === 'satis') ? alacak : borc;
     if (tutar === 0) continue;
 
@@ -8309,15 +8444,23 @@ function _faturaKarsLucaParse(rows, tur) {
       fatura_no: faturaNoMatch[0].toUpperCase(),
       firma: firma,
       tutar: tutar,
+      borc: borc,
+      alacak: alacak,
       hesap_kodu: aktif_hesap
     };
 
     sonuc.hesaplar[aktif_hesap].kayitlar.push(kayit);
-    sonuc.hesaplar[aktif_hesap].toplam += tutar;
     sonuc.hesaplar[aktif_hesap].fatura_sayisi++;
     sonuc.tum_kayitlar.push(kayit);
-    sonuc.toplam += tutar;
   }
+
+  // Her hesap için NET TUTAR hesapla (devir kapama virmanlarını sıfırla)
+  Object.values(sonuc.hesaplar).forEach(h => {
+    const net = (tur === 'satis') ? (h.alacak_top - h.borc_top) : (h.borc_top - h.alacak_top);
+    h.toplam = net;
+    sonuc.toplam += net;
+    console.log('[FaturaKars] Hesap', h.kod, '-', h.ad, 'alacak:', h.alacak_top.toFixed(2), 'borç:', h.borc_top.toFixed(2), 'net:', net.toFixed(2));
+  });
 
   console.log('[FaturaKars] Luca parse:', sonuc.tum_kayitlar.length, 'kayıt, hesaplar:', Object.keys(sonuc.hesaplar));
   return sonuc;
@@ -8394,22 +8537,38 @@ function _faturaKarsKarsilastir(entegratorSonuc, lucaSonuc, tur) {
     });
   }
 
-  // Oran bazlı karşılaştırma — tüm 5 oran (sadece veri olanları göster)
-  const oranHesapMap = {
-    '1':  ['391.01.001', '191.01.001'],
-    '8':  ['391.01.008', '191.01.008'],
-    '10': ['391.01.010', '191.01.010'],
-    '18': ['391.01.018', '191.01.018'],
-    '20': ['391.01.020', '191.01.020']
+  // Oran bazlı karşılaştırma — SADECE 391.01.XXX / 191.01.XXX (ana satış/alış KDV hesapları)
+  // 391.04.XXX (demirbaş), 391.02, 391.03 gibi alt hesaplar oran toplamına dahil EDİLMEZ
+  // Bunlar ayrı "diger_hesaplar" listesinde gösterilir
+  const oranHesapMap = tur === 'satis' ? {
+    '1':  '391.01.001',
+    '8':  '391.01.008',
+    '10': '391.01.010',
+    '18': '391.01.018',
+    '20': '391.01.020'
+  } : {
+    '1':  '191.01.001',
+    '8':  '191.01.008',
+    '10': '191.01.010',
+    '18': '191.01.018',
+    '20': '191.01.020'
   };
+
+  // Oran toplamına dahil edilmeyen "diğer" hesaplar (391.04.020 demirbaş vs)
+  sonuc.diger_hesaplar = [];
+  const oranHesapSet = new Set(Object.values(oranHesapMap));
+  Object.values(lucaSonuc.hesaplar).forEach(h => {
+    if (!oranHesapSet.has(h.kod)) {
+      sonuc.diger_hesaplar.push({ kod: h.kod, ad: h.ad, toplam: h.toplam, fatura_sayisi: h.fatura_sayisi });
+    }
+  });
 
   for (const oran of ['1','8','10','18','20']) {
     const eKdv = entegratorSonuc.oranlar[oran].kdv;
-    // Luca: hem 391.01.xxx hem 191.01.xxx dene
-    let lucaToplam = 0;
-    for (const hk of oranHesapMap[oran]) {
-      if (lucaSonuc.hesaplar[hk]) lucaToplam += lucaSonuc.hesaplar[hk].toplam;
-    }
+    // Luca: SADECE tek hesap (391.01.XXX veya 191.01.XXX)
+    const hesapKodu = oranHesapMap[oran];
+    const lucaToplam = (lucaSonuc.hesaplar[hesapKodu]) ? lucaSonuc.hesaplar[hesapKodu].toplam : 0;
+
     // Veri yoksa bu oranı atla
     if (eKdv === 0 && lucaToplam === 0) continue;
 
@@ -8418,6 +8577,7 @@ function _faturaKarsKarsilastir(entegratorSonuc, lucaSonuc, tur) {
       oran: parseInt(oran),
       entegrator: eKdv,
       luca: lucaToplam,
+      hesap_kodu: hesapKodu,
       fark: fark,
       durum: Math.abs(fark) < 0.01 ? 'esit' : 'farkli'
     });
