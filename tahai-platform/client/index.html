@@ -21,6 +21,91 @@
     --text3: #4a5568;
   }
 
+  /* ═══════════════ KOYU TEMA (Varsayılan) ═══════════════ */
+  body.tema-koyu {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2335;
+    --card: #181c27;
+    --card2: #1e2335;
+    --border: #2a2f45;
+    --accent: #4f8ef7;
+    --accent2: #34d399;
+    --accent3: #f59e0b;
+    --danger: #f87171;
+    --text: #e2e8f0;
+    --text2: #8892a4;
+    --text3: #4a5568;
+    --muted: #4a5568;
+    --shadow: rgba(0,0,0,0.3);
+  }
+
+  /* ═══════════════ AÇIK TEMA (Luca ilhamlı) ═══════════════ */
+  body.tema-acik {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #f7fafc;
+    --card: #ffffff;
+    --card2: #f7fafc;
+    --border: #e2e8f0;
+    --accent: #2b6cb0;
+    --accent2: #38a169;
+    --accent3: #dd6b20;
+    --danger: #e53e3e;
+    --text: #1a202c;
+    --text2: #4a5568;
+    --text3: #718096;
+    --muted: #a0aec0;
+    --shadow: rgba(0,0,0,0.08);
+  }
+  /* Açık temada biraz daha yumuşak gölge ve kenarlık */
+  body.tema-acik header {
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+  body.tema-acik .sidebar {
+    background: #1e3a5f;
+    color: #e2e8f0;
+  }
+  body.tema-acik .sidebar-item {
+    color: #cbd5e0;
+  }
+  body.tema-acik .sidebar-item:hover,
+  body.tema-acik .sidebar-item.active {
+    background: rgba(99,179,237,0.15);
+    color: #ffffff;
+  }
+  body.tema-acik .sidebar-item.active {
+    border-left-color: #63b3ed;
+  }
+  body.tema-acik .sidebar-kategori {
+    color: #a0aec0;
+  }
+  body.tema-acik .card {
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+
+  /* Tema geçiş butonu */
+  .tema-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    padding: 0;
+  }
+  .tema-btn:hover {
+    background: var(--surface);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -1545,6 +1630,7 @@
       <div class="status-dot" id="statusDot" style="background: var(--accent2)"></div>
       <span id="statusText">Sistem aktif</span>
     </div>
+    <button class="tema-btn" id="temaBtn" onclick="temaDegistir()" title="Tema değiştir">🌙</button>
     <button class="btn btn-outline" style="font-size:11px; padding:5px 12px;" onclick="logout()">Çıkış</button>
   </div>
 </header>
@@ -4131,8 +4217,38 @@ function formatSayi(n) {
   return num.toFixed(2); // Noktalı — Excel toplama yapabilsin
 }
 
+// ===================== TEMA (Açık/Koyu) =====================
+function temaDegistir() {
+  const body = document.body;
+  const mevcutTema = body.classList.contains('tema-acik') ? 'acik' : 'koyu';
+  const yeniTema = mevcutTema === 'acik' ? 'koyu' : 'acik';
+  body.classList.remove('tema-koyu', 'tema-acik');
+  body.classList.add('tema-' + yeniTema);
+  try { localStorage.setItem('tahai-tema', yeniTema); } catch(e) {}
+  const btn = document.getElementById('temaBtn');
+  if (btn) btn.textContent = yeniTema === 'acik' ? '🌙' : '☀️';
+}
+
+function temaYukle() {
+  let tema = 'koyu';
+  try { tema = localStorage.getItem('tahai-tema') || 'koyu'; } catch(e) {}
+  document.body.classList.remove('tema-koyu', 'tema-acik');
+  document.body.classList.add('tema-' + tema);
+  const btn = document.getElementById('temaBtn');
+  if (btn) btn.textContent = tema === 'acik' ? '🌙' : '☀️';
+}
+
+// Sayfa yüklenir yüklenmez temayı uygula (init'ten önce, FOUC'u azaltmak için)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', temaYukle);
+} else {
+  temaYukle();
+}
+
 // ===================== INIT =====================
 async function init() {
+  // Tema yükle (idempotent, zaten çağrılmış olabilir ama buton ikonunu garanti eder)
+  temaYukle();
   // Session token kontrolü — geçerli session varsa login gösterme
   if (_checkSession()) {
     _showApp();
