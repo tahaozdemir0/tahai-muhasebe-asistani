@@ -320,6 +320,68 @@ async function sonAlisMutabakatiGetir(mukellefId) {
   })[0];
 }
 
+// ── Otomatik Kaydet/Yükle helper'ları ────────────────────────
+// Genel amaçlı: en son kaydı tür bazlı getir (kontrol_turu filtresi)
+async function _sonKontrolSonucGetir(mukellefId, kontrolTuru) {
+  try {
+    const liste = await kontrolSonuclariniGetir(mukellefId, null, kontrolTuru);
+    if (!Array.isArray(liste) || liste.length === 0) return null;
+    // En yeni önce (olusturma DESC olarak dönüyor, yine de sıralayalım)
+    return liste.sort((a, b) => {
+      const ta = new Date(a.olusturma || 0).getTime();
+      const tb = new Date(b.olusturma || 0).getTime();
+      return tb - ta;
+    })[0];
+  } catch(e) {
+    console.warn('[DM] _sonKontrolSonucGetir hata:', e.message);
+    return null;
+  }
+}
+
+async function sonMizanGetir(mukellefId) {
+  try {
+    const liste = await mukellefMizanlariGetir(mukellefId);
+    if (!Array.isArray(liste) || liste.length === 0) return null;
+    return liste[0]; // API zaten created_at DESC dönüyor
+  } catch(e) { return null; }
+}
+
+async function sonBeyannameKontrolGetir(mukellefId) {
+  return _sonKontrolSonucGetir(mukellefId, 'beyanname_kontrol');
+}
+
+async function sonDonemKapanisGetir(mukellefId) {
+  try {
+    const liste = await donemKapanisGetir(mukellefId);
+    if (!Array.isArray(liste) || liste.length === 0) return null;
+    return liste[0]; // API created_at DESC / guncelleme
+  } catch(e) { return null; }
+}
+
+async function sonRiskRaporuGetir(mukellefId) {
+  return _sonKontrolSonucGetir(mukellefId, 'risk_raporu');
+}
+
+async function sonHesaplamaGetir(mukellefId) {
+  return _sonKontrolSonucGetir(mukellefId, 'hesaplama');
+}
+
+// Genel fatura mutabakat (satış + alış birleşik, en son hangisi)
+async function sonFaturaMutabakatiGetir(mukellefId) {
+  try {
+    const [sat, ali] = await Promise.all([
+      sonSatisMutabakatiGetir(mukellefId),
+      sonAlisMutabakatiGetir(mukellefId)
+    ]);
+    if (!sat && !ali) return null;
+    if (!sat) return ali;
+    if (!ali) return sat;
+    const ts = new Date(sat.olusturma || 0).getTime();
+    const ta = new Date(ali.olusturma || 0).getTime();
+    return ts > ta ? sat : ali;
+  } catch(e) { return null; }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DÖNEM KAPANIŞ
 // ═══════════════════════════════════════════════════════════════
@@ -576,7 +638,7 @@ async function localStorageMigration() {
 // ═══════════════════════════════════════════════════════════════
 // INIT LOG
 // ═══════════════════════════════════════════════════════════════
-console.log('[DataManager] v1.1 yüklendi — ' + Object.keys({
+console.log('[DataManager] v1.2 yüklendi — ' + Object.keys({
   mukellefleriGetir, mukellefEkle, mukellefGuncelle, mukellefSil,
   mizanKaydet, mizanGetir, mukellefMizanlariGetir, mizanSil,
   hesapEslemeGetir, hesapEslemeTumuGetir, hesapEslemeKaydet, hesapEslemeSil,
@@ -585,6 +647,8 @@ console.log('[DataManager] v1.1 yüklendi — ' + Object.keys({
   zRaporlariGetir, zRaporuKaydet, zRaporuSil,
   kontrolSonucuKaydet, kontrolSonuclariniGetir,
   faturaMutabakatlariniGetir, sonSatisMutabakatiGetir, sonAlisMutabakatiGetir,
+  sonMizanGetir, sonBeyannameKontrolGetir, sonDonemKapanisGetir,
+  sonRiskRaporuGetir, sonHesaplamaGetir, sonFaturaMutabakatiGetir,
   donemKapanisKaydet, donemKapanisGetir,
   mukellefOzetiGetir, dmCloudLoad, dmCloudSave
 }).length + ' fonksiyon hazır');

@@ -5423,6 +5423,46 @@ function beyKontrolHesapla() {
   }
 
   _beyRenderKartlar(_beySonuclar);
+
+  // ── Otomatik Supabase kaydı (kontrol_sonuclari.beyanname_kontrol) ──
+  (async () => {
+    try {
+      if (typeof _getMukellefIdByAd !== 'function' || typeof kontrolSonucuKaydet !== 'function') return;
+      const mukAd = _rrBeyMuk || _gmSecili;
+      if (!mukAd) return;
+      const mukId = (window.aktifMukellef && window.aktifMukellef.id) || await _getMukellefIdByAd(mukAd);
+      if (!mukId) return;
+      // Sonuçlardaki durumları özet olarak kaydet
+      const ozet = _beySonuclar.map(s => ({ id: s.id, baslik: s.baslik, durum: s.durum, ozet: s.ozet, puan: s.puan || 0 }));
+      const durumlar = _beySonuclar.map(s => s.durum);
+      const hataVar = durumlar.includes('kirmizi');
+      const uyariVar = durumlar.includes('sari');
+      await kontrolSonucuKaydet(mukId, {
+        donem: _rrBeyDon || '',
+        kontrol_turu: 'beyanname_kontrol',
+        sonuc_data: {
+          aktif_tur: aktifBeyTuru,
+          kaynak: veri.kaynak,
+          sonuclar: ozet,
+          hata_sayisi: durumlar.filter(d => d === 'kirmizi').length,
+          uyari_sayisi: durumlar.filter(d => d === 'sari').length,
+          kayit_tarihi: new Date().toISOString()
+        },
+        risk_skoru: hataVar ? 60 : (uyariVar ? 25 : 0)
+      });
+      _otoKaydetToast('Beyanname kontrol');
+    } catch(e) { console.warn('[Bey] Otomatik kayıt hatası:', e.message); }
+  })();
+}
+
+// ── Ortak otomatik kayıt toast'ı ──
+let _otoKaydetToastTimer = null;
+function _otoKaydetToast(ne) {
+  try {
+    if (typeof showNotif === 'function') {
+      showNotif('✅ ' + (ne || 'Sonuç') + ' otomatik kaydedildi', 'success');
+    }
+  } catch(e) {}
 }
 
 // Trafik lambası kartları
@@ -5769,6 +5809,11 @@ function _dkKaydet() {
     if (!mukId) return;
     try {
       await donemKapanisKaydet(mukId, { donem: _dkDonem, checklist, tamamlanma_yuzdesi: yuzde });
+      // Throttle: her tıkta toast değil, 5sn aralıkla
+      if (!window._dkSonTost || (Date.now() - window._dkSonTost) > 5000) {
+        window._dkSonTost = Date.now();
+        if (typeof _otoKaydetToast === 'function') _otoKaydetToast('Dönem kapanış');
+      }
     } catch(e) { console.warn('[DK] Supabase kayıt hatası:', e.message); }
   })();
 }
@@ -11437,6 +11482,36 @@ function kkegHesapla() {
   document.getElementById('kkegStatKkeg').textContent = fmt(topKkegMatrah) + ' ₺';
   document.getElementById('kkegStatKdvKkeg').textContent = fmt(topKdvKkeg) + ' ₺';
   document.getElementById('kkegSonuc').style.display = 'block';
+
+  // ── Otomatik Supabase kaydı (kontrol_sonuclari.hesaplama) ──
+  (async () => {
+    try {
+      if (typeof kontrolSonucuKaydet !== 'function') return;
+      const mukAd = (window.aktifMukellef && window.aktifMukellef.ad) || _gmSecili;
+      if (!mukAd) return;
+      const mukId = (window.aktifMukellef && window.aktifMukellef.id) || await _getMukellefIdByAd(mukAd);
+      if (!mukId) return;
+      await kontrolSonucuKaydet(mukId, {
+        donem: '',
+        kontrol_turu: 'hesaplama',
+        sonuc_data: {
+          alt_tip: 'kkeg',
+          satir_sayisi: rows.length,
+          satirlar: rows,
+          toplamlar: {
+            dahil: topDahil,
+            haric: topHaric,
+            gider: topGider,
+            kkeg_matrah: topKkegMatrah,
+            kdv_kkeg: topKdvKkeg
+          },
+          kayit_tarihi: new Date().toISOString()
+        },
+        risk_skoru: 0
+      });
+      _otoKaydetToast('KKEG hesabı');
+    } catch(e) { console.warn('[KKEG] Otomatik kayıt hatası:', e.message); }
+  })();
   showNotif('✅ KKEG hesaplandı!', 'success');
 }
 
@@ -11543,6 +11618,30 @@ function stopajHesapla() {
   document.getElementById('stopajStatNet').textContent = fmt(topNet)+' ₺';
   document.getElementById('stopajSonuc').style.display = 'block';
   showNotif('✅ Stopaj hesaplandı!', 'success');
+
+  // ── Otomatik Supabase kaydı (kontrol_sonuclari.hesaplama) ──
+  (async () => {
+    try {
+      if (typeof kontrolSonucuKaydet !== 'function') return;
+      const mukAd = (window.aktifMukellef && window.aktifMukellef.ad) || _gmSecili;
+      if (!mukAd) return;
+      const mukId = (window.aktifMukellef && window.aktifMukellef.id) || await _getMukellefIdByAd(mukAd);
+      if (!mukId) return;
+      await kontrolSonucuKaydet(mukId, {
+        donem: '',
+        kontrol_turu: 'hesaplama',
+        sonuc_data: {
+          alt_tip: 'stopaj',
+          satir_sayisi: rows.length,
+          satirlar: rows,
+          toplamlar: { brut: topBrut, kdv: topKdv, stopaj: topStopaj, net: topNet },
+          kayit_tarihi: new Date().toISOString()
+        },
+        risk_skoru: 0
+      });
+      _otoKaydetToast('Stopaj hesabı');
+    } catch(e) { console.warn('[Stopaj] Otomatik kayıt hatası:', e.message); }
+  })();
 }
 
 function stopajTemizle() {
@@ -12666,6 +12765,10 @@ async function mizanKaydetAPI() {
       dosya_adi: mizanDosyaAdi
     });
     showNotif(`✅ Mizan "${mukellef}" kartına kaydedildi!`, 'success');
+    if (typeof _otoKaydetToast === 'function') {
+      // Aynı anda iki toast olmasın diye throttle
+      window._mizanSonTost = Date.now();
+    }
     mizanArsivGoster(mukellef);
   } catch(e) {
     console.error('[Mizan] Kayıt hatası:', e.message);
@@ -13285,6 +13388,38 @@ function riskDashboardRender() {
   document.getElementById('rrOrtaSayi').textContent   = liste.filter(r => r.seviye === 'orta').length;
   document.getElementById('rrDusukSayi').textContent  = liste.filter(r => r.seviye === 'dusuk').length;
 
+  // ── Otomatik kayıt: aktif mükellef için risk raporunu Supabase'e yaz ──
+  (async () => {
+    try {
+      if (typeof kontrolSonucuKaydet !== 'function') return;
+      const mukAd = (window.aktifMukellef && window.aktifMukellef.ad) || _gmSecili;
+      if (!mukAd) return;
+      const mukId = (window.aktifMukellef && window.aktifMukellef.id) || await _getMukellefIdByAd(mukAd);
+      if (!mukId) return;
+      const aktif = liste.find(r => r.ad === mukAd || String(r.ad).toLocaleLowerCase('tr-TR') === mukAd.toLocaleLowerCase('tr-TR'));
+      if (!aktif) return;
+      await kontrolSonucuKaydet(mukId, {
+        donem: donem || '',
+        kontrol_turu: 'risk_raporu',
+        sonuc_data: {
+          seviye: aktif.seviye,
+          puan: aktif.puan || 0,
+          detaylar: Array.isArray(aktif.detaylar) ? aktif.detaylar : [],
+          modKdv: aktif.modKdv || null,
+          modBey: aktif.modBey || null,
+          modDk: aktif.modDk || null,
+          kayit_tarihi: new Date().toISOString()
+        },
+        risk_skoru: Math.round(aktif.puan || 0)
+      });
+      // Toast bildirim — sadece bir kez (rate-limit)
+      if (!window._riskRaporuSonTost || (Date.now() - window._riskRaporuSonTost) > 10000) {
+        window._riskRaporuSonTost = Date.now();
+        _otoKaydetToast('Risk raporu');
+      }
+    } catch(e) { console.warn('[Risk] Otomatik kayıt hatası:', e.message); }
+  })();
+
   // Filtre uygula
   const filtreli = liste.filter(r => {
     if (riskFiltre && r.seviye !== riskFiltre) return false;
@@ -13807,13 +13942,28 @@ async function _aktifMukellefiYukle(mukellefAd) {
 
   const mukId = mukellefObj.id;
 
-  // 3. Paralel veri çekme
+  // 3. Paralel veri çekme (tüm modül son durumları)
   try {
-    const [fisler, faturalar, mizanlar] = await Promise.all([
+    const [fisler, faturalar, mizanlar, sonBey, sonRisk, sonHesap, sonDK, sonFatMut] = await Promise.all([
       fisleriGetir(mukId),
       faturalariGetir(mukId),
-      mukellefMizanlariGetir(mukId)
+      mukellefMizanlariGetir(mukId),
+      (typeof sonBeyannameKontrolGetir === 'function' ? sonBeyannameKontrolGetir(mukId).catch(()=>null) : Promise.resolve(null)),
+      (typeof sonRiskRaporuGetir === 'function' ? sonRiskRaporuGetir(mukId).catch(()=>null) : Promise.resolve(null)),
+      (typeof sonHesaplamaGetir === 'function' ? sonHesaplamaGetir(mukId).catch(()=>null) : Promise.resolve(null)),
+      (typeof sonDonemKapanisGetir === 'function' ? sonDonemKapanisGetir(mukId).catch(()=>null) : Promise.resolve(null)),
+      (typeof sonFaturaMutabakatiGetir === 'function' ? sonFaturaMutabakatiGetir(mukId).catch(()=>null) : Promise.resolve(null))
     ]);
+
+    // Son sonuçları window.aktifMukellef üstünde cache'le → modüller açıldığında okur
+    window.aktifMukellef.son = {
+      mizan: (Array.isArray(mizanlar) && mizanlar[0]) || null,
+      beyannameKontrol: sonBey || null,
+      riskRaporu: sonRisk || null,
+      hesaplama: sonHesap || null,
+      donemKapanis: sonDK || null,
+      faturaMutabakat: sonFatMut || null
+    };
 
     // Fişleri yükle (mevcut fisData'ya ekle değil, değiştir)
     if (fisler.length > 0) {
