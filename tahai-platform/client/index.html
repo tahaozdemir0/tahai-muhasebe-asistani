@@ -1788,9 +1788,11 @@
       <div class="result-area" id="zResult">
         <div class="result-header">
           <div class="result-title">✅ İşlenen Z Raporları <span class="badge" id="zCount">0 kayıt</span></div>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-outline" style="color:#ef4444;border-color:#ef4444;" onclick="_zMukerrerTemizle()">🗑️ Mükerrer Temizle</button>
             <button class="btn btn-success" onclick="downloadExcel('z')">⬇️ Muhasebe Kodlu İndir</button>
             <button class="btn btn-success" onclick="downloadZLuca()" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">⬇️ Luca Import İndir</button>
+            <button id="zMukellefeKaydetBtn" onclick="zRaporMukellefeKaydet()" style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;border:none;font-size:13px;">💾 Mükellefe Kaydet</button>
             <button class="btn btn-outline" onclick="clearZResult()">Temizle</button>
           </div>
         </div>
@@ -3198,6 +3200,12 @@
           <div id="kartKdv1Beyanname" style="display:none; background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(102,126,234,0.08)); border:2px solid #8b5cf6; border-radius:12px; padding:16px 20px; margin-bottom:16px;">
             <div style="font-size:13px; font-weight:700; color:#8b5cf6; margin-bottom:10px;">📋 KDV-1 BEYANNAMESİ HAZIR</div>
             <div id="kartKdv1Icerik" style="font-size:12px; color:var(--text2);"></div>
+          </div>
+
+          <!-- Z RAPORU ÖZET -->
+          <div id="kartZRaporlari" style="display:none; background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(234,88,12,0.06)); border:1px solid #f97316; border-radius:10px; padding:14px 16px; margin-bottom:12px;">
+            <div style="font-size:13px; font-weight:700; color:#f97316; margin-bottom:10px;">📊 Z Raporları (Yazar Kasalar)</div>
+            <div id="kartZRaporContent" style="font-size:12px; color:var(--text2);"></div>
           </div>
 
           <!-- FİŞ ARŞİVİ -->
@@ -6144,6 +6152,11 @@ KURALLAR:
         // geriye uyumluluk — eski toplam_ciro alanı
         r.toplam_ciro = r.toplam || r.toplam_ciro || 0;
         r.toplam_kdv  = r.topkdv || r.toplam_kdv || 0;
+        // Mükerrer kontrol
+        if (_zMukerrerKontrol(r)) {
+          console.log('[Z Rapor] Mükerrer atlandı: Z ' + (r.z_sayac || '?') + ' (' + r.tarih + ')');
+          return;
+        }
         newRows.push(r);
       });
 
@@ -8031,6 +8044,129 @@ function zKaydet(idx) {
   showNotif('✅ Z raporu satırı güncellendi!', 'success');
 }
 
+// ===================== Z RAPORU MÜKERRER TEMİZLEME =====================
+function _zMukerrerTemizle() {
+  if (zData.length === 0) { showNotif('⚠️ Tabloda veri yok!', 'error'); return; }
+  const gorulen = new Set();
+  const temiz = [];
+  let silinen = 0;
+  for (const r of zData) {
+    // Anahtar: tarih + z_sayac (örn "01.03.2025_0958")
+    const anahtar = (r.tarih || 'unknown') + '_' + (r.z_sayac || 'noz_' + (r.toplam||0));
+    if (gorulen.has(anahtar)) { silinen++; continue; }
+    gorulen.add(anahtar);
+    temiz.push(r);
+  }
+  zData.length = 0;
+  temiz.forEach(r => zData.push(r));
+  renderZTable();
+  autoSave();
+  if (silinen > 0) {
+    showNotif('🗑️ ' + silinen + ' mükerrer kayıt temizlendi', 'success');
+    document.getElementById('statZ').textContent = zData.length;
+  } else {
+    showNotif('✅ Mükerrer kayıt bulunamadı', 'success');
+  }
+}
+
+// OCR sonrası mükerrer kontrol — mevcut zData'da aynı tarih+z_sayac varsa atla
+function _zMukerrerKontrol(yeniSatir) {
+  const anahtar = (yeniSatir.tarih || 'unknown') + '_' + (yeniSatir.z_sayac || 'noz_' + (yeniSatir.toplam||0));
+  for (const r of zData) {
+    const mevcut = (r.tarih || 'unknown') + '_' + (r.z_sayac || 'noz_' + (r.toplam||0));
+    if (mevcut === anahtar) return true; // mükerrer
+  }
+  return false;
+}
+
+// ===================== Z RAPORU MÜKELLEFE KAYDET =====================
+async function zRaporMukellefeKaydet() {
+  if (!window.aktifMukellef || !window.aktifMukellef.id) {
+    showNotif('⚠️ Önce üstten mükellef seçin', 'error'); return;
+  }
+  if (zData.length === 0) {
+    showNotif('⚠️ Kaydedilecek Z raporu yok', 'error'); return;
+  }
+  const mukId = window.aktifMukellef.id;
+
+  // Dönem: ilk raporun tarihinden YYYY-MM
+  let donem = '';
+  const ilk = zData[0].tarih;
+  if (ilk && ilk.includes('.')) {
+    const p = ilk.split('.');
+    if (p.length === 3) donem = p[2] + '-' + p[1]; // YYYY-MM
+  }
+  if (!donem) donem = new Date().toISOString().substring(0, 7);
+
+  // Genel toplamlar
+  let gt=0, gk=0, gm1=0, gk1=0, gm10=0, gk10=0, gm20=0, gk20=0;
+  const satirlar = zData.map(r => {
+    const toplam = r.toplam || r.toplam_ciro || 0;
+    const kdv    = r.topkdv || r.toplam_kdv || 0;
+    gt += toplam; gk += kdv;
+    gm1 += r.kdv_1_matrah || 0;   gk1  += r.kdv_1_tutar || 0;
+    gm10 += r.kdv_10_matrah || 0;  gk10 += r.kdv_10_tutar || 0;
+    gm20 += r.kdv_20_matrah || 0;  gk20 += r.kdv_20_tutar || 0;
+    return {
+      tarih: r.tarih, z_sayac: r.z_sayac, toplam, topkdv: kdv,
+      kdv_1_matrah: r.kdv_1_matrah||0, kdv_1_tutar: r.kdv_1_tutar||0,
+      kdv_10_matrah: r.kdv_10_matrah||0, kdv_10_tutar: r.kdv_10_tutar||0,
+      kdv_20_matrah: r.kdv_20_matrah||0, kdv_20_tutar: r.kdv_20_tutar||0
+    };
+  });
+
+  const sonuc_data = {
+    satirlar, kayit_sayisi: zData.length,
+    genel_toplam: gt, genel_kdv: gk,
+    genel_matrah_1: gm1, genel_kdv_1: gk1,
+    genel_matrah_10: gm10, genel_kdv_10: gk10,
+    genel_matrah_20: gm20, genel_kdv_20: gk20,
+    kayit_tarihi: new Date().toISOString()
+  };
+
+  try {
+    await kontrolSonucuKaydet(mukId, {
+      donem, kontrol_turu: 'z_raporu', sonuc_data, risk_skoru: 0
+    });
+    showNotif('✅ Z raporları mükellefe kaydedildi', 'success');
+    // Cache güncelle
+    if (!window.aktifMukellef.son) window.aktifMukellef.son = {};
+    window.aktifMukellef.son.zRapor = { sonuc_data, donem, olusturma: new Date().toISOString() };
+  } catch(e) {
+    console.error('[Z Kaydet]', e);
+    showNotif('❌ Kayıt hatası: ' + e.message, 'error');
+  }
+}
+
+// ===================== MÜKELLEF KARTI Z RAPOR RENDER =====================
+function _kartZRaporRender() {
+  const container = document.getElementById('kartZRaporContent');
+  const wrap = document.getElementById('kartZRaporlari');
+  if (!container || !wrap) return;
+
+  const zRapor = window.aktifMukellef && window.aktifMukellef.son && window.aktifMukellef.son.zRapor;
+  if (!zRapor || !zRapor.sonuc_data) {
+    wrap.style.display = 'none'; return;
+  }
+  wrap.style.display = 'block';
+  const d = zRapor.sonuc_data;
+  const _f = n => (parseFloat(n)||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  let html = '<div style="color:var(--text3);font-size:11px;margin-bottom:10px;">Son güncelleme: ' +
+    (zRapor.olusturma ? new Date(zRapor.olusturma).toLocaleString('tr-TR') : '—') +
+    ' — Dönem: ' + (zRapor.donem || '—') + ' — ' + (d.kayit_sayisi || 0) + ' kayıt</div>';
+
+  // Oran bazlı özet tablo
+  html += '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;line-height:1.8;">';
+  if ((d.genel_kdv_1||0) > 0) html += '<div style="display:flex;justify-content:space-between;"><span>%1 KDV:</span><span>' + _f(d.genel_kdv_1) + ' ₺ <span style="color:var(--text3);">(matrah ' + _f(d.genel_matrah_1) + ' ₺)</span></span></div>';
+  if ((d.genel_kdv_10||0) > 0) html += '<div style="display:flex;justify-content:space-between;"><span>%10 KDV:</span><span>' + _f(d.genel_kdv_10) + ' ₺ <span style="color:var(--text3);">(matrah ' + _f(d.genel_matrah_10) + ' ₺)</span></span></div>';
+  if ((d.genel_kdv_20||0) > 0) html += '<div style="display:flex;justify-content:space-between;"><span>%20 KDV:</span><span>' + _f(d.genel_kdv_20) + ' ₺ <span style="color:var(--text3);">(matrah ' + _f(d.genel_matrah_20) + ' ₺)</span></span></div>';
+  html += '<div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:4px;margin-top:4px;font-weight:700;">' +
+    '<span>TOPLAM:</span><span style="color:#f97316;">' + _f(d.genel_toplam) + ' ₺ (KDV ' + _f(d.genel_kdv) + ' ₺)</span></div>';
+  html += '</div>';
+
+  container.innerHTML = html;
+}
 
 // Z Raporu — Luca Import Formatı (EvrakTarihi;EvrakNo;Açıklama;GenelToplam;Matrah;KDV;KDV Oranı)
 function downloadZLuca() {
@@ -10591,15 +10727,16 @@ async function _kartSupabaseOzetYukle(mukAd) {
   if (!mukId) {
     ozetDiv.style.display = 'none';
     // Fatura mutabakat bölümlerini de gizle
-    ['kartSatisMutabakat','kartAlisMutabakat','kartKdv1Beyanname'].forEach(id => {
+    ['kartSatisMutabakat','kartAlisMutabakat','kartKdv1Beyanname','kartZRaporlari'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
     return;
   }
 
-  // Paralel olarak fatura mutabakat kayıtlarını yükle
+  // Paralel olarak fatura mutabakat + Z rapor kayıtlarını yükle
   _kartFaturaMutabakatRender(mukId).catch(e => console.warn('[Kart] Mutabakat render hatası:', e.message));
+  if (typeof _kartZRaporRender === 'function') _kartZRaporRender();
 
   ozetDiv.style.display = 'block';
   icerikDiv.innerHTML = '<span style="color:var(--text3)">Yükleniyor...</span>';
@@ -10889,7 +11026,17 @@ function _kartKdv1BeyannameRender(satis, alis) {
 
   const hes = _lucaOzet(satis, '391'); // 391.01.xxx
   const ind = _lucaOzet(alis,  '191'); // 191.01.xxx
-  const odenecek = hes.toplam - ind.toplam;
+
+  // Z Raporu KDV'sini de hesaplanan (satış) tarafa ekle
+  const zRapor = window.aktifMukellef && window.aktifMukellef.son && window.aktifMukellef.son.zRapor;
+  const zData = (zRapor && zRapor.sonuc_data) || {};
+  const zKdv1  = parseFloat(zData.genel_kdv_1 || 0);
+  const zKdv10 = parseFloat(zData.genel_kdv_10 || 0);
+  const zKdv20 = parseFloat(zData.genel_kdv_20 || 0);
+  const zKdvToplam = zKdv1 + zKdv10 + zKdv20;
+  const hesToplamZDahil = hes.toplam + zKdvToplam;
+
+  const odenecek = hesToplamZDahil - ind.toplam;
   const odenecekRenk = odenecek >= 0 ? '#ef4444' : '#10b981';
   const odenecekLabel = odenecek >= 0 ? 'ÖDENECEK KDV' : 'DEVREDEN KDV';
 
@@ -10904,15 +11051,38 @@ function _kartKdv1BeyannameRender(satis, alis) {
     return sat.join('');
   };
 
+  // Z Raporu satırları
+  let zSatirlari = '';
+  if (zKdvToplam > 0) {
+    const zSat = [];
+    if (zKdv1  > 0) zSat.push(`<div style="display:flex;justify-content:space-between;"><span>%1:</span><span>${_f(zKdv1)} ₺</span></div>`);
+    if (zKdv10 > 0) zSat.push(`<div style="display:flex;justify-content:space-between;"><span>%10:</span><span>${_f(zKdv10)} ₺</span></div>`);
+    if (zKdv20 > 0) zSat.push(`<div style="display:flex;justify-content:space-between;"><span>%20:</span><span>${_f(zKdv20)} ₺</span></div>`);
+    zSatirlari = `
+      <div style="color:#f97316; font-weight:700; margin-top:10px; margin-bottom:4px;">📊 Z Raporları (Yazar Kasa):</div>
+      <div style="padding-left:12px;">
+        ${zSat.join('')}
+        <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:3px;margin-top:3px;">
+          <span>Z Toplam:</span><span style="color:#f97316;font-weight:700;">${_f(zKdvToplam)} ₺</span>
+        </div>
+      </div>`;
+  }
+
   icerik.innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.8;">
       <div style="color:#10b981; font-weight:700; margin-bottom:4px;">Hesaplanan KDV (Satış — Luca 391):</div>
       <div style="padding-left:12px;">
         ${_oranSatirlari(hes) || '<div style="color:var(--text3);">Veri yok</div>'}
         <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);padding-top:3px;margin-top:3px;">
-          <span>Toplam:</span><span style="color:#10b981;font-weight:700;">${_f(hes.toplam)} ₺</span>
+          <span>Fatura Toplam:</span><span style="color:#10b981;font-weight:700;">${_f(hes.toplam)} ₺</span>
         </div>
       </div>
+      ${zSatirlari}
+      ${zKdvToplam > 0 ? `<div style="padding-left:12px;margin-top:6px;padding-top:6px;border-top:2px dashed #10b981;">
+        <div style="display:flex;justify-content:space-between;font-weight:700;">
+          <span>HESAPLANAN TOPLAM:</span><span style="color:#10b981;">${_f(hesToplamZDahil)} ₺</span>
+        </div>
+      </div>` : ''}
 
       <div style="color:#3b82f6; font-weight:700; margin-top:10px; margin-bottom:4px;">İndirilecek KDV (Alış — Luca 191):</div>
       <div style="padding-left:12px;">
@@ -10927,7 +11097,7 @@ function _kartKdv1BeyannameRender(satis, alis) {
         <span style="font-weight:700; color:${odenecekRenk}; font-size:16px;">${_f(Math.abs(odenecek))} ₺</span>
       </div>
     </div>
-    <div style="margin-top:10px; font-size:11px; color:var(--text3);">✅ Bu rakam GİB beyannamesine direkt girilebilir (Luca muavin defterinden hesaplanmıştır)</div>
+    <div style="margin-top:10px; font-size:11px; color:var(--text3);">✅ Bu rakam GİB beyannamesine direkt girilebilir${zKdvToplam > 0 ? ' (Fatura + Z raporu KDV dahil)' : ' (Luca muavin defterinden hesaplanmıştır)'}</div>
   `;
 }
 
@@ -13989,7 +14159,7 @@ async function _aktifMukellefiYukle(mukellefAd) {
   if (!mukellefAd) {
     window.aktifMukellef = null;
     // Fatura mutabakat bölümlerini de gizle
-    ['kartSatisMutabakat','kartAlisMutabakat','kartKdv1Beyanname'].forEach(id => {
+    ['kartSatisMutabakat','kartAlisMutabakat','kartKdv1Beyanname','kartZRaporlari'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -14069,7 +14239,7 @@ async function _aktifMukellefiYukle(mukellefAd) {
 
   // 3. Paralel veri çekme (tüm modül son durumları)
   try {
-    const [fisler, faturalar, mizanlar, sonBey, sonRisk, sonHesap, sonDK, sonFatMut] = await Promise.all([
+    const [fisler, faturalar, mizanlar, sonBey, sonRisk, sonHesap, sonDK, sonFatMut, sonZRap] = await Promise.all([
       fisleriGetir(mukId),
       faturalariGetir(mukId),
       mukellefMizanlariGetir(mukId),
@@ -14077,7 +14247,8 @@ async function _aktifMukellefiYukle(mukellefAd) {
       (typeof sonRiskRaporuGetir === 'function' ? sonRiskRaporuGetir(mukId).catch(()=>null) : Promise.resolve(null)),
       (typeof sonHesaplamaGetir === 'function' ? sonHesaplamaGetir(mukId).catch(()=>null) : Promise.resolve(null)),
       (typeof sonDonemKapanisGetir === 'function' ? sonDonemKapanisGetir(mukId).catch(()=>null) : Promise.resolve(null)),
-      (typeof sonFaturaMutabakatiGetir === 'function' ? sonFaturaMutabakatiGetir(mukId).catch(()=>null) : Promise.resolve(null))
+      (typeof sonFaturaMutabakatiGetir === 'function' ? sonFaturaMutabakatiGetir(mukId).catch(()=>null) : Promise.resolve(null)),
+      (typeof sonZRaporuGetir === 'function' ? sonZRaporuGetir(mukId).catch(()=>null) : Promise.resolve(null))
     ]);
 
     // Son sonuçları window.aktifMukellef üstünde cache'le → modüller açıldığında okur
@@ -14087,7 +14258,8 @@ async function _aktifMukellefiYukle(mukellefAd) {
       riskRaporu: sonRisk || null,
       hesaplama: sonHesap || null,
       donemKapanis: sonDK || null,
-      faturaMutabakat: sonFatMut || null
+      faturaMutabakat: sonFatMut || null,
+      zRapor: sonZRap || null
     };
 
     // Fişleri yükle (mevcut fisData'ya ekle değil, değiştir)

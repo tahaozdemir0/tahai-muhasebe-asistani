@@ -382,6 +382,10 @@ async function sonFaturaMutabakatiGetir(mukellefId) {
   } catch(e) { return null; }
 }
 
+async function sonZRaporuGetir(mukellefId) {
+  return _sonKontrolSonucGetir(mukellefId, 'z_raporu');
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DÖNEM KAPANIŞ
 // ═══════════════════════════════════════════════════════════════
@@ -638,7 +642,7 @@ async function localStorageMigration() {
 // ═══════════════════════════════════════════════════════════════
 // INIT LOG
 // ═══════════════════════════════════════════════════════════════
-console.log('[DataManager] v1.2 yüklendi — ' + Object.keys({
+console.log('[DataManager] v1.3 yüklendi — ' + Object.keys({
   mukellefleriGetir, mukellefEkle, mukellefGuncelle, mukellefSil,
   mizanKaydet, mizanGetir, mukellefMizanlariGetir, mizanSil,
   hesapEslemeGetir, hesapEslemeTumuGetir, hesapEslemeKaydet, hesapEslemeSil,
@@ -649,6 +653,7 @@ console.log('[DataManager] v1.2 yüklendi — ' + Object.keys({
   faturaMutabakatlariniGetir, sonSatisMutabakatiGetir, sonAlisMutabakatiGetir,
   sonMizanGetir, sonBeyannameKontrolGetir, sonDonemKapanisGetir,
   sonRiskRaporuGetir, sonHesaplamaGetir, sonFaturaMutabakatiGetir,
+  sonZRaporuGetir,
   donemKapanisKaydet, donemKapanisGetir,
   mukellefOzetiGetir, dmCloudLoad, dmCloudSave
 }).length + ' fonksiyon hazır');
