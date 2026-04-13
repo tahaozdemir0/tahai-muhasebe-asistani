@@ -7232,10 +7232,12 @@ function downloadExcel(type) {
     headers = ['Hesap Kodu','Hesap Adı','Evrak No','Evrak Tarihi','BT','Açıklama','Borç (TL)','Alacak (TL)'];
     const rows = [];
     data.forEach(r => {
+      const toplam   = r.toplam || r.toplam_ciro || 0;
+      // 0 TL'lik günleri atla
+      if (!toplam || toplam === 0) return;
       const evrakNo  = r.z_sayac || '';
       const tarih    = _fmtTarih(r.tarih);
       const aciklama = 'Z RAPORU' + (r.z_sayac ? ' ' + r.z_sayac : '');
-      const toplam   = r.toplam || r.toplam_ciro || 0;
 
       // 108.01.001 — Pos Tahsilatları → Borç = Toplam
       rows.push(['108.01.001', 'Pos Tahsilatları', evrakNo, tarih, 'ZR', aciklama, formatSayi(toplam), '0.00']);
@@ -8175,6 +8177,9 @@ function downloadZLuca() {
   const hdrs = ['EvrakTarihi','EvrakNo','Aciklama','GenelToplam','Matrah','KDV','KDV Orani'];
   const rows = [];
   zData.forEach(function(r) {
+    // 0 TL'lik günleri atla (boş Z raporları Luca'ya gitmesin)
+    var toplam = Number(r.toplam || r.toplam_ciro || 0);
+    if (!toplam || toplam === 0) return;
     var evrakNo  = r.z_sayac || '';
     var tarih    = _fmtTarih(r.tarih);
     var aciklama = 'Z RAPORU' + (r.z_sayac ? ' ' + r.z_sayac : '');
