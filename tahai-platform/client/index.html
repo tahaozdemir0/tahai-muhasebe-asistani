@@ -1560,6 +1560,26 @@
       border-radius: 0 !important;
     }
   }
+
+  /* ── Z Raporu KDV Oran Renklendirme ── */
+  .z-satir-eslesti { background: rgba(16,185,129,0.08); border-left: 3px solid #10b981; }
+  .z-satir-karma  { background: rgba(239,68,68,0.08);  border-left: 3px solid #ef4444; }
+  .z-satir-bos    { opacity: 0.5; }
+  .z-oran-etiket {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .z-oran-etiket-1  { background: #059669; }
+  .z-oran-etiket-10 { background: #10b981; }
+  .z-oran-etiket-20 { background: #3b82f6; }
+  .z-oran-etiket-karma { background: #ef4444; }
+  #zTableFooter td { font-weight: 700; border-top: 2px solid var(--border); background: var(--surface2); }
 </style>
 </head>
 <body>
@@ -1793,6 +1813,7 @@
               </tr>
             </thead>
             <tbody id="zTableBody"></tbody>
+            <tfoot id="zTableFooter" style="display:none;"></tfoot>
           </table>
         </div>
       </div>
@@ -7841,26 +7862,130 @@ function switchAlisSatis(tip) {
 
 // ===================== CLEAR =====================
 
+// ===================== Z RAPORU KDV ORAN TESPİTİ =====================
+function _zKdvOranTespit(toplam, gercekKdv) {
+  if (!toplam || toplam === 0 || !gercekKdv || gercekKdv === 0) {
+    return { oran: null, durum: 'bos', matrah_1: 0, kdv_1: 0, matrah_10: 0, kdv_10: 0, matrah_20: 0, kdv_20: 0 };
+  }
+  const hesap_1  = toplam / 101;   // %1:  1/101
+  const hesap_10 = toplam / 11;    // %10: 10/110
+  const hesap_20 = toplam / 6;     // %20: 20/120
+  const tolerans = 0.10;
+
+  if (Math.abs(gercekKdv - hesap_1) < tolerans) {
+    const matrah = toplam - hesap_1;
+    return { oran: 1, durum: 'eslesti', matrah_1: matrah, kdv_1: hesap_1, matrah_10: 0, kdv_10: 0, matrah_20: 0, kdv_20: 0 };
+  }
+  if (Math.abs(gercekKdv - hesap_10) < tolerans) {
+    const matrah = toplam - hesap_10;
+    return { oran: 10, durum: 'eslesti', matrah_1: 0, kdv_1: 0, matrah_10: matrah, kdv_10: hesap_10, matrah_20: 0, kdv_20: 0 };
+  }
+  if (Math.abs(gercekKdv - hesap_20) < tolerans) {
+    const matrah = toplam - hesap_20;
+    return { oran: 20, durum: 'eslesti', matrah_1: 0, kdv_1: 0, matrah_10: 0, kdv_10: 0, matrah_20: matrah, kdv_20: hesap_20 };
+  }
+  return { oran: 'karma', durum: 'karma', matrah_1: 0, kdv_1: 0, matrah_10: 0, kdv_10: 0, matrah_20: 0, kdv_20: 0 };
+}
+
+function _zFmt(val) { return val > 0 ? val.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺' : '—'; }
+
 // ===================== Z RAPORU RENDER =====================
 function renderZTable() {
   const tbody = document.getElementById('zTableBody');
   if (!tbody) return;
-  tbody.innerHTML = zData.map((r, idx) => `
-    <tr id="z_row_${idx}">
+
+  // Toplamlar
+  let topM1=0, topM10=0, topM20=0, topK1=0, topK10=0, topK20=0, topGenel=0, topKdv=0;
+
+  tbody.innerHTML = zData.map((r, idx) => {
+    const toplam = r.toplam || r.toplam_ciro || 0;
+    const kdv    = r.topkdv || r.toplam_kdv || 0;
+
+    // Kullanıcı zaten manuel girmişse (düzenle ile) onları kullan
+    const manuelVar = (r.kdv_1_matrah||0) > 0 || (r.kdv_10_matrah||0) > 0 || (r.kdv_20_matrah||0) > 0
+                   || (r.kdv_1_tutar||0) > 0 || (r.kdv_10_tutar||0) > 0 || (r.kdv_20_tutar||0) > 0;
+
+    let m1, m10, m20, k1, k10, k20, durum, oran;
+
+    if (manuelVar) {
+      // Manuel değerler var → olduğu gibi göster
+      m1  = r.kdv_1_matrah  || 0; k1  = r.kdv_1_tutar  || 0;
+      m10 = r.kdv_10_matrah || 0; k10 = r.kdv_10_tutar || 0;
+      m20 = r.kdv_20_matrah || 0; k20 = r.kdv_20_tutar || 0;
+      durum = 'eslesti'; oran = null;
+      // Hangi oranlar dolu ise tespit et
+      const dolular = [];
+      if (k1 > 0 || m1 > 0) dolular.push(1);
+      if (k10 > 0 || m10 > 0) dolular.push(10);
+      if (k20 > 0 || m20 > 0) dolular.push(20);
+      oran = dolular.length === 1 ? dolular[0] : (dolular.length > 1 ? 'karma' : null);
+      if (dolular.length > 1) durum = 'karma';
+    } else {
+      // Otomatik tespit
+      const t = _zKdvOranTespit(toplam, kdv);
+      m1 = t.matrah_1; k1 = t.kdv_1;
+      m10 = t.matrah_10; k10 = t.kdv_10;
+      m20 = t.matrah_20; k20 = t.kdv_20;
+      durum = t.durum; oran = t.oran;
+      // Tespit edilen değerleri zData üstünde de güncelle (Luca export'ta kullanılıyor)
+      r.kdv_1_matrah  = Math.round(m1 * 100) / 100;
+      r.kdv_1_tutar   = Math.round(k1 * 100) / 100;
+      r.kdv_10_matrah = Math.round(m10 * 100) / 100;
+      r.kdv_10_tutar  = Math.round(k10 * 100) / 100;
+      r.kdv_20_matrah = Math.round(m20 * 100) / 100;
+      r.kdv_20_tutar  = Math.round(k20 * 100) / 100;
+    }
+
+    // Toplamları güncelle
+    topM1 += m1; topM10 += m10; topM20 += m20;
+    topK1 += k1; topK10 += k10; topK20 += k20;
+    topGenel += toplam; topKdv += kdv;
+
+    // Satır CSS sınıfı
+    const satirCls = durum === 'eslesti' ? 'z-satir-eslesti' : (durum === 'karma' ? 'z-satir-karma' : 'z-satir-bos');
+
+    // Oran etiketi (TopKDV sütunu yanına)
+    let oranEtiket = '';
+    if (durum === 'eslesti' && oran && oran !== 'karma') {
+      oranEtiket = `<span class="z-oran-etiket z-oran-etiket-${oran}">%${oran}</span>`;
+    } else if (durum === 'karma') {
+      oranEtiket = `<span class="z-oran-etiket z-oran-etiket-karma">Karma</span>`;
+    }
+
+    return `<tr id="z_row_${idx}" class="${satirCls}">
       <td>${r.mukellef||''}</td>
       <td id="z_tarih_${idx}">${r.tarih||''}</td>
       <td style="text-align:center;">${r.z_sayac ? `<span style="font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--accent2);background:rgba(52,211,153,0.1);padding:2px 8px;border-radius:4px;">${r.z_sayac}</span>` : '<span style="color:var(--text3);font-size:11px;">—</span>'}</td>
-      <td><strong>${(r.toplam||r.toplam_ciro||0).toLocaleString('tr-TR')} ₺</strong></td>
-      <td style="color:var(--accent);"><strong>${(r.topkdv||r.toplam_kdv||0).toLocaleString('tr-TR')} ₺</strong></td>
-      <td id="z_m1_${idx}">${(r.kdv_1_matrah||0) > 0 ? (r.kdv_1_matrah||0).toLocaleString('tr-TR') + ' ₺' : '—'}</td>
-      <td id="z_m10_${idx}">${(r.kdv_10_matrah||0) > 0 ? (r.kdv_10_matrah||0).toLocaleString('tr-TR') + ' ₺' : '—'}</td>
-      <td id="z_m20_${idx}">${(r.kdv_20_matrah||0) > 0 ? (r.kdv_20_matrah||0).toLocaleString('tr-TR') + ' ₺' : '—'}</td>
-      <td id="z_k1_${idx}">${(r.kdv_1_tutar||0) > 0 ? (r.kdv_1_tutar||0).toLocaleString('tr-TR') + ' ₺' : '—'}</td>
-      <td id="z_k10_${idx}">${(r.kdv_10_tutar||0) > 0 ? (r.kdv_10_tutar||0).toLocaleString('tr-TR') + ' ₺' : '—'}</td>
-      <td id="z_k20_${idx}">${(r.kdv_20_tutar||0) > 0 ? (r.kdv_20_tutar||0).toLocaleString('tr-TR') + ' ₺' : '—'}</td>
+      <td><strong>${toplam.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} ₺</strong></td>
+      <td style="color:var(--accent);"><strong>${kdv.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} ₺</strong>${oranEtiket}</td>
+      <td id="z_m1_${idx}">${_zFmt(m1)}</td>
+      <td id="z_m10_${idx}">${_zFmt(m10)}</td>
+      <td id="z_m20_${idx}">${_zFmt(m20)}</td>
+      <td id="z_k1_${idx}">${_zFmt(k1)}</td>
+      <td id="z_k10_${idx}">${_zFmt(k10)}</td>
+      <td id="z_k20_${idx}">${_zFmt(k20)}</td>
       <td><button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" onclick="zDuzenle(${idx})">✏️</button></td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
+
+  // Alt toplam satırı
+  const tfoot = document.getElementById('zTableFooter');
+  if (tfoot) {
+    tfoot.style.display = zData.length > 0 ? '' : 'none';
+    tfoot.innerHTML = `<tr>
+      <td colspan="3" style="text-align:right;padding-right:12px;">TOPLAM</td>
+      <td><strong>${topGenel.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} ₺</strong></td>
+      <td style="color:var(--accent);"><strong>${topKdv.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} ₺</strong></td>
+      <td>${_zFmt(topM1)}</td>
+      <td>${_zFmt(topM10)}</td>
+      <td>${_zFmt(topM20)}</td>
+      <td>${_zFmt(topK1)}</td>
+      <td>${_zFmt(topK10)}</td>
+      <td>${_zFmt(topK20)}</td>
+      <td></td>
+    </tr>`;
+  }
+
   document.getElementById('zCount').textContent = zData.length + ' kayıt';
   document.getElementById('zResult').classList.add('visible');
 }
