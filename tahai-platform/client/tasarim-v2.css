@@ -1,0 +1,374 @@
+/* ═══════════════════════════════════════════════════════════════
+   TahAI — Tasarım v2 (Muhasebe odaklı görsel yenileme)
+   Bu dosya mevcut stillerin ÜZERİNE yazar; JS'e ve HTML yapısına
+   dokunmaz. Geri almak için index.html'deki <link> satırını silin.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. RENK PALETİ ──────────────────────────────────────────── */
+
+body.tema-koyu {
+  --bg: #0d1017;
+  --surface: #151a26;
+  --surface2: #1c2233;
+  --card: #151a26;
+  --card2: #1c2233;
+  --border: #2b3149;
+  --accent: #5b9cf8;
+  --accent2: #2dd4a7;
+  --accent3: #f5a524;
+  --danger: #f87171;
+  --text: #e8edf5;
+  --text2: #93a0b4;
+  --text3: #5b6678;
+  --muted: #5b6678;
+  --shadow: rgba(0,0,0,0.35);
+}
+
+body.tema-acik {
+  --bg: #eef2f7;
+  --surface: #ffffff;
+  --surface2: #f5f8fb;
+  --card: #ffffff;
+  --card2: #f5f8fb;
+  --border: #dde5ef;
+  --accent: #1e5fa8;
+  --accent2: #2f855a;
+  --accent3: #c05621;
+  --danger: #c53030;
+  --text: #1a2433;
+  --text2: #51607a;
+  --text3: #7b8aa0;
+  --muted: #a5b2c5;
+  --shadow: rgba(23,43,77,0.10);
+}
+
+/* ── 2. TEMEL TİPOGRAFİ ──────────────────────────────────────── */
+
+body {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Sayılar her yerde hizalı otursun (muhasebe için kritik) */
+table, .stat-value, .kdvmut-tablo .sayi, .rr-ozet-deger,
+.kdv-ozet-kart .stat-value, .ws-stat-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* İnce, göze batmayan kaydırma çubukları */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text3); background-clip: padding-box; border: 2px solid transparent; }
+
+/* ── 3. ÜST BAR ──────────────────────────────────────────────── */
+
+header {
+  height: 58px;
+  padding: 0 24px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.logo-icon {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(79,142,247,0.35);
+}
+
+.gm-btn {
+  border-radius: 10px;
+  padding: 7px 14px;
+  background: var(--surface2);
+  box-shadow: inset 0 0 0 1px transparent;
+}
+.gm-btn:hover { box-shadow: 0 2px 8px var(--shadow); }
+
+/* ── 4. KENAR MENÜ ───────────────────────────────────────────── */
+
+.sidebar {
+  width: 232px;
+  padding: 16px 10px;
+  gap: 1px;
+}
+
+.sidebar-kategori {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  padding: 14px 12px 6px;
+  font-weight: 600;
+}
+
+.sidebar-item {
+  border-left: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin: 1px 0;
+  font-size: 13.5px;
+  font-weight: 450;
+  transition: background .15s, color .15s;
+}
+
+.sidebar-item:hover { background: var(--surface2); }
+
+.sidebar-item.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(79,142,247,0.30);
+}
+.sidebar-item.active .sidebar-icon { filter: grayscale(0); }
+
+.sidebar-subitem {
+  border-radius: 8px;
+  margin: 1px 0 1px 10px;
+}
+
+/* Açık temada koyu lacivert menü yerine temiz beyaz menü */
+body.tema-acik .sidebar {
+  background: #ffffff;
+  border-right: 1px solid var(--border);
+  color: var(--text);
+}
+body.tema-acik .sidebar-item { color: var(--text2); }
+body.tema-acik .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+body.tema-acik .sidebar-item.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-left-color: transparent;
+}
+body.tema-acik .sidebar-kategori { color: var(--text3); }
+
+/* ── 5. İÇERİK & KARTLAR ─────────────────────────────────────── */
+
+.content { padding: 28px 32px; gap: 20px; }
+
+.card {
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px var(--shadow);
+  transition: box-shadow .2s;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+
+.card-desc { line-height: 1.55; }
+
+/* ── 6. BUTONLAR ─────────────────────────────────────────────── */
+
+.btn {
+  border-radius: 9px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.btn:focus-visible, .form-input:focus-visible, .form-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(79,142,247,0.35);
+}
+.btn-primary:hover { opacity: 1; filter: brightness(1.1); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-success { box-shadow: 0 1px 4px rgba(52,211,153,0.30); }
+.btn-success:hover { opacity: 1; filter: brightness(1.1); transform: translateY(-1px); }
+
+.btn-outline:hover { background: var(--surface2); }
+
+/* ── 7. FORMLAR ──────────────────────────────────────────────── */
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text2);
+}
+
+.form-input, .form-select {
+  border-radius: 9px;
+  padding: 9px 13px;
+  font-size: 13.5px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.form-input:focus, .form-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.15);
+}
+
+/* ── 8. TABLOLAR (muhasebe için en kritik bölüm) ─────────────── */
+
+.table-wrap {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface2);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.6px;
+  padding: 10px 14px;
+}
+
+td {
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Tarih ve tutarlar asla satır bölmesin — tablo yatay kaydırılır */
+th, td { white-space: nowrap; }
+
+/* Zebra çizgili satırlar — uzun listelerde satır takibi kolaylaşır */
+tbody tr:nth-child(even) td { background: var(--surface2); }
+tr:hover td { background: rgba(79,142,247,0.07) !important; }
+body.tema-acik tbody tr:nth-child(even) td { background: #f8fafd; }
+body.tema-acik tr:hover td { background: rgba(30,95,168,0.06) !important; }
+
+/* Z Raporu renkli satırları zebra'dan etkilenmesin */
+tr.z-satir-eslesti td, tr.z-satir-eslesti:nth-child(even) td { background: rgba(16,185,129,0.08) !important; }
+tr.z-satir-karma td, tr.z-satir-karma:nth-child(even) td { background: rgba(239,68,68,0.08) !important; }
+
+/* ── 9. İSTATİSTİK KARTLARI ──────────────────────────────────── */
+
+.stat-card {
+  border-radius: 12px;
+  padding: 18px 20px;
+  border-top: 3px solid var(--accent);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+.stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+}
+
+/* ── 10. SEKMELER ────────────────────────────────────────────── */
+
+.tab {
+  border-radius: 8px 8px 0 0;
+  font-weight: 500;
+}
+.tab.active { font-weight: 650; }
+
+.ws-tab, .bey-tur-btn, .kdvmut-sekme-btn { border-radius: 9px; }
+
+/* ── 11. YÜKLEME ALANI ───────────────────────────────────────── */
+
+.upload-zone {
+  border-radius: 14px;
+  border-width: 2px;
+  transition: border-color .2s, background .2s, transform .15s;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  transform: scale(1.005);
+  background: rgba(79,142,247,0.05);
+}
+
+.upload-icon { opacity: 0.85; }
+
+/* ── 12. GİRİŞ EKRANI ────────────────────────────────────────── */
+
+.login-overlay {
+  background:
+    radial-gradient(1100px 500px at 70% -10%, rgba(79,142,247,0.13), transparent),
+    radial-gradient(900px 500px at 10% 110%, rgba(45,212,167,0.10), transparent),
+    var(--bg);
+}
+
+.login-box {
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.45), 0 0 0 1px var(--border);
+  border: none;
+}
+
+.login-input { border-radius: 10px; padding: 12px 15px; }
+.login-input:focus { box-shadow: 0 0 0 3px rgba(79,142,247,0.18); }
+.login-btn { border-radius: 10px; padding: 13px; font-size: 14.5px; }
+.login-btn:hover { opacity: 1; filter: brightness(1.12); }
+
+/* ── 13. BİLDİRİM / BOŞ DURUM ────────────────────────────────── */
+
+.notif {
+  border-radius: 12px;
+  box-shadow: 0 8px 28px var(--shadow);
+  font-weight: 500;
+}
+
+.empty-state { padding: 48px 20px; }
+.empty-icon { opacity: 0.6; }
+
+/* ── 14. SONUÇ ALANLARI / ROZETLER ───────────────────────────── */
+
+.result-area { border-radius: 14px; }
+
+/* Dar ekranda buton satırı taşmasın, düzgünce alt satıra geçsin */
+.result-header {
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.result-header > div { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.badge, .rr-badge, .kdv-badge, .muavin-badge {
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* Mükellef çalışma alanı modül kartları */
+.ws-modul-kart {
+  border-radius: 14px;
+  transition: transform .15s, box-shadow .2s;
+}
+.ws-modul-kart:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+/* ── 15. YAZDIRMA (muhasebeci için: temiz rapor çıktısı) ─────── */
+
+@media print {
+  header, .sidebar, .api-bar, .tema-btn, .btn, button,
+  .upload-zone, .tabs, .notif, #chatbotBalon, #yardimPanel,
+  .gm-wrap, .secret-area, .fatura-filtre-bar, .kdv-filtre-bar {
+    display: none !important;
+  }
+  body { background: #fff !important; color: #000 !important; }
+  .content { padding: 0 !important; overflow: visible !important; }
+  main { overflow: visible !important; display: block !important; }
+  .card, .table-wrap, .result-area {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    break-inside: avoid;
+  }
+  th { background: #f0f0f0 !important; color: #000 !important; position: static !important; }
+  td { color: #000 !important; background: #fff !important; }
+  tbody tr:nth-child(even) td { background: #f7f7f7 !important; }
+  .page.active { display: block !important; }
+}
