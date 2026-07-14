@@ -6582,6 +6582,56 @@ function _fisToplamMatrah(r) { return _fisKalemler(r).reduce((s,k)=>s+k.matrah,0
 function _fisToplamKdv(r)    { return _fisKalemler(r).reduce((s,k)=>s+k.kdv,0); }
 function _fisToplamTutar(r)  { return _fisKalemler(r).reduce((s,k)=>s+k.toplam,0); }
 
+// ─── Akıllı tutar düzeltme: AI aritmetik hatalarını matematiksel yakala ─────
+// Her kalemde 2 bağımsız denklem var: matrah+kdv=toplam ve kdv=matrah×oran.
+// 3 alandan 2'si tutarlıysa yanlış olan TEK alan türetilir (AI'a güvenilmez);
+// hiçbiri tutmuyorsa _kdvHata ile işaretlenir (mevcut ⚠️ davranışı).
+// Ayrıca fişte YAZAN genel_toplam/topkdv ile çapraz kontrol yapılır.
+function _fisAkilliDuzelt(r) {
+  if (!Array.isArray(r.kalemler) || r.kalemler.length === 0) return;
+  const tolA = 0.05;
+  let duzeltildi = false;
+
+  r.kalemler.forEach(k => {
+    const o = parseInt(k.oran);
+    if (o !== 1 && o !== 10 && o !== 20) return; // sadece bilinen oranlar
+    const c = o / 100;
+    const tolB = m => Math.max(0.05, Math.abs(m) * c * 0.02); // yuvarlama payı
+
+    const A = Math.abs(k.matrah + k.kdv - k.toplam) <= tolA;            // matrah+kdv=toplam
+    const B = Math.abs(k.matrah * c - k.kdv) <= tolB(k.matrah);         // kdv=matrah×oran
+    const C = Math.abs(k.matrah * (1 + c) - k.toplam) <= tolB(k.matrah);// toplam=matrah×(1+oran)
+    const D = Math.abs((k.toplam - k.kdv) * c - k.kdv) <= tolB(k.toplam - k.kdv); // matrah'sız tutarlılık
+
+    if (A && B) return; // tutarlı — dokunma
+    if      (B && !A) { k.toplam = +(k.matrah + k.kdv).toFixed(2);  duzeltildi = true; } // sadece toplam yanlış
+    else if (C && !B) { k.kdv    = +(k.toplam - k.matrah).toFixed(2); duzeltildi = true; } // sadece kdv yanlış
+    else if (D && !B) { k.matrah = +(k.toplam - k.kdv).toFixed(2);  duzeltildi = true; } // sadece matrah yanlış
+    else if (r.kalemler.length === 1 && r.genel_toplam > 0 && Math.abs(k.toplam - r.genel_toplam) <= tolA) {
+      // Tek oranlı fiş + fişte yazan TOPLAM doğrulanmış → matrah/KDV toplamdan türet (Z raporu yöntemi)
+      k.matrah = +(k.toplam / (1 + c)).toFixed(2);
+      k.kdv    = +(k.toplam - k.matrah).toFixed(2);
+      duzeltildi = true;
+    } else {
+      r._kdvHata = true; // otomatik düzeltilemedi — elle kontrol için işaretle
+    }
+  });
+
+  if (duzeltildi) {
+    // Özet alanları kalemlerden yeniden senkronize et
+    r.matrah     = r.kalemler.reduce((s,k)=>s+k.matrah,0);
+    r.kdv_tutari = r.kalemler.reduce((s,k)=>s+k.kdv,0);
+    r.toplam     = r.kalemler.reduce((s,k)=>s+k.toplam,0);
+    r._otoDuzeltildi = true;
+  }
+
+  // Fişte yazan TOPLAM / TOPKDV ile çapraz kontrol (karma fişlerde AI toplama hatasını yakalar)
+  const gt = parseFloat(r.genel_toplam || 0);
+  if (gt > 0 && Math.abs(r.kalemler.reduce((s,k)=>s+k.toplam,0) - gt) > 0.05) r._kdvHata = true;
+  const tk = parseFloat(r.topkdv || 0);
+  if (tk > 0 && Math.abs(r.kalemler.reduce((s,k)=>s+k.kdv,0) - tk) > 0.05) r._kdvHata = true;
+}
+
 // ── KKEG Tespit ve Tablo ──────────────────────────────────────
 function _fisKKEGKontrolEt(fis) {
   const tur = String(fis.fis_turu || '').toLowerCase();
@@ -6800,7 +6850,8 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
     const dupStyle = r._duplicate ? 'background:rgba(248,113,113,0.08);' : '';
     const kdvStyle = r._kdvHata   ? 'background:rgba(251,191,36,0.10);'  : '';
     const rowStyle = dupStyle || kdvStyle;
-    const kdvUyari = r._kdvHata   ? '<span title="Tutarlar uyuşmuyor" style="color:#f59e0b;">⚠️</span>' : '';
+    const kdvUyari = r._kdvHata   ? '<span title="Tutarlar uyuşmuyor — elle kontrol edin" style="color:#f59e0b;">⚠️</span>'
+                   : (r._otoDuzeltildi ? '<span title="Tutarlar fişteki toplam/oran üzerinden otomatik düzeltildi" style="color:#3b82f6;cursor:help;">ℹ️</span>' : '');
     const secili = _fisSecilenIdxler.has(idx) ? ' secili' : '';
 
     // Karma KDV badge + tooltip
@@ -6956,12 +7007,20 @@ JSON formatı:
     "fis_no": "fiş üzerindeki FİŞ NO / FİŞNO / Fiş No / BELGE NO numarası (örn 0006, 62, 3) — baştaki sıfırlar dahil, yoksa veya okunamıyorsa boş string",
     "fis_turu": "Market / Akaryakıt / Restoran / Kırtasiye / Diğer",
     "satici": "satıcı firma adı",
+    "genel_toplam": 2500.00,
+    "topkdv": 227.27,
     "kalemler": [
       { "oran": 10, "matrah": 200.00, "kdv": 20.00, "toplam": 220.00 },
       { "oran": 20, "matrah": 100.00, "kdv": 20.00, "toplam": 120.00 }
     ]
   }
 ]
+
+HESAPLAMA YAPMA — FİŞTE YAZANI OKU (ÇOK ÖNEMLİ):
+- Fişin alt kısmında KDV dökümü varsa (ör: "TOPKDV", "KDV %10", "%10 KDV TUTARI", oran bazlı matrah satırları) her oranın matrah/KDV değerini ORADAN oku
+- Ürün satırlarını KENDİN TOPLAYIP hesaplama — aynı oranda 3 ürün varsa bile fişte yazan o oranın toplam değerini kullan
+- "genel_toplam": fişin altında yazan TOPLAM/TOP tutarını AYNEN oku (hesaplama), yoksa 0
+- "topkdv": fişin altında yazan TOPKDV/KDV toplamını AYNEN oku, yoksa 0
 
 KURALLAR:
 - Her fişi ayrı obje olarak yaz
@@ -6984,6 +7043,8 @@ KURALLAR:
           r.dosya = f.name;
           r.fis_turu = normalizeFisTuru(r.fis_turu || '');
           r.fis_no = String(r.fis_no || '').trim(); // opsiyonel — okunamazsa boş kalır
+          r.genel_toplam = parseFloat(r.genel_toplam || 0) || 0; // fişte yazan TOPLAM (çapraz kontrol için)
+          r.topkdv = parseFloat(r.topkdv || 0) || 0;             // fişte yazan TOPKDV
 
           // ── Kalemler normalizasyonu ──
           if (Array.isArray(r.kalemler) && r.kalemler.length > 0) {
@@ -7011,6 +7072,9 @@ KURALLAR:
               toplam: parseFloat(r.toplam || 0)
             }];
           }
+
+          // AI aritmetik hatalarını matematiksel çapraz kontrolle yakala/düzelt
+          _fisAkilliDuzelt(r);
 
           // Mükellefe özel öğrenilen kodları kullan (varsa)
           const _ogKodlar = getMukellefHesapKodlari ? getMukellefHesapKodlari(mukellef) : null;
