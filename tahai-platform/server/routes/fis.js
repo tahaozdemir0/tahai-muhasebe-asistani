@@ -27,7 +27,7 @@ router.get('/:mukellefId', async (req, res) => {
 // POST /api/fis — Yeni fiş kaydet
 router.post('/', async (req, res) => {
   const {
-    mukellef_id, tarih, fis_turu, satici,
+    mukellef_id, tarih, fis_no, fis_turu, satici,
     kdv_orani, matrah, kdv_tutari, toplam, donem,
     hesap_kodu, gorsel_url, ai_verisi
   } = req.body;
@@ -52,6 +52,7 @@ router.post('/', async (req, res) => {
       user_id: req.user.id,
       mukellef_id,
       tarih,
+      fis_no: fis_no || '',
       fis_turu: fis_turu || '',
       satici: satici || '',
       kdv_orani: kdv_orani || 0,
@@ -92,6 +93,7 @@ router.post('/bulk', async (req, res) => {
     user_id: req.user.id,
     mukellef_id,
     tarih: f.tarih || '',
+    fis_no: f.fis_no || '',
     fis_turu: f.fis_turu || '',
     satici: f.satici || '',
     kdv_orani: f.kdv_orani || 0,

@@ -1895,6 +1895,7 @@
           <div class="result-title">✅ İşlenen Fişler <span class="badge" id="fisCount">0 kayıt</span></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn btn-success" onclick="downloadExcel('fis')">⬇️ Luca Excel İndir</button>
+            <button class="btn btn-success" onclick="lucaMasrafCSVIndir()" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);">📥 Luca Masraf CSV İndir</button>
             <button class="btn btn-outline" onclick="downloadFisGruplu()" style="font-size:12px;">📊 Gruplu CSV</button>
             <button class="btn btn-primary" onclick="fisMukellefKaydet()" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">💾 Mükellefe Kaydet</button>
             <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="tumFisleriSil()">🗑️ Tüm Fişleri Sil</button>
@@ -1972,6 +1973,7 @@
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
                   <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş No</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
                   <th style="padding:8px 10px;text-align:right;">Matrah</th>
@@ -2007,6 +2009,7 @@
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
                   <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş No</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
                   <th style="padding:8px 10px;text-align:right;">Matrah</th>
@@ -2042,6 +2045,7 @@
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
                   <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş No</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
                   <th style="padding:8px 10px;text-align:right;">Matrah</th>
@@ -2075,6 +2079,7 @@
                 <thead><tr style="background:var(--bg);font-size:12px;color:var(--text3);">
                   <th style="width:4px;padding:0;"></th>
                   <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                  <th style="padding:8px 10px;text-align:left;">Fiş No</th>
                   <th style="padding:8px 10px;text-align:left;">Fiş Türü</th>
                   <th style="padding:8px 10px;text-align:left;">Satıcı/Yer</th>
                   <th style="padding:8px 10px;text-align:right;">Matrah</th>
@@ -6332,6 +6337,7 @@ async function fisMukellefKaydet() {
     if (mukId) {
       const apiFisler = fisData.map(f => ({
         tarih: f.tarih || '',
+        fis_no: f.fis_no || '',
         fis_turu: f.fis_turu || '',
         satici: f.satici || '',
         kdv_orani: _fisKalemler(f)[0]?.oran || f.kdv_orani || 0,
@@ -6819,6 +6825,11 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
     <tr class="fis-satir${secili}" data-fis-idx="${idx}" onclick="_fisSatirTikla(this,${idx},event)" style="${rowStyle}border-top:1px solid var(--border);">
       <td class="fis-secim-gosterge"></td>
       <td style="padding:9px 10px;font-size:13px;">${r.tarih}</td>
+      <td style="padding:6px 10px;">
+        <input value="${(r.fis_no || '').replace(/"/g, '&quot;')}" placeholder="—"
+          onclick="event.stopPropagation()" onchange="fisNoGuncelle(${idx}, this.value)"
+          style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:12px;font-family:'IBM Plex Mono',monospace;" />
+      </td>
       <td style="padding:9px 10px;font-size:13px;">
         <span style="color:${renk};font-weight:600;">${r.fis_turu}${r._duplicate ? ' ⚠️' : ''}</span>${karmaBadge}
         ${!kdvGoster && !karma ? '<br>' + kdvDropdown : ''}
@@ -6838,6 +6849,13 @@ function _renderFisGrubu(grupAdi, satirlar, kdvGoster) {
   }).join('');
 }
 
+// Fiş No elle düzenleme (satır içi input'tan)
+function fisNoGuncelle(idx, val) {
+  if (!fisData[idx]) return;
+  fisData[idx].fis_no = String(val || '').trim();
+  autoSave();
+}
+
 // 1) Fiş satırı düzenleme — 8 kolon yapısıyla uyumlu
 function fisDuzenle(idx) {
   const r = fisData[idx];
@@ -6847,6 +6865,9 @@ function fisDuzenle(idx) {
   row.innerHTML = `
     <td style="padding:6px 10px;">
       <input ${inp} style="width:110px;padding:3px 6px;font-size:12px;" value="${r.tarih}" id="fe_tarih_${idx}" />
+    </td>
+    <td style="padding:6px 10px;">
+      <input ${inp} style="width:60px;padding:3px 6px;font-size:12px;" value="${(r.fis_no || '').replace(/"/g, '&quot;')}" id="fe_fisno_${idx}" />
     </td>
     <td style="padding:6px 10px;">
       <span style="color:${getFisTuruRenk(r.fis_turu)};font-size:12px;display:block;margin-bottom:3px;">${r.fis_turu}</span>
@@ -6879,6 +6900,8 @@ function fisDuzenle(idx) {
 
 function fisKaydet(idx) {
   fisData[idx].tarih = normalizeTarih(document.getElementById('fe_tarih_' + idx).value);
+  const _fisNoEl = document.getElementById('fe_fisno_' + idx);
+  if (_fisNoEl) fisData[idx].fis_no = String(_fisNoEl.value || '').trim();
   fisData[idx].matrah = parseFloat(document.getElementById('fe_matrah_' + idx).value) || 0;
   fisData[idx].kdv_tutari = parseFloat(document.getElementById('fe_kdv_' + idx).value) || 0;
   fisData[idx].toplam = parseFloat(document.getElementById('fe_toplam_' + idx).value) || 0;
@@ -6930,6 +6953,7 @@ JSON formatı:
 [
   {
     "tarih": "GG.AA.YYYY formatında",
+    "fis_no": "fiş üzerindeki FİŞ NO / FİŞNO / Fiş No / BELGE NO numarası (örn 0006, 62, 3) — baştaki sıfırlar dahil, yoksa veya okunamıyorsa boş string",
     "fis_turu": "Market / Akaryakıt / Restoran / Kırtasiye / Diğer",
     "satici": "satıcı firma adı",
     "kalemler": [
@@ -6946,7 +6970,8 @@ KURALLAR:
 - oran: 1, 10 veya 20 — belli değilse 20
 - Her kalem için matrah + kdv = toplam olmalı
 - Tüm sayıları noktalı ondalık sayı olarak ver (örn: 125.50)
-- Tarih yoksa bugünün tarihini yaz`;
+- Tarih yoksa bugünün tarihini yaz
+- fis_no OPSİYONEL: bulamazsan "" yaz, diğer alanları etkilemesin`;
 
         const raw = await callClaude(prompt, f);
         const parsed = safeParseJSON(raw);
@@ -6958,6 +6983,7 @@ KURALLAR:
           r.donem = donem;
           r.dosya = f.name;
           r.fis_turu = normalizeFisTuru(r.fis_turu || '');
+          r.fis_no = String(r.fis_no || '').trim(); // opsiyonel — okunamazsa boş kalır
 
           // ── Kalemler normalizasyonu ──
           if (Array.isArray(r.kalemler) && r.kalemler.length > 0) {
@@ -8256,6 +8282,72 @@ function _fisTarihExcel(tarih) {
     return new Date(+y, +a - 1, +g);
   }
   return null;
+}
+
+// ─── Luca Masraf CSV (ISO-8859-9, BOM YOK) ──────────────────────────────────
+// Çalışan CSV formatıyla birebir aynı:
+// TARİH;AÇIKLAMA;FİŞ NO;GİDER KODU;  TUTAR  ;  KDV1  ;  KDV10  ;  KDV20  ;  TOPLAM  ;CARİ
+// 13.07.2026;Restoran - BEEF CHICKEN RESTORAN;62;770.03.014;2.272,73;;227,27;;2.500,00;BEEF CHICKEN RESTORAN
+function _iso88599Encode(str) {
+  // ISO-8859-9 = Latin-1, 6 istisna hariç (Türkçe karakterler)
+  const ozel = { 'Ğ': 0xD0, 'İ': 0xDD, 'Ş': 0xDE, 'ğ': 0xF0, 'ı': 0xFD, 'ş': 0xFE };
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ozel[ch] !== undefined) { bytes[i] = ozel[ch]; continue; }
+    const code = str.charCodeAt(i);
+    bytes[i] = code <= 0xFF ? code : 0x3F; // eşleşmeyen karakter → '?'
+  }
+  return bytes;
+}
+
+function lucaMasrafCSVIndir() {
+  if (fisData.length === 0) { showNotif('⚠️ İndirilecek fiş yok!', 'error'); return; }
+
+  const _tr = n => (n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const temiz = s => String(s || '').replace(/;/g, ',').replace(/[\r\n]+/g, ' ').trim();
+
+  // Başlık — TUTAR/KDV/TOPLAM başlıklarındaki 2'şer boşluk çalışan formatın parçası, AYNEN korunuyor
+  const satirlar = ['TARİH;AÇIKLAMA;FİŞ NO;GİDER KODU;  TUTAR  ;  KDV1  ;  KDV10  ;  KDV20  ;  TOPLAM  ;CARİ'];
+
+  fisData.forEach(r => {
+    // Zaten hesaplanmış KDV değerlerini doğru sütuna koy — yeniden hesaplama YOK
+    let kdv1 = 0, kdv10 = 0, kdv20 = 0;
+    _fisKalemler(r).forEach(k => {
+      if      (k.oran === 1)  kdv1  += k.kdv;
+      else if (k.oran === 10) kdv10 += k.kdv;
+      else if (k.oran === 20) kdv20 += k.kdv;
+    });
+    satirlar.push([
+      r.tarih || '',
+      temiz(r.fis_turu) + ' - ' + temiz(r.satici),
+      temiz(r.fis_no),
+      r.muhasebe_kodu || '',
+      _tr(_fisToplamMatrah(r)),
+      kdv1  > 0 ? _tr(kdv1)  : '',
+      kdv10 > 0 ? _tr(kdv10) : '',
+      kdv20 > 0 ? _tr(kdv20) : '',
+      _tr(_fisToplamTutar(r)),
+      temiz(r.satici)
+    ].join(';'));
+  });
+
+  // Dosya adı dönemi: input'tan, yoksa ilk fişin tarihinden (GG.AA.YYYY → YYYY-AA)
+  let donem = document.getElementById('fisDonem')?.value || '';
+  if (!/^\d{4}-\d{2}$/.test(donem)) {
+    const t = (fisData[0]?.tarih || '').split('.');
+    donem = t.length === 3 ? `${t[2]}-${t[1]}` : new Date().toISOString().slice(0, 7);
+  }
+
+  const icerik = satirlar.join('\r\n') + '\r\n';
+  const blob = new Blob([_iso88599Encode(icerik)], { type: 'text/csv;charset=iso-8859-9' }); // BOM YOK
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `luca_masraf_${donem}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotif('✅ Luca Masraf CSV indirildi!', 'success');
 }
 
 async function _fisXLSXIndir() {
@@ -14274,6 +14366,7 @@ async function _aktifMukellefiYukle(mukellefAd) {
       fisData = fisler.map(f => {
         const base = {
           tarih: f.tarih || '',
+          fis_no: f.fis_no || '',
           fis_turu: f.fis_turu || '',
           satici: f.satici || '',
           kdv_orani: parseFloat(f.kdv_orani || 0),
